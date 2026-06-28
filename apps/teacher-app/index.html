@@ -1,0 +1,392 @@
+﻿<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/><meta name="theme-color" content="#2f8064"/><title>锐之博 · 教师端</title>
+<style>
+:root{--green:#2f8064;--green-dark:#1f5d49;--green-light:#e8f5ee;--coral:#ea7564;--coral-light:#fde8e5;--yellow:#f5c85b;--yellow-light:#fef5dd;--blue:#6aa7c9;--blue-light:#e5f0f8;--purple:#8b6ebb;--purple-light:#efe9f8;--ink:#1a2e28;--muted:#667570;--surface:#f5f0eb;--paper:#fff;--line:#e8e3db;--shadow-sm:0 2px 8px rgba(26,46,40,0.08);--shadow-md:0 4px 16px rgba(26,46,40,0.1);--shadow-lg:0 8px 30px rgba(26,46,40,0.14);--tab-h:54px;--header-h:48px;--status-h:28px;--safe-bottom:env(safe-area-inset-bottom,0px);--radius:12px;--radius-sm:8px;--radius-full:999px;font-family:-apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:var(--surface);color:var(--ink);-webkit-text-size-adjust:100%;-webkit-font-smoothing:antialiased}
+body{display:flex;flex-direction:column;line-height:1.5;font-family:-apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif}
+input,select,textarea,button{font:inherit;color:inherit}
+a{color:inherit;text-decoration:none}button{cursor:pointer;background:none;border:0}
+#app{display:flex;flex-direction:column;height:100%;max-width:480px;margin:0 auto;background:var(--surface);position:relative;overflow:hidden;width:100%;box-shadow:0 0 40px rgba(0,0,0,0.06)}
+.status-bar{flex:0 0 var(--status-h);display:flex;align-items:center;justify-content:space-between;padding:0 20px;background:var(--paper);font-size:12px;font-weight:600;z-index:120}
+.status-time{font-weight:700;font-size:13px}
+.status-icons{display:flex;align-items:center;gap:4px;opacity:.6}
+.mp-header{flex:0 0 var(--header-h);background:var(--paper);border-bottom:1px solid var(--line);z-index:110}
+.header-inner{display:flex;align-items:center;justify-content:space-between;height:100%;padding:0 16px}
+.header-title{font-size:18px;font-weight:750}
+.header-subtitle{font-size:12px;color:var(--muted);font-weight:600}
+.header-right{display:flex;align-items:center;gap:10px}
+.header-btn{position:relative;width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:50%;color:var(--muted);transition:background .15s}
+.header-btn:active{background:var(--line)}
+.badge-dot{position:absolute;top:6px;right:6px;width:8px;height:8px;border-radius:50%;background:var(--coral);border:2px solid var(--paper)}
+.page-container{flex:1;overflow:hidden;position:relative}
+.page{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;background:var(--surface);opacity:0;pointer-events:none;transition:opacity .3s,transform .3s;transform:translateY(12px);padding-top:12px;padding-bottom:calc(80px + var(--safe-bottom))}
+.page.active{opacity:1;pointer-events:auto;transform:translateY(0)}
+.tab-bar{position:fixed;left:0;right:0;bottom:0;height:calc(var(--tab-h) + var(--safe-bottom));display:flex;background:var(--paper);border-top:1px solid var(--line);padding:0 4px;padding-bottom:var(--safe-bottom);z-index:200;box-shadow:0 -6px 18px rgba(26,46,40,0.06)}
+.tab-item{flex:1;min-width:0;height:var(--tab-h);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:6px 0 4px;color:#bfbab0;transition:color .2s;position:relative;pointer-events:auto}
+.tab-item span{font-size:10px;font-weight:600}
+.tab-item svg{width:24px;height:24px}
+.tab-item.active{color:var(--green)}
+.tab-item.active::before{content:"";position:absolute;top:0;left:50%;transform:translateX(-50%);width:22px;height:2.5px;background:var(--green);border-radius:0 0 3px 3px}
+.toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.85);background:rgba(0,0,0,0.78);color:#fff;padding:12px 28px;border-radius:var(--radius-sm);font-size:14px;font-weight:600;opacity:0;pointer-events:none;transition:all .3s;z-index:999;max-width:300px;text-align:center}
+.toast.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+.greet-card{background:linear-gradient(135deg,var(--green),#1a6b52);border-radius:var(--radius);margin:12px 16px 0;padding:20px;color:#fff;position:relative;overflow:hidden}
+.greet-card::after{content:"";position:absolute;top:-30px;right:-30px;width:130px;height:130px;border-radius:50%;background:rgba(255,255,255,0.06)}
+.greet-top{position:relative;z-index:1;margin-bottom:14px}
+.greet-name{font-size:20px;font-weight:750}
+.greet-sub{font-size:13px;opacity:0.85;margin-top:2px}
+.greet-stats{display:flex;gap:12px;position:relative;z-index:1}
+.greet-stat{flex:1;background:rgba(255,255,255,0.12);border-radius:var(--radius-sm);padding:12px;text-align:center}
+.greet-stat-num{font-size:22px;font-weight:800}
+.greet-stat-label{font-size:11px;opacity:0.75;margin-top:2px}
+.quick-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 16px 0}
+.quick-card{background:var(--paper);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow-sm);display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;transition:transform .15s;border:0}
+.quick-card:active{transform:scale(0.96)}
+.quick-card svg{width:28px;height:28px}
+.quick-card .qc-label{font-size:13px;font-weight:650;color:var(--ink)}
+.quick-card .qc-desc{font-size:11px;color:var(--muted);text-align:center}
+.quick-card.green svg{color:var(--green)}
+.quick-card.blue svg{color:var(--blue)}
+.quick-card.coral svg{color:var(--coral)}
+.quick-card.purple svg{color:var(--purple)}
+.section-block{margin:14px 16px 0}
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.section-header h3{font-size:17px;font-weight:700}
+.section-more{font-size:13px;color:var(--green);font-weight:600;background:none;border:0;cursor:pointer}
+.schedule-card{background:var(--paper);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow-sm);margin-bottom:8px;display:flex;gap:12px;align-items:flex-start}
+.schedule-time{font-size:13px;font-weight:700;color:var(--green);flex:0 0 48px;padding-top:2px}
+.schedule-info{flex:1}
+.schedule-info .s-name{font-size:15px;font-weight:700;display:block}
+.schedule-info .s-class{font-size:13px;color:var(--muted);display:block;margin-top:2px}
+.schedule-info .s-desc{font-size:13px;color:var(--muted);margin-top:4px;line-height:1.4}
+.schedule-status{padding:3px 10px;border-radius:var(--radius-full);font-size:11px;font-weight:700;flex:0 0 auto}
+.schedule-status.ongoing{background:var(--green-light);color:var(--green)}
+.schedule-status.pending{background:var(--yellow-light);color:#b8860b}
+.schedule-status.done{background:#f0ede7;color:var(--muted)}
+.lp-header{background:var(--paper);border-radius:var(--radius);margin:12px 16px 0;padding:16px;box-shadow:var(--shadow-sm)}
+.lp-week-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.lp-week-nav button{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--muted);border:1px solid var(--line)}
+.lp-week-nav button:active{background:var(--line)}
+.lp-week-nav .lp-week-text{font-size:14px;font-weight:650}
+.lp-date-strip{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:4px}
+.lp-date-item{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;padding:7px 12px;border-radius:var(--radius-sm);font-size:12px;gap:3px;cursor:pointer}
+.lp-date-item.active{background:var(--green);color:#fff}
+.lp-date-item .lp-dow{font-weight:600}
+.lp-date-item .lp-dom{font-weight:700;font-size:13px}
+.lp-tabs{display:flex;gap:6px;padding:12px 16px 0;overflow-x:auto}
+.lp-tab{padding:7px 16px;border-radius:var(--radius-full);font-size:13px;font-weight:600;background:var(--paper);color:var(--muted);border:1px solid var(--line);white-space:nowrap;cursor:pointer}
+.lp-tab.active{background:var(--green);color:#fff;border-color:var(--green)}
+.lp-list{display:grid;gap:10px;padding:12px 16px}
+.lp-card{background:var(--paper);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow-sm);border-left:4px solid var(--green)}
+.lp-card .lp-subject{font-size:12px;font-weight:700;color:var(--green);margin-bottom:4px}
+.lp-card h4{font-size:16px;font-weight:700;margin-bottom:4px}
+.lp-card .lp-meta{font-size:13px;color:var(--muted);display:flex;gap:12px;margin-bottom:8px}
+.lp-card .lp-objectives{font-size:13px;line-height:1.5;padding:8px 10px;background:var(--surface);border-radius:var(--radius-sm);margin-bottom:8px}
+.lp-card .lp-footer{display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:1px solid var(--line)}
+.lp-card .lp-status{padding:3px 10px;border-radius:var(--radius-full);font-size:11px;font-weight:700}
+.lp-status.draft{background:var(--yellow-light);color:#b8860b}
+.lp-status.published{background:var(--green-light);color:var(--green)}
+.lp-actions{display:flex;gap:6px}
+.lp-actions button{padding:4px 12px;border-radius:var(--radius-full);font-size:12px;font-weight:600}
+.lp-actions .lp-edit{border:1px solid var(--line);color:var(--muted)}
+.lp-actions .lp-use{background:var(--green);color:#fff}
+.res-tabs{display:flex;gap:6px;padding:12px 16px 0;overflow-x:auto}
+.res-tab{padding:7px 16px;border-radius:var(--radius-full);font-size:13px;font-weight:600;background:var(--paper);color:var(--muted);border:1px solid var(--line);white-space:nowrap;cursor:pointer}
+.res-tab.active{background:var(--green);color:#fff;border-color:var(--green)}
+.res-list{display:grid;gap:10px;padding:12px 16px}
+.res-card{background:var(--paper);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow-sm)}
+.res-card .res-type{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:var(--radius-full);font-size:11px;font-weight:700;margin-bottom:8px}
+.res-type.lecture{background:var(--blue-light);color:var(--blue)}
+.res-type.eval{background:var(--purple-light);color:var(--purple)}
+.res-type.seminar{background:var(--green-light);color:var(--green)}
+.res-type.training{background:var(--yellow-light);color:#b8860b}
+.res-card h4{font-size:15px;font-weight:700;margin-bottom:4px}
+.res-card .res-meta{font-size:13px;color:var(--muted);margin-bottom:8px;display:flex;gap:12px}
+.res-card .res-desc{font-size:13px;line-height:1.5;margin-bottom:8px}
+.res-card .res-footer{display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:1px solid var(--line)}
+.res-people{display:flex;gap:4px}
+.res-avatar{width:24px;height:24px;border-radius:50%;background:var(--green-light);color:var(--green);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700}
+.res-card .res-status{padding:3px 10px;border-radius:var(--radius-full);font-size:11px;font-weight:700}
+.res-status.upcoming{background:var(--blue-light);color:var(--blue)}
+.res-status.done{background:#f0ede7;color:var(--muted)}
+.tr-sub-tabs{display:flex;margin:0 16px;padding:12px 0 4px;gap:0;background:var(--surface)}
+.tr-sub-tab{flex:1;padding:9px 0;font-size:14px;font-weight:650;text-align:center;color:var(--muted);border-bottom:2px solid transparent;cursor:pointer}
+.tr-sub-tab.active{color:var(--green);border-bottom-color:var(--green)}
+.tr-form{background:var(--paper);border-radius:var(--radius);padding:16px;margin:10px 16px 0;box-shadow:var(--shadow-sm)}
+.tr-field{margin-bottom:12px}
+.tr-form label{display:block;font-size:13px;font-weight:650;color:var(--muted);margin-bottom:4px}
+.tr-form .tr-input,.tr-form .tr-select,.tr-form .tr-textarea{width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:var(--radius-sm);background:var(--surface);font-size:14px}
+.tr-form .tr-input:focus,.tr-form .tr-select:focus,.tr-form .tr-textarea:focus{border-color:var(--green);outline:none;background:var(--paper)}
+.tr-form .tr-textarea{min-height:100px;resize:vertical}
+.tr-form .tr-row{display:flex;gap:10px}
+.tr-form .tr-row>*{flex:1}
+.tr-form .tr-check-group{display:flex;gap:12px;flex-wrap:wrap}
+.tr-form .tr-check-label{display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer}
+.tr-form .tr-check-label input[type="checkbox"]{width:18px;height:18px;accent-color:var(--green)}
+.tr-submit{width:100%;padding:14px;border-radius:var(--radius-full);background:var(--green);color:#fff;font-size:16px;font-weight:750;border:0;cursor:pointer;box-shadow:0 6px 20px rgba(47,128,100,0.3);margin-top:6px}
+.tr-record-list{display:grid;gap:10px;padding:0 16px;margin-top:4px}
+.tr-record-item{background:var(--paper);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow-sm)}
+.tr-record-item .tr-r-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
+.tr-record-item .tr-r-date{font-size:12px;color:var(--muted)}
+.tr-record-item .tr-r-class{font-size:12px;font-weight:700;color:var(--green)}
+.tr-record-item .tr-r-content{font-size:14px;line-height:1.5;margin-bottom:6px}
+.tr-record-item .tr-r-tags{display:flex;gap:4px;flex-wrap:wrap}
+.tr-record-item .tr-r-tag{padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600;background:var(--surface);color:var(--muted)}
+.hw-form{background:var(--paper);border-radius:var(--radius);padding:16px;margin:10px 16px 0;box-shadow:var(--shadow-sm)}
+.hw-field{margin-bottom:12px}
+.hw-form label{display:block;font-size:13px;font-weight:650;color:var(--muted);margin-bottom:4px}
+.hw-form .hw-input,.hw-form .hw-select,.hw-form .hw-textarea{width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:var(--radius-sm);background:var(--surface);font-size:14px}
+.hw-form .hw-input:focus,.hw-form .hw-select:focus,.hw-form .hw-textarea:focus{border-color:var(--green);outline:none;background:var(--paper)}
+.hw-form .hw-textarea{min-height:80px;resize:vertical}
+.hw-upload-area{border:2px dashed var(--line);border-radius:var(--radius-sm);padding:20px;text-align:center;cursor:pointer;background:var(--surface)}
+.hw-upload-area:active{border-color:var(--green);background:var(--green-light)}
+.hw-upload-area svg{width:32px;height:32px;color:var(--muted);margin-bottom:6px}
+.hw-upload-area .hw-upload-text{font-size:14px;color:var(--muted);font-weight:600}
+.hw-upload-area .hw-upload-hint{font-size:12px;color:var(--muted);margin-top:4px}
+.hw-preview-list{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.hw-preview-item{width:64px;height:64px;border-radius:var(--radius-sm);background:var(--surface);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+.hw-preview-item .hw-remove{position:absolute;top:-4px;right:-4px;width:20px;height:20px;border-radius:50%;background:var(--coral);color:#fff;font-size:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:2px solid var(--paper)}
+.hw-submit{width:100%;padding:14px;border-radius:var(--radius-full);background:var(--green);color:#fff;font-size:16px;font-weight:750;border:0;cursor:pointer;box-shadow:0 6px 20px rgba(47,128,100,0.3);margin-top:6px}
+.hw-list{display:grid;gap:10px;padding:0 16px 12px;margin-top:4px}
+.hw-card{background:var(--paper);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow-sm)}
+.hw-card .hw-card-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
+.hw-card h4{font-size:15px;font-weight:700}
+.hw-card .hw-badge{padding:2px 10px;border-radius:99px;font-size:11px;font-weight:700}
+.hw-badge.all{background:var(--green-light);color:var(--green)}
+.hw-badge.partial{background:var(--yellow-light);color:#b8860b}
+.hw-badge.pending{background:var(--coral-light);color:var(--coral)}
+.hw-card .hw-meta{font-size:13px;color:var(--muted);margin-bottom:4px;display:flex;gap:10px}
+.hw-card .hw-progress{margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
+.hw-card .hw-progress-bar{height:6px;background:var(--surface);border-radius:99px;overflow:hidden;margin-bottom:4px}
+.hw-card .hw-progress-fill{height:100%;background:var(--green);border-radius:99px;transition:width .5s}
+.hw-card .hw-progress-text{font-size:12px;color:var(--muted);display:flex;justify-content:space-between}
+.page::-webkit-scrollbar{width:3px}
+.page::-webkit-scrollbar-thumb{background:var(--line);border-radius:99px}
+@media(min-width:481px){#app{border-radius:20px;margin-top:20px;margin-bottom:20px;height:calc(100% - 40px)}.tab-bar{left:50%;right:auto;bottom:20px;width:480px;max-width:480px;transform:translateX(-50%);border-radius:0 0 20px 20px}body{background:#e0dbd3}}
+
+/* === 教师流程打卡 === */
+.wf-greet{background:linear-gradient(135deg,var(--green),var(--green-dark));border-radius:var(--radius);margin:12px 16px 0;padding:18px 20px;color:#fff;position:relative;overflow:hidden}
+.wf-greet::after{content:"";position:absolute;top:-30px;right:-30px;width:130px;height:130px;border-radius:50%;background:rgba(255,255,255,0.06)}
+.wf-g-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;position:relative;z-index:1}
+.wf-g-day{font-size:22px;font-weight:750;display:block;line-height:1.2}
+.wf-g-date{font-size:13px;opacity:0.8;display:block;margin-top:2px}
+.wf-g-time{text-align:right}
+.wf-g-clock{font-size:28px;font-weight:800;display:block}
+.wf-g-tlabel{font-size:11px;opacity:0.7;display:block;margin-top:-2px}
+.wf-g-prog{display:flex;align-items:center;gap:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.15);position:relative;z-index:1}
+.wf-g-ring{width:48px;height:48px;border-radius:50%;position:relative;flex:0 0 auto;display:flex;align-items:center;justify-content:center}
+.wf-g-ring svg{position:absolute;inset:0;transform:rotate(-90deg)}
+.wf-g-pct{font-size:13px;font-weight:800;color:#fff;position:relative;z-index:1}
+.wf-g-info{flex:1}
+.wf-g-title{font-size:13px;opacity:0.85;display:block}
+.wf-g-detail{font-size:12px;opacity:0.7;display:block;margin-top:3px}
+.wf-g-curr{font-size:12px;opacity:0.85;display:block;margin-top:3px;font-weight:650}
+.wf-tl{position:relative;padding:20px 16px 0 40px}
+.wf-tl::before{content:"";position:absolute;left:27px;top:24px;bottom:6px;width:2px;background:var(--line)}
+.wf-seg{position:relative;margin-bottom:10px}
+.wf-dot{position:absolute;left:-13px;top:18px;width:18px;height:18px;border-radius:50%;border:2.5px solid var(--line);background:var(--paper);z-index:2;display:flex;align-items:center;justify-content:center;font-size:10px;transition:all .25s}
+.wf-dot.done{background:var(--green);border-color:var(--green);color:#fff}
+.wf-dot.active{background:var(--paper);border-color:var(--green)}
+.wf-dot.current{background:#fef8eb;border-color:#e8a420}
+.wf-card{background:var(--paper);border-radius:var(--radius);overflow:hidden;border:1px solid transparent;transition:all .2s}
+.wf-card.expanded{border-color:var(--line)}
+.wf-card.current-card{border-color:#e8a420;box-shadow:0 0 0 1px rgba(232,164,32,0.2)}
+.wf-card.done-card{opacity:0.8}
+.wf-chd{padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent}
+.wf-sicn{width:32px;height:32px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:16px;flex:0 0 auto}
+.wf-sicn.morning{background:#e5f0f8}
+.wf-sicn.noon{background:var(--yellow-light)}
+.wf-sicn.afternoon{background:var(--coral-light)}
+.wf-sicn.evening{background:var(--purple-light)}
+.wf-sbody{flex:1;min-width:0}
+.wf-snm{font-size:15px;font-weight:700;display:block;line-height:1.3}
+.wf-stm{font-size:11px;color:var(--muted);font-weight:600;display:block;margin-top:1px}
+.wf-badge{flex:0 0 auto;font-size:10px;font-weight:700;padding:2px 8px;border-radius:var(--radius-full)}
+.wf-badge.pending{background:var(--surface);color:var(--muted)}
+.wf-badge.active{background:#fef8eb;color:#e8a420}
+.wf-badge.done{background:var(--green-light);color:var(--green)}
+.wf-arr{flex:0 0 16px;text-align:right;font-size:10px;color:var(--muted);transition:transform .25s}
+.wf-arr.open{transform:rotate(90deg)}
+.wf-steps{padding:0 14px 14px 46px}
+.wf-step{display:flex;align-items:flex-start;gap:8px;padding:7px 6px;border-bottom:1px solid rgba(0,0,0,0.03);cursor:pointer;border-radius:4px}
+.wf-step:last-child{border-bottom:none}
+.wf-step:active{background:rgba(0,0,0,0.015)}
+.wf-sdot{width:20px;height:20px;border-radius:50%;border:2px solid var(--line);flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:9px;color:transparent;transition:all .15s}
+.wf-sdot.done{background:var(--green);border-color:var(--green);color:#fff}
+.wf-stxt{flex:1;font-size:13px;line-height:1.5}
+.wf-stxt.done{color:var(--muted);text-decoration:line-through}
+.wf-scam{flex:0 0 auto;font-size:13px;opacity:0.3}
+.wf-scam.has{opacity:0.9}
+.wf-float{position:fixed;bottom:0;left:0;right:0;background:var(--paper);border-top:1px solid var(--line);padding:8px 16px;display:flex;align-items:center;gap:10px;z-index:50;max-width:480px;margin:0 auto}
+.wf-fpct{font-size:22px;font-weight:800;color:var(--green);flex:0 0 auto}
+.wf-finfo{flex:1}
+.wf-flbl{font-size:11px;color:var(--muted);display:block}
+.wf-fcur{font-size:12px;font-weight:650;display:block}
+.wf-fact{padding:6px 16px;border-radius:var(--radius-full);font-size:12px;font-weight:700;background:var(--green);color:#fff;border:0;cursor:pointer;flex:0 0 auto}
+.wf-fact:active{opacity:0.85}
+.wf-fact.reset{background:var(--surface);color:var(--muted)}
+</style></head><body><div id="app">
+<div class="status-bar"><span class="status-time" id="statusTime">9:41</span><div class="status-icons"><svg width="16" height="12" viewBox="0 0 16 12" fill="none"><rect x="0.5" y="0.5" width="15" height="11" rx="2" stroke="currentColor" stroke-opacity="0.6"/><path d="M3 6h3" stroke="currentColor" stroke-width="1.2" stroke-opacity="0.6"/><path d="M8 4h3" stroke="currentColor" stroke-width="1.2" stroke-opacity="0.6"/></svg></div></div>
+<header class="mp-header"><div class="header-inner"><div><div class="header-title" id="headerTitle">工作台</div><div class="header-subtitle" id="headerSub">锐之博 · 教师端</div></div><div class="header-right"><button class="header-btn" aria-label="通知" onclick="showToast('暂无新消息')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="badge-dot"></span></button></div></div></header>
+<main class="page-container">
+<section class="page active" data-page="home">
+<div class="greet-card"><div class="greet-top"><div class="greet-name" id="greetName">李老师，早上好 🌅</div><div class="greet-sub" id="todayDate">2026年6月7日 星期日</div></div><div class="greet-stats"><div class="greet-stat"><div class="greet-stat-num">24</div><div class="greet-stat-label">学生总数</div></div><div class="greet-stat"><div class="greet-stat-num">0</div><div class="greet-stat-label">今日课程</div></div><div class="greet-stat"><div class="greet-stat-num">6</div><div class="greet-stat-label">待批作业</div></div></div></div>
+<div class="quick-grid">
+<button class="quick-card green" onclick="switchPage('teaching');showSubTab(document.querySelector('.tr-sub-tab[data-sub=record]'),'record')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg><span class="qc-label">教学记录</span><span class="qc-desc">记录每日教学</span></button>
+<button class="quick-card blue" onclick="switchPage('teaching');showSubTab(document.querySelector('.tr-sub-tab[data-sub=homework]'),'homework')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg><span class="qc-label">上传作业</span><span class="qc-desc">拍照上传学生作业</span></button>
+<button class="quick-card coral" onclick="switchPage('lesson')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg><span class="qc-label">新建备课</span><span class="qc-desc">创建教案与计划</span></button>
+<button class="quick-card purple" onclick="switchPage('research')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span class="qc-label">教研活动</span><span class="qc-desc">研讨与听课评课</span></button>
+</div>
+<section class="section-block"><div class="section-header"><h3>今日课程</h3><button class="section-more" onclick="switchPage('lesson')">查看全部</button></div><div class="schedule-card" style="opacity:0.7"><div class="schedule-time">—</div><div class="schedule-info"><strong class="s-name">今日无课程安排</strong><span class="s-class">好好休息，下周继续加油</span></div></div></section>
+<section class="section-block"><div class="section-header"><h3>待办事项</h3></div>
+<div class="schedule-card"><div class="schedule-time"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--coral)" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div><div class="schedule-info"><strong class="s-name">批改数学作业</strong><span class="s-class">向日葵班 · 6份待批改</span></div><span class="schedule-status" style="background:var(--coral-light);color:var(--coral)">紧急</span></div>
+<div class="schedule-card"><div class="schedule-time"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg></div><div class="schedule-info"><strong class="s-name">准备下周教案</strong><span class="s-class">向日葵班 5课时需准备</span></div><span class="schedule-status" style="background:var(--yellow-light);color:#b8860b">待完成</span></div>
+</div></section>
+</section>
+<section class="page" data-page="lesson">
+<div class="lp-header"><div class="lp-week-nav"><button onclick="shiftWeek(-1)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button><span class="lp-week-text" id="weekLabel">本周</span><button onclick="shiftWeek(1)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></button></div><div class="lp-date-strip" id="dateStrip"></div></div>
+<div class="lp-tabs"><button class="lp-tab active" onclick="filterLp(this)">本周</button><button class="lp-tab" onclick="filterLp(this)">全部</button><button class="lp-tab" onclick="filterLp(this)">待完成</button></div>
+<div class="lp-list">
+<div class="lp-card"><div class="lp-subject">📖 语言 · 绘本</div><h4>《好饿的毛毛虫》精读教学</h4><div class="lp-meta"><span>大班 · 向日葵</span><span>⏱ 40分钟</span></div><div class="lp-objectives">教学目标：通过绘本精读培养观察力和语言表达能力</div><div class="lp-footer"><span class="lp-status published">已发布</span><div class="lp-actions"><button class="lp-edit" onclick="showToast('编辑教案')">编辑</button><button class="lp-use" onclick="showToast('开始授课')">开始授课</button></div></div></div>
+<div class="lp-card" style="border-left-color:var(--blue)"><div class="lp-subject">🔢 数学思维</div><h4>10以内加减法运算练习</h4><div class="lp-meta"><span>大班 · 向日葵</span><span>⏱ 40分钟</span></div><div class="lp-objectives">教学目标：掌握10以内加减法运算，通过游戏化练习培养数感</div><div class="lp-footer"><span class="lp-status published">已发布</span><div class="lp-actions"><button class="lp-edit" onclick="showToast('编辑教案')">编辑</button><button class="lp-use" onclick="showToast('开始授课')">开始授课</button></div></div></div>
+<div class="lp-card" style="border-left-color:var(--coral)"><div class="lp-subject">🎨 艺术创作</div><h4>手指画 · 夏日主题</h4><div class="lp-meta"><span>中班 · 星星</span><span>⏱ 40分钟</span></div><div class="lp-objectives">教学目标：通过手指画激发创造力，感知色彩与纹理变化</div><div class="lp-footer"><span class="lp-status draft">草稿</span><div class="lp-actions"><button class="lp-edit" onclick="showToast('编辑教案')">编辑</button><button class="lp-use" onclick="showToast('开始授课')">开始授课</button></div></div></div>
+</div></section>
+<section class="page" data-page="research">
+<div class="res-tabs"><button class="res-tab active" onclick="filterRes(this)">全部</button><button class="res-tab" onclick="filterRes(this)">研讨</button><button class="res-tab" onclick="filterRes(this)">听课评课</button><button class="res-tab" onclick="filterRes(this)">培训</button></div>
+<div class="res-list">
+<div class="res-card"><span class="res-type lecture">📋 听课评课</span><h4>大班语言课《夏天来了》听课记录</h4><div class="res-meta"><span>📅 6月3日 09:30</span><span>👤 执教：王老师</span></div><div class="res-desc">课堂氛围活跃，绘本讲述生动，建议增加幼儿互动环节。</div><div class="res-footer"><div class="res-people"><span class="res-avatar">李</span><span class="res-avatar">张</span><span class="res-avatar">+3</span></div><span class="res-status done">已完成</span></div></div>
+<div class="res-card"><span class="res-type seminar">💬 教学研讨</span><h4>本周教研会：游戏化教学实践</h4><div class="res-meta"><span>📅 6月6日 16:00</span><span>📍 多功能教室</span></div><div class="res-desc">探讨如何将游戏元素融入日常教学</div><div class="res-footer"><div class="res-people"><span class="res-avatar">李</span><span class="res-avatar">王</span><span class="res-avatar">赵</span><span class="res-avatar">+6</span></div><span class="res-status upcoming">即将开始</span></div></div>
+<div class="res-card"><span class="res-type training">📚 教师培训</span><h4>幼儿发展评估体系培训</h4><div class="res-meta"><span>📅 6月8日 14:00</span><span>⏱ 2小时</span></div><div class="res-desc">学习使用新版幼儿发展评估量表</div><div class="res-footer"><div class="res-people"><span class="res-avatar">李</span><span class="res-avatar">全</span></div><span class="res-status upcoming">即将开始</span></div></div>
+</div></section>
+<section class="page" data-page="teaching">
+<div class="tr-sub-tabs"><button class="tr-sub-tab active" data-sub="record" onclick="showSubTab(this,'record')">教学记录</button><button class="tr-sub-tab" data-sub="homework" onclick="showSubTab(this,'homework')">作业管理</button></div>
+<div id="subRecord">
+<div class="tr-form" id="trForm" style="display:none"><div class="modal-handle"></div>
+<div class="tr-field"><label>📅 日期</label><input class="tr-input" type="date" id="trDate"/></div>
+<div class="tr-row"><div class="tr-field"><label>班级</label><select class="tr-select"><option>大班 · 向日葵班</option><option>中班 · 星星班</option><option>小班 · 芽芽班</option></select></div><div class="tr-field"><label>课程</label><select class="tr-select"><option>晨读绘本</option><option>数学思维</option><option>艺术创作</option><option>户外活动</option></select></div></div>
+<div class="tr-field"><label>教学主题</label><input class="tr-input" type="text" placeholder="输入今日教学主题"/></div>
+<div class="tr-field"><label>教学内容</label><textarea class="tr-textarea" placeholder="详细记录教学过程、幼儿表现…"></textarea></div>
+<div class="tr-field"><label>幼儿表现</label><div class="tr-check-group"><label class="tr-check-label"><input type="checkbox"/> 积极参与</label><label class="tr-check-label"><input type="checkbox"/> 注意力集中</label><label class="tr-check-label"><input type="checkbox"/> 互动良好</label><label class="tr-check-label"><input type="checkbox"/> 需要关注</label></div></div>
+<button class="tr-submit" onclick="saveTeachingRecord()">保存教学记录</button>
+</div>
+<div class="tr-record-list"><div style="display:flex;justify-content:space-between;padding:0 0 6px"><span style="font-size:13px;color:var(--muted)">共 6 条记录</span><button class="section-more" onclick="showTrForm()">+ 写记录</button></div>
+<div class="tr-record-item"><div class="tr-r-header"><span class="tr-r-date">2026-06-04 周四</span><span class="tr-r-class">大班 · 向日葵班</span></div><div class="tr-r-content"><strong>数学思维 · 10以内加减法</strong><br/>大部分幼儿已掌握基础运算，3名幼儿对借位概念有困难，需个别辅导。</div><div class="tr-r-tags"><span class="tr-r-tag">数学</span><span class="tr-r-tag">计算</span><span class="tr-r-tag">个别关注</span></div></div>
+<div class="tr-record-item"><div class="tr-r-header"><span class="tr-r-date">2026-06-03 周三</span><span class="tr-r-class">中班 · 星星班</span></div><div class="tr-r-content"><strong>艺术创作 · 手指画夏日</strong><br/>孩子们对颜料很感兴趣，色彩搭配大胆，整体氛围活跃愉快。</div><div class="tr-r-tags"><span class="tr-r-tag">艺术</span><span class="tr-r-tag">创意</span><span class="tr-r-tag">精细动作</span></div></div>
+</div></div>
+<div id="subHomework" style="display:none">
+<div class="hw-form" id="hwForm" style="display:none"><div class="modal-handle"></div>
+<div class="hw-field"><label>班级</label><select class="hw-select"><option>大班 · 向日葵班</option><option>中班 · 星星班</option><option>小班 · 芽芽班</option></select></div>
+<div style="display:flex;gap:10px"><div class="hw-field" style="flex:1"><label>科目</label><select class="hw-select"><option>数学</option><option>语文</option><option>英语</option><option>美术</option><option>科学</option></select></div><div class="hw-field" style="flex:1"><label>学生</label><select class="hw-select"><option>全部学生</option><option>张小明</option><option>李小红</option><option>王小花</option></select></div></div>
+<div class="hw-field"><label>作业描述</label><textarea class="hw-textarea" placeholder="请输入作业内容描述或要求…"></textarea></div>
+<div class="hw-field"><label>上传作业图片</label><div class="hw-upload-area" onclick="simulateUpload()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg><div class="hw-upload-text">点击上传图片</div><div class="hw-upload-hint">支持 JPG、PNG、PDF 格式</div></div><div class="hw-preview-list" id="hwPreview"></div></div>
+<button class="hw-submit" onclick="submitHomework()">上传作业</button>
+</div>
+<div class="hw-list"><div style="display:flex;justify-content:space-between;padding:0 0 6px"><span style="font-size:13px;color:var(--muted)">共 4 份作业</span><button class="section-more" onclick="showHwForm()">+ 上传作业</button></div>
+<div class="hw-card"><div class="hw-card-header"><h4>10以内加减法练习</h4><span class="hw-badge partial">部分提交</span></div><div class="hw-meta"><span>大班 · 向日葵班</span><span>📅 6月4日发布</span></div><div class="hw-progress"><div class="hw-progress-bar"><div class="hw-progress-fill" style="width:67%"></div></div><div class="hw-progress-text"><span>已提交 8/12 人</span><span style="color:var(--green)">4 份待批改</span></div></div></div>
+<div class="hw-card"><div class="hw-card-header"><h4>汉字描红本</h4><span class="hw-badge all">全部提交</span></div><div class="hw-meta"><span>中班 · 星星班</span><span>📅 6月4日发布</span></div><div class="hw-progress"><div class="hw-progress-bar"><div class="hw-progress-fill" style="width:100%"></div></div><div class="hw-progress-text"><span>已提交 10/10 人</span><span style="color:var(--green)">10 份待批改</span></div></div></div>
+</div></div>
+</section>
+
+
+<section class="page" data-page="workflow">
+  <div class="wf-greet">
+    <div class="wf-g-top"><div><span class="wf-g-day" id="wfDay">星期一</span><span class="wf-g-date" id="wfDate">2026年6月7日</span></div><div class="wf-g-time"><span class="wf-g-clock" id="wfClock">09:41</span><span class="wf-g-tlabel">当前时间</span></div></div>
+    <div class="wf-g-prog"><div class="wf-g-ring"><svg width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="21" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="4"/><circle id="wfRing" cx="24" cy="24" r="21" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-dasharray="131.95" stroke-dashoffset="131.95"/></svg><span class="wf-g-pct" id="wfPct">0%</span></div><div class="wf-g-info"><span class="wf-g-title">一日流程打卡进度</span><span class="wf-g-detail">已打卡 <b id="wfDoneSegs">0</b>/13 个环节 · <b id="wfDoneSteps">0</b>/<b id="wfTotalSteps">0</b> 步</span><span class="wf-g-curr">当前环节：<b id="wfCurr">—</b></span></div></div>
+  </div>
+  <div class="wf-tl" id="wfTimeline"></div>
+  <div style="height:70px"></div>
+</section>
+
+
+</main>
+<footer class="tab-bar">
+<button class="tab-item active" data-tab="home" onclick="switchPage('home')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>工作台</span></button>
+<button class="tab-item" data-tab="lesson" onclick="switchPage('lesson')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg><span>备课</span></button>
+<button class="tab-item" data-tab="research" onclick="switchPage('research')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span>教研</span></button>
+<button class="tab-item" data-tab="teaching" onclick="switchPage('teaching')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg><span>教学</span></button>
+
+
+
+
+<button class="tab-item" data-tab="workflow" onclick="switchPage('workflow')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span>流程</span></button>
+</footer>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+function updateClock(){var d=new Date();document.getElementById('statusTime').textContent=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
+setInterval(updateClock,1e4);updateClock();
+var pageMap={home:'工作台',lesson:'备课',research:'教研',teaching:'教学',workflow:'流程'};
+var subMap={home:'锐之博 · 教师端',lesson:'教案计划与授课准备',research:'听课评课与教研活动',teaching:'教学记录与作业管理',workflow:'班级一日流程打卡'};
+function switchPage(p){
+document.querySelectorAll('.page').forEach(function(e){e.classList.remove('active')});
+document.querySelectorAll('.tab-item').forEach(function(e){e.classList.remove('active')});
+var pe=document.querySelector('.page[data-page="'+p+'"]');if(pe)pe.classList.add('active');
+var te=document.querySelector('.tab-item[data-tab="'+p+'"]');if(te)te.classList.add('active');
+document.getElementById('headerTitle').textContent=pageMap[p]||'工作台';
+document.getElementById('headerSub').textContent=subMap[p]||'锐之博 · 教师端';
+if(p==='workflow')wfRender();}
+function showToast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},1800)}
+function showSubTab(el,s){
+document.querySelectorAll('.tr-sub-tab').forEach(function(e){e.classList.remove('active')});el.classList.add('active');
+document.getElementById('subRecord').style.display=s==='record'?'block':'none';
+document.getElementById('subHomework').style.display=s==='homework'?'block':'none';
+document.getElementById('trForm').style.display='none';document.getElementById('hwForm').style.display='none';
+}
+function showTrForm(){document.getElementById('trForm').style.display='block';document.getElementById('trDate').value=new Date().toISOString().slice(0,10)}
+function showHwForm(){document.getElementById('hwForm').style.display='block'}
+function saveTeachingRecord(){showToast('教学记录已保存');document.getElementById('trForm').style.display='none'}
+function submitHomework(){showToast('作业已成功上传');document.getElementById('hwForm').style.display='none'}
+function simulateUpload(){
+var p=document.getElementById('hwPreview');var c=['#e8f5ee','#fde8e5','#fef5dd','#e5f0f8','#efe9f8'];
+var bg=c[Math.floor(Math.random()*c.length)];
+var el=document.createElement('div');el.className='hw-preview-item';
+el.innerHTML='<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:'+bg+';font-size:24px">📄</div><span class="hw-remove" onclick="this.parentElement.remove()">✕</span>';
+p.appendChild(el);showToast('已添加文件');
+}
+function filterLp(el){document.querySelectorAll('.lp-tab').forEach(function(e){e.classList.remove('active')});el.classList.add('active');showToast('筛选: '+el.textContent)}
+function filterRes(el){document.querySelectorAll('.res-tab').forEach(function(e){e.classList.remove('active')});el.classList.add('active');showToast('筛选: '+el.textContent)}
+var currentWeekOffset=0;
+function shiftWeek(d){
+currentWeekOffset+=d;var n=new Date();var s=new Date(n);s.setDate(s.getDate()+currentWeekOffset*7);
+s.setDate(s.getDate()-s.getDay()+1);renderDateStrip(s);
+document.getElementById('weekLabel').textContent='第 '+Math.ceil(((s-new Date(s.getFullYear(),0,1))/864e5+s.getDay()+1)/7)+' 周';
+}
+function renderDateStrip(s){
+var st=document.getElementById('dateStrip');st.innerHTML='';
+var dw=['日','一','二','三','四','五','六'];var t=new Date();
+for(var i=0;i<7;i++){var d=new Date(s);d.setDate(d.getDate()+i);
+var isA=d.getDate()===t.getDate()&&d.getMonth()===t.getMonth();
+var el=document.createElement('div');el.className='lp-date-item'+(isA?' active':'');
+el.innerHTML='<span class="lp-dow">'+dw[d.getDay()]+'</span><span class="lp-dom">'+d.getDate()+'</span>';
+el.onclick=function(){document.querySelectorAll('.lp-date-item').forEach(function(x){x.classList.remove('active')});this.classList.add('active')};
+st.appendChild(el);}
+}
+(function(){var n=new Date();var s=new Date(n);s.setDate(s.getDate()-s.getDay()+1);renderDateStrip(s);})();
+(function(){var d=new Date();var dw=['日','一','二','三','四','五','六'];var h=d.getHours();
+document.getElementById('todayDate').textContent=d.getFullYear()+'年'+(d.getMonth()+1)+'月'+d.getDate()+'日 星期'+dw[d.getDay()];
+var g=document.getElementById('greetName');
+if(h<9)g.textContent='李老师，早上好 🌅';else if(h<12)g.textContent='李老师，上午好 ☀️';else if(h<14)g.textContent='李老师，中午好 🌤️';else if(h<18)g.textContent='李老师，下午好 🌇';else g.textContent='李老师，晚上好 🌆';
+})();
+
+
+
+// === 教师流程打卡 ===
+var WF=[{id:"s1",t:"11:00–11:30",ic:"🏫",cl:"morning",nm:"接校",ss:[{x:"问好、礼貌（全程用请字）、举手打招呼"},{x:"给孩子一个拥抱"},{x:"发马甲 / 穿马甲（马甲委分发）"},{x:"查水杯清空情况"},{x:"路队整队：排成1-2队，间距60厘米"},{x:"点名 → 整队 → 点评"},{x:"奖励发放积分卡"},{x:"出发：齐步走、直角转弯"},{x:"放音乐，过路口喊口号"},{x:"数人数 → 再次整队"},{x:"到门口：感恩词诵读",p:1},{x:"拍照：笔直路队",p:1}]},{id:"s2",t:"11:30–11:40",ic:"🧴",cl:"morning",nm:"餐前准备",ss:[{x:"进入校区：1号声音，口号不拖音"},{x:"洗手液消毒"},{x:"刷脸签到 / 点名"},{x:"测体温（有标准话术）"},{x:"上楼梯：靠右、有序"},{x:"整队 → 铺垫洗手限时"},{x:"洗手 → 烘干"},{x:"整队 → 提前铺垫就餐规则"},{x:"开门委开门"},{x:"感恩词诵读"},{x:"有序进入教室"}]},{id:"s3",t:"11:40–12:20",ic:"🍚",cl:"noon",nm:"就餐环节",ss:[{x:"家长检餐（按执行标准）"},{x:"选餐：一组一组出来，选餐委引导"},{x:"提醒选餐规则：≥2个菜、辣椒提示、加速"},{x:"明确限量菜（如鸡柳4-5个）"},{x:"学生坐在指定位置"},{x:"用餐规范：食不言、1号声音、不拖拉"},{x:"评选3菜小标兵"},{x:"评选光盘小标兵"},{x:"评选进步小标兵"},{x:"评选不拖拉小标兵"},{x:"学生照相（拍照委）",p:1},{x:"餐后椅子归位 → 倒餐盘排队"},{x:"大厅站队 → 积分委奖励积分"}]},{id:"s4",t:"12:20–13:00",ic:"📖",cl:"noon",nm:"三好课堂",ss:[{x:"进教学区前：整队 → 数人数"},{x:"进班前铺垫注意事项"},{x:"有序进班"},{x:"三好课堂21项流程：问好→上课礼→讲规则"},{x:"兴趣/游戏激励 → 课程导入"},{x:"六词一禁：PK/口令/限时/坐姿/煽动"},{x:"三授权：说话/下位/出门前举手"},{x:"正课 → 讨论 → 分享演讲"},{x:"老师升华 → 再分享 → 布置家庭践行"},{x:"积分核算 → 上墙 → 安抚输者"},{x:"下课四步法：1234口令 → 椅子归位"},{x:"出门前点数 → 有序出门"},{x:"为下一环节铺垫"}]},{id:"s5",t:"13:00–13:10",ic:"🍉",cl:"noon",nm:"加补水果或甜点",ss:[{x:"拿水杯"},{x:"限时去洗手间"},{x:"讲加补规则"},{x:"安排水杯委"},{x:"按奖励或特权分发"},{x:"果皮、垃圾入筒"},{x:"点数"},{x:"有序下楼"}]},{id:"s6",t:"13:10–13:20",ic:"🏃",cl:"noon",nm:"送校",ss:[{x:"问好、礼貌（全程用请字）"},{x:"大厅提前铺垫走路队"},{x:"出大门整齐出门、正对大门集合"},{x:"整队 → 讲规则（1-2队）"},{x:"点数 → 过路口喊口号 → 放音乐"},{x:"到门口整队 → 铺垫进校"},{x:"拍照、摆姿势、报平安",p:1},{x:"收马甲流程"},{x:"目送有序入校 → 远距离目送"}]},{id:"s7",t:"16:00–16:30",ic:"🏫",cl:"afternoon",nm:"下午接校",ss:[{x:"培训助教带队走路队"},{x:"问好、礼貌（全程用请字）"},{x:"给孩子拥抱 → 发马甲"},{x:"查水杯 → 路队整队（1-2队）"},{x:"点名 → 奖励积分卡"},{x:"出发：齐步走 → 直角转弯 → 放音乐"},{x:"过路口喊口号 → 数人数"},{x:"到门口：感恩词诵读",p:1},{x:"拍照：笔直路队",p:1}]},{id:"s8",t:"16:30–16:35",ic:"🚶",cl:"afternoon",nm:"上楼前进校区",ss:[{x:"进入校区：1号声音，口号不拖音"},{x:"洗手液消毒"},{x:"签到（点名）"},{x:"上楼梯：靠右、有序"},{x:"二楼整队 → 铺垫进班规则"}]},{id:"s9",t:"16:35–17:00",ic:"📢",cl:"afternoon",nm:"班内讲规则",ss:[{x:"进班 → 计时"},{x:"老师思想煽动，铺垫注意事项"},{x:"重点强调：离开教室前椅子归位"}]},{id:"s10",t:"17:00–17:05",ic:"🧴",cl:"afternoon",nm:"餐前准备",ss:[{x:"洗手 → 擦干"},{x:"整队 → 提前铺垫就餐规则"},{x:"有序进入餐厅"}]},{id:"s11",t:"17:15–17:45",ic:"🍲",cl:"afternoon",nm:"晚餐",ss:[{x:"家长检餐 → 调好助教"},{x:"选餐 → 坐在指定位置"},{x:"提醒晚餐菜品"},{x:"用餐规范：食不言、1号声音、不拖拉"},{x:"评选标兵"},{x:"学生照相",p:1},{x:"餐后：椅子归位 → 倒餐盘排队"},{x:"大厅站队 → 积分委奖励"}]},{id:"s12",t:"17:45–19:30",ic:"✏️",cl:"evening",nm:"晚辅",ss:[{x:"进教室前：铺垫 → 讲规则 → 调动"},{x:"点数 → 有序进教室 → 举手示意"},{x:"新师引荐（若有新师）"},{x:"注意力训练（舒尔特表、头顶书）"},{x:"讲规则 + 五零四要"},{x:"讲解作业19个步骤"},{x:"作业准备期（限时执行）"},{x:"PK互拼 → 做作业规划"},{x:"四检：自检→互检→师检→更检"},{x:"每5分钟下位巡查，2分钟环顾"},{x:"晚辅必三关：小条→练字→阅读"},{x:"出门六大件确认"},{x:"学生自觉椅子归位"},{x:"与家长沟通（拿作业谈话）"},{x:"必说再见，制造仪式感"},{x:"夕会：老师给助教开会"},{x:"桌面消毒 → 拍照发班级群",p:1}]},{id:"s13",t:"19:30–19:45",ic:"🧹",cl:"evening",nm:"打扫卫生",ss:[{x:"拖地"},{x:"桌子消毒"},{x:"椅子消毒"},{x:"擦门框 + 把手"},{x:"擦灯开关"},{x:"整理学生床铺整齐整洁"},{x:"桌面拍照发班级群",p:1},{x:"熄灯"}]}];
+var wS={},wE={},wN=WF.reduce(function(a,s){return a+s.ss.length},0);
+(function(){var t=new Date().toDateString(),sd=localStorage.getItem("_wfd");if(sd!==t){wS={};wE={};WF.forEach(function(s){wS[s.id]=Array(s.ss.length).fill(!1);wE[s.id]=!1});localStorage.setItem("_wfd",t);wSv()}else{try{wS=JSON.parse(localStorage.getItem("_wfs")||"{}")}catch(e){wS={}}WF.forEach(function(s){if(!wS[s.id]||wS[s.id].length!==s.ss.length)wS[s.id]=Array(s.ss.length).fill(!1);if(wE[s.id]===undefined)wE[s.id]=!1});wSv()}})();
+function wSv(){localStorage.setItem("_wfs",JSON.stringify(wS))}
+function wDn(id){return(wS[id]||[]).filter(Boolean).length}
+function wTl(id){var s=WF.find(function(x){return x.id===id});return s?s.ss.length:0}
+function wAd(id){return wDn(id)===wTl(id)}
+function wDa(){return WF.reduce(function(a,s){return a+wDn(s.id)},0)}
+function wDs(){return WF.filter(function(s){return wAd(s.id)}).length}
+function wCi(){var n=new Date(),h=n.getHours(),m=n.getMinutes(),t=h*60+m,ts=[[660,690],[690,700],[700,740],[740,780],[780,790],[790,800],[960,990],[990,995],[995,1020],[1020,1025],[1035,1065],[1065,1170],[1170,1185]];for(var i=0;i<ts.length;i++)if(t>=ts[i][0]&&t<ts[i][1])return i;return t>=ts[ts.length-1][1]?-1:-2}
+function wfRender(){var ci=wCi(),h="";WF.forEach(function(r,i){var d=wAd(r.id),c=i===ci,a=!d&&(ci>=0?i<=ci:!0),x=wE[r.id]||!1,dc=wDn(r.id),tl=wTl(r.id);var dl=d?"done":(c?"current":(a?"active":""));var cl="wf-card";if(x)cl+=" expanded";if(c)cl+=" current-card";if(d)cl+=" done-card";var bc="pending",bt="待开始";if(d){bc="done";bt="✓ 完成"}else if(c){bc="active";bt="进行中"}var ar=x?"wf-arr open":"wf-arr";h+='<div class="wf-seg"><div class="wf-dot '+dl+'">'+(d?"✓":(c?"●":""))+'</div><div class="'+cl+'"><div class="wf-chd" onclick="wTgS(\''+r.id+'\')"><div class="wf-sicn '+r.cl+'">'+r.ic+'</div><div class="wf-sbody"><span class="wf-snm">'+r.nm+'</span><span class="wf-stm">'+r.t+'</span></div><span class="wf-badge '+bc+'">'+bt+'</span><span class="'+ar+'">▶</span></div>';if(x){h+='<div class="wf-steps">';r.ss.forEach(function(s,si){var ck=!!wS[r.id][si];h+='<div class="wf-step" onclick="event.stopPropagation();wTg(\''+r.id+'\','+si+')"><div class="wf-sdot '+(ck?"done":"")+'">'+(ck?"✓":"")+'</div><span class="wf-stxt '+(ck?"done":"")+'">'+s.x+'</span>'+(s.p?'<span class="wf-scam '+(ck?"has":"")+'">📷</span>':"")+'</div>'});h+='</div>'}h+='</div></div>'});document.getElementById("wfTimeline").innerHTML=h;var ds=wDa(),dg=wDs(),pc=wN>0?Math.round(ds/wN*100):0;document.getElementById("wfDoneSegs").textContent=dg;document.getElementById("wfDoneSteps").textContent=ds;document.getElementById("wfTotalSteps").textContent=wN;document.getElementById("wfPct").textContent=pc+"%";var r=document.getElementById("wfRing");if(r){var cf=131.95;r.setAttribute("stroke-dashoffset",cf-pc/100*cf)}var cn=ci>=0?WF[ci].nm:(ci===-1?"全部完成 🎉":"尚未开始");document.getElementById("wfCurr").textContent=cn;var n=new Date();document.getElementById("wfClock").textContent=n.getHours().toString().padStart(2,"0")+":"+n.getMinutes().toString().padStart(2,"0");var ds2=["日","一","二","三","四","五","六"];document.getElementById("wfDay").textContent="星期"+ds2[n.getDay()];document.getElementById("wfDate").textContent=n.getFullYear()+"年"+(n.getMonth()+1)+"月"+n.getDate()+"日"}
+function wTg(id,si){wS[id][si]=!wS[id][si];if(wS[id][si]&&!wE[id])wE[id]=!0;if(wAd(id)){var s=WF.find(function(x){return x.id===id});showToast("🎉 「"+s.nm+"」全部完成！")}wSv();wfRender()}
+function wTgS(id){wE[id]=!wE[id];wSv();wfRender()}
+setInterval(function(){if(document.querySelector('.page[data-page="workflow"].active'))wfRender()},30000);
+
+</script>
+</body></html>
+
+
+

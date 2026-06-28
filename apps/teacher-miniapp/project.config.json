@@ -1,0 +1,11 @@
+{
+  "description": "锐之博教师端小程序",
+  "compileType": "miniprogram",
+  "appid": "wx0000000000000000",
+  "projectname": "锐之博教师端",
+  "setting": {
+    "es6": true,
+    "minified": true,
+    "postcss": true
+  }
+}

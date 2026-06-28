@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+.turbo/
+.taro/
+
+# Local/editor noise
+.DS_Store
+Thumbs.db
+*.log
+.env
+.env.*
+!.env.example
+
+# Generated previews and caches
+.cache/
+tmp/
+temp/

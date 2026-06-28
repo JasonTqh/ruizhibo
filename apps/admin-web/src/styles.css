@@ -1,0 +1,49 @@
+html,
+body,
+#root {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  background: #f5f0eb;
+  color: #1a2e28;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.admin-shell {
+  min-height: 100vh;
+}
+
+.admin-sider {
+  background: #17324d;
+}
+
+.brand {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.admin-header {
+  background: #fff;
+  border-bottom: 1px solid #e8e3db;
+  display: flex;
+  align-items: center;
+}
+
+.admin-header h3 {
+  margin: 0;
+}
+
+.admin-content {
+  padding: 24px;
+}
+
+.todo-card {
+  margin-top: 16px;
+}
