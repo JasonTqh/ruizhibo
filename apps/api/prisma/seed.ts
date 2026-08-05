@@ -1,4 +1,11 @@
-import { PrismaClient, UserRole } from "@prisma/client";
+import {
+  AttendanceType,
+  GrowthRecordType,
+  HomeworkStatus,
+  MessageKind,
+  PrismaClient,
+  UserRole,
+} from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -100,6 +107,161 @@ async function main() {
     },
   });
 
+  const workflowTemplate = await prisma.workflowTemplate.upsert({
+    where: { id: "seed-workflow-template-daily" },
+    update: {
+      name: "托管一日流程",
+      version: 1,
+      isActive: true,
+    },
+    create: {
+      id: "seed-workflow-template-daily",
+      name: "托管一日流程",
+      version: 1,
+      isActive: true,
+    },
+  });
+
+  const workflowSteps = [
+    ["arrive", "到校签到", "16:30-17:00", 10],
+    ["homework", "作业辅导", "17:00-18:20", 20],
+    ["dinner", "晚餐休息", "18:20-19:00", 30],
+    ["review", "复习整理", "19:00-20:00", 40],
+    ["leave", "离校交接", "20:00-20:30", 50],
+  ] as const;
+
+  for (const [stepKey, name, timeRange, sortOrder] of workflowSteps) {
+    await prisma.workflowTemplateStep.upsert({
+      where: {
+        templateId_stepKey: {
+          templateId: workflowTemplate.id,
+          stepKey,
+        },
+      },
+      update: {
+        name,
+        timeRange,
+        sortOrder,
+      },
+      create: {
+        templateId: workflowTemplate.id,
+        stepKey,
+        name,
+        timeRange,
+        sortOrder,
+      },
+    });
+  }
+
+  await prisma.attendanceEvent.upsert({
+    where: { id: "seed-attendance-arrive" },
+    update: {
+      studentId: student.id,
+      teacherId: teacher.id,
+      type: AttendanceType.arrive,
+      happenedAt: new Date("2026-07-06T08:30:00.000Z"),
+      remark: "Seed arrive event",
+    },
+    create: {
+      id: "seed-attendance-arrive",
+      studentId: student.id,
+      teacherId: teacher.id,
+      type: AttendanceType.arrive,
+      happenedAt: new Date("2026-07-06T08:30:00.000Z"),
+      remark: "Seed arrive event",
+    },
+  });
+
+  await prisma.growthRecord.upsert({
+    where: { id: "seed-growth-record-feedback" },
+    update: {
+      studentId: student.id,
+      teacherId: teacher.id,
+      type: GrowthRecordType.teacher_feedback,
+      title: "今日表现",
+      content: "作业完成认真，课堂专注度较好。",
+      visibleToParent: true,
+    },
+    create: {
+      id: "seed-growth-record-feedback",
+      studentId: student.id,
+      teacherId: teacher.id,
+      type: GrowthRecordType.teacher_feedback,
+      title: "今日表现",
+      content: "作业完成认真，课堂专注度较好。",
+      visibleToParent: true,
+    },
+  });
+
+  const homework = await prisma.homeworkAssignment.upsert({
+    where: { id: "seed-homework-math" },
+    update: {
+      classId: klass.id,
+      teacherId: teacher.id,
+      title: "数学每日练习",
+      subject: "数学",
+      content: "完成口算练习一页，并订正错题。",
+    },
+    create: {
+      id: "seed-homework-math",
+      classId: klass.id,
+      teacherId: teacher.id,
+      title: "数学每日练习",
+      subject: "数学",
+      content: "完成口算练习一页，并订正错题。",
+    },
+  });
+
+  await prisma.homeworkSubmission.upsert({
+    where: {
+      homeworkId_studentId: {
+        homeworkId: homework.id,
+        studentId: student.id,
+      },
+    },
+    update: {
+      status: HomeworkStatus.pending,
+    },
+    create: {
+      homeworkId: homework.id,
+      studentId: student.id,
+      status: HomeworkStatus.pending,
+    },
+  });
+
+  const conversation = await prisma.conversation.upsert({
+    where: {
+      studentId_parentId_teacherId: {
+        studentId: student.id,
+        parentId: parent.id,
+        teacherId: teacher.id,
+      },
+    },
+    update: {},
+    create: {
+      studentId: student.id,
+      parentId: parent.id,
+      teacherId: teacher.id,
+    },
+  });
+
+  await prisma.message.upsert({
+    where: { id: "seed-message-parent-hello" },
+    update: {
+      conversationId: conversation.id,
+      senderId: parent.id,
+      kind: MessageKind.text,
+      content: "老师您好，今天孩子作业完成情况如何？",
+    },
+    create: {
+      id: "seed-message-parent-hello",
+      conversationId: conversation.id,
+      senderId: parent.id,
+      kind: MessageKind.text,
+      content: "老师您好，今天孩子作业完成情况如何？",
+    },
+  });
+
   console.log("Seed data created", {
     campus: campus.name,
     class: klass.name,
@@ -107,6 +269,7 @@ async function main() {
     teacher: teacher.name,
     parent: parent.name,
     student: student.name,
+    workflowTemplate: workflowTemplate.name,
   });
 }
 

@@ -1,6 +1,6 @@
 # 锐之博托管中心系统
 
-这是“锐之博”托管中心的工程化项目骨架，覆盖家长端小程序、教师端小程序、管理后台、后端 API、共享类型、静态原型和经营工具。
+这是“锐之博”托管中心的工程化项目骨架，覆盖家长端小程序、教师端小程序、管理后台、后端 API、共享类型和经营工具。历史静态原型已归档保留。
 
 学生不作为登录端存在，只作为业务实体由家长和教师围绕其成长记录、作业、出勤和沟通来协作。
 
@@ -12,10 +12,9 @@
 │   ├── api/                 # NestJS + Prisma 后端服务
 │   ├── admin-web/           # React + Ant Design 管理后台
 │   ├── parent-miniapp/      # Taro 家长端微信小程序工程
-│   ├── teacher-miniapp/     # Taro 教师端微信小程序工程
-│   ├── parent-app/          # 家长端静态原型
-│   ├── teacher-app/         # 教师端静态原型
-│   └── website/             # 品牌官网静态页
+│   └── teacher-miniapp/     # Taro 教师端微信小程序工程
+├── archive/
+│   └── apps/                # 历史静态原型和品牌官网静态页
 ├── packages/
 │   └── shared/              # 跨端共享类型和常量
 ├── assets/                  # 共享图片素材
@@ -36,9 +35,9 @@
 | 管理后台 | `apps/admin-web` | 管理老师、班级、学生、家长绑定、流程模板 |
 | 家长小程序 | `apps/parent-miniapp` | 家长查看孩子动态、作业、成长记录并与老师沟通 |
 | 教师小程序 | `apps/teacher-miniapp` | 教师工作台、备课、教研、教学记录、一日流程打卡 |
-| 家长静态原型 | `apps/parent-app/index.html` | 视觉和交互参考 |
-| 教师静态原型 | `apps/teacher-app/index.html` | 小程序样式参考 |
-| 品牌官网 | `apps/website/index.html` | 品牌展示与咨询转化 |
+| 家长静态原型 | `archive/apps/parent-app/index.html` | 视觉和交互参考 |
+| 教师静态原型 | `archive/apps/teacher-app/index.html` | 小程序样式参考 |
+| 品牌官网 | `archive/apps/website/index.html` | 品牌展示与咨询转化 |
 | 经营测算工具 | `tools/build_new_store_model.mjs` | 生成新店测算 Excel |
 
 ## 文档索引

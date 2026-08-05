@@ -1,8 +1,13 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
+import { AdminModule } from "./admin/admin.module";
+import { AuditModule } from "./audit/audit.module";
 import { AuthModule } from "./auth/auth.module";
+import { FilesModule } from "./files/files.module";
 import { HealthModule } from "./health/health.module";
+import { ParentModule } from "./parent/parent.module";
 import { PrismaModule } from "./prisma/prisma.module";
+import { TeacherModule } from "./teacher/teacher.module";
 
 @Module({
   imports: [
@@ -11,7 +16,12 @@ import { PrismaModule } from "./prisma/prisma.module";
       envFilePath: [".env.local", ".env"],
     }),
     PrismaModule,
+    AuditModule,
     AuthModule,
+    AdminModule,
+    TeacherModule,
+    ParentModule,
+    FilesModule,
     HealthModule,
   ],
 })

@@ -15,9 +15,9 @@ packages/shared       公共类型
 当前静态原型仍保留：
 
 ```text
-apps/parent-app
-apps/teacher-app
-apps/website
+archive/apps/parent-app
+archive/apps/teacher-app
+archive/apps/website
 ```
 
 ## 2. 推荐开发顺序

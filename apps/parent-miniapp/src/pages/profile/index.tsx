@@ -1,11 +1,8 @@
+import React from "react";
 import { Text, View } from "@tarojs/components";
 
+const h = React.createElement;
+
 export default function ProfilePage() {
-  return (
-    <View className="page">
-      <View className="card">
-        <Text>我的：孩子信息、绑定关系、联系电话。</Text>
-      </View>
-    </View>
-  );
+  return h(View, { className: "page" }, h(View, { className: "card" }, h(Text, null, "我的：孩子信息、绑定关系、联系电话。")));
 }

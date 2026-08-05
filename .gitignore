@@ -6,11 +6,16 @@ dist/
 build/
 .turbo/
 .taro/
+.swc/
+*.tsbuildinfo
+uploads/
+apps/api/uploads/
 
 # Local/editor noise
 .DS_Store
 Thumbs.db
 *.log
+.wechat-devtools-login*.png
 .env
 .env.*
 !.env.example

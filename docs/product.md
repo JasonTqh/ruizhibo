@@ -67,8 +67,8 @@
 
 当前静态原型仍保留为视觉和交互参考：
 
-- `apps/parent-app`
-- `apps/teacher-app`
-- `apps/website`
+- `archive/apps/parent-app`
+- `archive/apps/teacher-app`
+- `archive/apps/website`
 
 后续正式开发以 `parent-miniapp`、`teacher-miniapp`、`admin-web` 和 `api` 为主。

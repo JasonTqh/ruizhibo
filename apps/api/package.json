@@ -12,7 +12,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "seed": "tsx prisma/seed.ts"
+    "seed": "tsx prisma/seed.ts",
+    "verify:admin": "powershell -ExecutionPolicy Bypass -File scripts/verify-admin-api.ps1"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.15",

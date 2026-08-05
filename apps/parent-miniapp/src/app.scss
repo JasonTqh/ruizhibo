@@ -12,6 +12,36 @@ page {
 .card {
   padding: 28px;
   background: #fff;
-  border-radius: 16px;
+  border-radius: 8px;
   box-shadow: 0 4px 16px rgba(26, 46, 40, 0.08);
+}
+
+.title {
+  display: block;
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 20px;
+}
+
+.subtitle {
+  display: block;
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.muted {
+  display: block;
+  color: #6b746f;
+  font-size: 22px;
+}
+
+.primary-button {
+  margin: 0 0 20px;
+}
+
+.section {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #e8e3db;
 }

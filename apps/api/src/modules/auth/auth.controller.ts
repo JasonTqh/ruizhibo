@@ -2,7 +2,9 @@ import { Body, Controller, Get, Post, UseGuards } from "@nestjs/common";
 import { AuthGuard } from "./auth.guard";
 import { AuthService } from "./auth.service";
 import { CurrentUser } from "./current-user.decorator";
+import { BindPhoneDto } from "./dto/bind-phone.dto";
 import { DevLoginDto } from "./dto/dev-login.dto";
+import { WechatLoginDto } from "./dto/wechat-login.dto";
 import { AuthUser } from "./auth.types";
 
 @Controller()
@@ -12,6 +14,17 @@ export class AuthController {
   @Post("auth/dev-login")
   devLogin(@Body() dto: DevLoginDto) {
     return this.authService.devLogin(dto);
+  }
+
+  @Post("auth/wechat-login")
+  wechatLogin(@Body() dto: WechatLoginDto) {
+    return this.authService.wechatLogin(dto);
+  }
+
+  @Post("auth/bind-phone")
+  @UseGuards(AuthGuard)
+  bindPhone(@CurrentUser() user: AuthUser, @Body() dto: BindPhoneDto) {
+    return this.authService.bindPhone(user.id, dto);
   }
 
   @Get("me")

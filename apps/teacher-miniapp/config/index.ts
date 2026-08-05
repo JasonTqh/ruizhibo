@@ -1,3 +1,10 @@
+import { resolve } from "node:path";
+
+const taroSharedPath = resolve(
+  __dirname,
+  "../../../node_modules/.pnpm/@tarojs+shared@4.2.0/node_modules/@tarojs/shared",
+);
+
 export default {
   projectName: "teacher-miniapp",
   date: "2026-06-16",
@@ -11,6 +18,9 @@ export default {
   outputRoot: "dist",
   framework: "react",
   compiler: "webpack5",
+  alias: {
+    "@tarojs/shared": taroSharedPath,
+  },
   mini: {},
   h5: {},
 };

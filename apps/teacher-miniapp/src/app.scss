@@ -12,6 +12,69 @@ page {
 .card {
   padding: 28px;
   background: #fff;
-  border-radius: 16px;
+  border-radius: 8px;
   box-shadow: 0 4px 16px rgba(26, 46, 40, 0.08);
+}
+
+.title {
+  display: block;
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 20px;
+}
+
+.subtitle {
+  display: block;
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.muted {
+  display: block;
+  color: #6b746f;
+  font-size: 22px;
+}
+
+.error-text {
+  color: #b42318;
+  display: block;
+  font-size: 24px;
+  line-height: 1.5;
+  margin: 16px 0 20px;
+}
+
+.primary-button {
+  margin: 0 0 20px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.metric {
+  padding: 18px;
+  background: #eef6f1;
+  border-radius: 8px;
+}
+
+.section {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #e8e3db;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+}
+
+.list-line {
+  display: block;
+  padding: 8px 0;
 }
