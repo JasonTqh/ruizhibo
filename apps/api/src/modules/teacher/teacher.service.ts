@@ -374,40 +374,63 @@ export class TeacherService {
   async createHomework(teacherId: string, dto: CreateHomeworkDto) {
     await this.assertTeacherClass(teacherId, dto.classId);
 
+    const title = dto.title.trim();
+    const subject = dto.subject.trim();
+    const content = dto.content.trim();
+    if (!title || !subject || !content) {
+      throw new BadRequestException(
+        "Homework title, subject and content are required",
+      );
+    }
+
     const students = await this.prisma.student.findMany({
-      where: { classId: dto.classId },
+      where: {
+        classId: dto.classId,
+        status: StudentStatus.active,
+      },
       select: { id: true },
     });
 
-    const homework = await this.prisma.homeworkAssignment.create({
-      data: {
-        classId: dto.classId,
-        teacherId,
-        title: dto.title,
-        subject: dto.subject,
-        content: dto.content,
-        dueAt: dto.dueAt ? new Date(dto.dueAt) : null,
-        submissions: {
-          create: students.map((student) => ({
-            studentId: student.id,
-          })),
-        },
-      },
-      include: {
-        class: { select: { id: true, name: true } },
-        submissions: true,
-      },
-    });
+    if (students.length === 0) {
+      throw new BadRequestException("No active students in this class");
+    }
 
-    await this.audit.log({
-      userId: teacherId,
-      action: "teacher.homework.create",
-      targetType: "HomeworkAssignment",
-      targetId: homework.id,
-      detail: {
-        classId: dto.classId,
-        submissionCount: homework.submissions.length,
-      },
+    const homework = await this.prisma.$transaction(async (transaction) => {
+      const created = await transaction.homeworkAssignment.create({
+        data: {
+          classId: dto.classId,
+          teacherId,
+          title,
+          subject,
+          content,
+          dueAt: dto.dueAt ? new Date(dto.dueAt) : null,
+          submissions: {
+            create: students.map((student) => ({
+              studentId: student.id,
+            })),
+          },
+        },
+        include: {
+          class: { select: { id: true, name: true } },
+          submissions: true,
+        },
+      });
+
+      await this.audit.log(
+        {
+          userId: teacherId,
+          action: "teacher.homework.create",
+          targetType: "HomeworkAssignment",
+          targetId: created.id,
+          detail: {
+            classId: dto.classId,
+            submissionCount: created.submissions.length,
+          },
+        },
+        transaction,
+      );
+
+      return created;
     });
 
     return { data: homework };
@@ -643,52 +666,74 @@ export class TeacherService {
       throw new ForbiddenException("Cannot update another teacher homework");
     }
 
-    const updated = await this.prisma.homeworkSubmission.update({
-      where: { id: submissionId },
-      data: {
-        status: dto.status,
-        content: dto.content,
-        fileUrls: dto.fileUrls,
-        submittedAt:
-          dto.submittedAt === undefined
-            ? undefined
-            : dto.submittedAt
-              ? new Date(dto.submittedAt)
-              : null,
-        reviewedAt:
-          dto.reviewedAt === undefined
-            ? undefined
-            : dto.reviewedAt
-              ? new Date(dto.reviewedAt)
-              : null,
-        remark: dto.remark,
-      },
-      include: {
-        homework: { select: { id: true, title: true } },
-        student: { select: { id: true, name: true } },
-      },
-    });
+    if (dto.status !== HomeworkStatus.reviewed) {
+      throw new BadRequestException(
+        "Teacher can only mark homework as reviewed",
+      );
+    }
 
-    if (dto.status) {
-      await this.prisma.growthRecord.create({
+    if (submission.status !== HomeworkStatus.submitted) {
+      throw new BadRequestException(
+        submission.status === HomeworkStatus.reviewed
+          ? "Homework has already been reviewed"
+          : "Homework has not been submitted",
+      );
+    }
+
+    const reviewedAt = new Date();
+    const remark = dto.remark?.trim() || null;
+    const updated = await this.prisma.$transaction(async (transaction) => {
+      const result = await transaction.homeworkSubmission.updateMany({
+        where: {
+          id: submissionId,
+          status: HomeworkStatus.submitted,
+        },
+        data: {
+          status: HomeworkStatus.reviewed,
+          reviewedAt,
+          remark,
+        },
+      });
+
+      if (result.count === 0) {
+        throw new BadRequestException("Homework status has changed");
+      }
+
+      await transaction.growthRecord.create({
         data: {
           studentId: submission.studentId,
           teacherId,
           type: GrowthRecordType.homework,
-          title: `${submission.homework.title}状态更新`,
-          content: `${submission.student.name} 的作业状态已更新为 ${dto.status}。`,
+          title: `${submission.homework.title}已批改`,
+          content: remark
+            ? `${submission.student.name}的作业已批改：${remark}`
+            : `${submission.student.name}的作业已完成批改。`,
+          happenedAt: reviewedAt,
         },
       });
-    }
 
-    await this.audit.log({
-      userId: teacherId,
-      action: "teacher.homeworkSubmission.update",
-      targetType: "HomeworkSubmission",
-      targetId: updated.id,
-      detail: {
-        status: dto.status,
-      },
+      await this.audit.log(
+        {
+          userId: teacherId,
+          action: "teacher.homeworkSubmission.review",
+          targetType: "HomeworkSubmission",
+          targetId: submission.id,
+          detail: {
+            homeworkId: submission.homework.id,
+            studentId: submission.studentId,
+            hasRemark: Boolean(remark),
+          },
+        },
+        transaction,
+      );
+
+      return transaction.homeworkSubmission.findUniqueOrThrow({
+        where: { id: submissionId },
+        include: {
+          homework: { select: { id: true, title: true } },
+          student: { select: { id: true, name: true } },
+        },
+      });
     });
 
     return { data: updated };

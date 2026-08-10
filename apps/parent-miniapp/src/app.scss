@@ -181,3 +181,186 @@ page {
 .communication-card .title {
   margin-bottom: 0;
 }
+
+.homework-entry-button {
+  margin-top: 24px;
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 10px;
+  color: #33463f;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.homework-card {
+  margin-top: 20px;
+  padding: 22px;
+  background: #faf8f4;
+  border: 1px solid #e8e3db;
+  border-radius: 8px;
+}
+
+.homework-card--reviewed {
+  background: #f3f8f5;
+  border-color: #cfe1d7;
+}
+
+.homework-card__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.homework-card__heading-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.homework-title {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 25px;
+  font-weight: 700;
+}
+
+.homework-status {
+  display: inline-block;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 20px;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.homework-status--pending {
+  color: #6b746f;
+  background: #e9edeb;
+}
+
+.homework-status--submitted {
+  color: #885712;
+  background: #fff2d7;
+}
+
+.homework-status--reviewed {
+  color: #24644f;
+  background: #e5f3ed;
+}
+
+.homework-status--overdue {
+  color: #9b3a32;
+  background: #fff1ef;
+}
+
+.homework-content {
+  display: block;
+  margin-top: 14px;
+  font-size: 23px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+.homework-meta {
+  display: block;
+  margin-top: 9px;
+  color: #6b746f;
+  font-size: 20px;
+}
+
+.homework-submit-panel,
+.review-result {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid #e1e8e4;
+}
+
+.homework-textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 150px;
+  padding: 16px;
+  color: #1a2e28;
+  background: #ffffff;
+  border: 1px solid #dce5e0;
+  border-radius: 8px;
+  font-size: 23px;
+}
+
+.homework-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.homework-image,
+.local-image-wrap {
+  width: 140px;
+  height: 140px;
+  border-radius: 8px;
+}
+
+.homework-image {
+  background: #eef1ef;
+}
+
+.local-image-wrap {
+  position: relative;
+}
+
+.remove-image {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  color: #ffffff;
+  background: #9b3a32;
+  border-radius: 50%;
+  font-size: 28px;
+  line-height: 1;
+}
+
+.homework-actions {
+  display: flex;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.homework-actions button {
+  flex: 1;
+  margin: 0;
+}
+
+.homework-secondary-button {
+  color: #2f8064;
+  background: #ffffff;
+  border-color: #9fc9b9;
+}
+
+.homework-primary-button {
+  color: #ffffff;
+  background: #2f8064;
+  border-color: #2f8064;
+}
+
+.review-label {
+  display: block;
+  margin-top: 16px;
+  color: #286b55;
+  font-size: 21px;
+  font-weight: 700;
+}
+
+.review-remark {
+  display: block;
+  margin-top: 8px;
+  font-size: 23px;
+  line-height: 1.65;
+}

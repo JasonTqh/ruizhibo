@@ -75,6 +75,7 @@ GET  /api/parent/children
 GET  /api/parent/children/:studentId/timeline
 GET  /api/parent/children/:studentId/attendance
 GET  /api/parent/children/:studentId/homework
+POST /api/parent/homework-submissions/:submissionId/submit
 
 GET  /api/parent/notices
 POST /api/parent/notice-receipts/:receiptId/view
@@ -280,6 +281,36 @@ Content-Type: application/json
   "dueAt": "2026-07-07T12:00:00.000Z"
 }
 ```
+
+家长提交作业（`fileUrls` 必须来自当前家长通过 `scene: "homework"` 上传的文件）：
+
+```http
+POST /api/parent/homework-submissions/:submissionId/submit
+Authorization: Bearer <parent-token>
+Content-Type: application/json
+
+{
+  "content": "已和孩子一起完成。",
+  "fileUrls": ["/uploads/homework/example.png"]
+}
+```
+
+文字和图片至少提交一项。家长只能提交自己绑定孩子的作业；待提交、已逾期或待批改状态可以提交/重新提交，已批改状态返回 `409 Conflict`。
+
+教师批改已提交作业：
+
+```http
+PATCH /api/teacher/homework-submissions/:submissionId
+Authorization: Bearer <teacher-token>
+Content-Type: application/json
+
+{
+  "status": "reviewed",
+  "remark": "完成认真，继续保持！"
+}
+```
+
+批改后家长重新请求 `GET /api/parent/children/:studentId/homework` 即可看到 `reviewedAt` 和 `remark`。
 
 ## 4. 管理后台 API
 
@@ -562,6 +593,6 @@ Authorization: Bearer <admin-token>
 - 家长绑定和解绑
 - 流程模板创建和更新
 - 教师流程打卡
-- 教学记录、成长反馈、作业创建和作业状态更新
+- 教学记录、成长反馈、作业创建、家长提交和教师批改
 - 教师发布通知/任务
 - 家长确认通知/任务

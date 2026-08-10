@@ -16,6 +16,10 @@ page {
   box-shadow: 0 4px 16px rgba(26, 46, 40, 0.08);
 }
 
+.card + .card {
+  margin-top: 24px;
+}
+
 .title {
   display: block;
   font-size: 28px;
@@ -296,4 +300,131 @@ page {
 .receipt-status-confirmed {
   color: #24644f;
   background: #e5f3ed;
+}
+
+.page-heading,
+.homework-heading,
+.submission-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.page-heading {
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.page-heading__title {
+  margin-bottom: 0;
+}
+
+.homework-submit-button {
+  margin-top: 24px;
+}
+
+.homework-list-card {
+  padding-bottom: 10px;
+}
+
+.homework-card {
+  margin-top: 20px;
+  padding: 22px;
+  background: #faf8f4;
+  border: 1px solid #e8e3db;
+  border-radius: 8px;
+}
+
+.homework-heading-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.homework-count,
+.homework-status {
+  display: inline-block;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 20px;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.homework-count,
+.homework-status-submitted {
+  color: #885712;
+  background: #fff2d7;
+}
+
+.homework-status-pending {
+  color: #6b746f;
+  background: #e9edeb;
+}
+
+.homework-status-reviewed {
+  color: #24644f;
+  background: #e5f3ed;
+}
+
+.homework-status-overdue {
+  color: #9b3a32;
+  background: #fff1ef;
+}
+
+.homework-content,
+.submission-content {
+  display: block;
+  margin-top: 12px;
+  font-size: 23px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+.submission-card {
+  margin-top: 18px;
+  padding: 18px;
+  background: #ffffff;
+  border: 1px solid #e1e8e4;
+  border-radius: 8px;
+}
+
+.submission-heading {
+  align-items: center;
+}
+
+.submission-name {
+  font-size: 23px;
+  font-weight: 700;
+}
+
+.homework-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.homework-image {
+  width: 140px;
+  height: 140px;
+  border-radius: 8px;
+  background: #eef1ef;
+}
+
+.review-box,
+.review-result {
+  margin-top: 16px;
+}
+
+.review-textarea {
+  min-height: 120px;
+}
+
+.review-button {
+  margin: 14px 0 0;
+}
+
+.submission-waiting {
+  margin-top: 14px;
 }

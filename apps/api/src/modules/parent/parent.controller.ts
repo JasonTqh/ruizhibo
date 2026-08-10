@@ -6,6 +6,7 @@ import { CurrentUser } from "../auth/current-user.decorator";
 import { Roles } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
 import { SendParentMessageDto } from "./dto/send-parent-message.dto";
+import { SubmitHomeworkDto } from "./dto/submit-homework.dto";
 import { ParentService } from "./parent.service";
 
 @Controller("parent")
@@ -41,6 +42,15 @@ export class ParentController {
     @Param("studentId") studentId: string,
   ) {
     return this.parentService.homework(user.id, studentId);
+  }
+
+  @Post("homework-submissions/:submissionId/submit")
+  submitHomework(
+    @CurrentUser() user: AuthUser,
+    @Param("submissionId") submissionId: string,
+    @Body() dto: SubmitHomeworkDto,
+  ) {
+    return this.parentService.submitHomework(user.id, submissionId, dto);
   }
 
   @Get("notices")

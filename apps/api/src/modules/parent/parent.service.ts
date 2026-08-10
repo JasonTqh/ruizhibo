@@ -1,8 +1,14 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
-import { MessageKind } from "@prisma/client";
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { GrowthRecordType, HomeworkStatus, MessageKind } from "@prisma/client";
 import { AuditService } from "../audit/audit.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { SendParentMessageDto } from "./dto/send-parent-message.dto";
+import { SubmitHomeworkDto } from "./dto/submit-homework.dto";
 
 @Injectable()
 export class ParentService {
@@ -113,6 +119,132 @@ export class ParentService {
     });
 
     return { data: submissions };
+  }
+
+  async submitHomework(
+    parentId: string,
+    submissionId: string,
+    dto: SubmitHomeworkDto,
+  ) {
+    const submission = await this.prisma.homeworkSubmission.findFirst({
+      where: {
+        id: submissionId,
+        student: {
+          guardians: {
+            some: { parentId },
+          },
+        },
+      },
+      include: {
+        homework: {
+          select: {
+            id: true,
+            title: true,
+            teacherId: true,
+          },
+        },
+        student: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    if (!submission) {
+      throw new NotFoundException("Homework submission not found");
+    }
+
+    if (submission.status === HomeworkStatus.reviewed) {
+      throw new ConflictException("Reviewed homework cannot be resubmitted");
+    }
+
+    const content = dto.content?.trim() ?? "";
+    const fileUrls = Array.from(new Set(dto.fileUrls ?? []));
+    if (!content && fileUrls.length === 0) {
+      throw new BadRequestException("Homework content or image is required");
+    }
+
+    if (fileUrls.length > 0) {
+      const ownedFileCount = await this.prisma.fileAsset.count({
+        where: {
+          ownerId: parentId,
+          scene: "homework",
+          url: { in: fileUrls },
+        },
+      });
+      if (ownedFileCount !== fileUrls.length) {
+        throw new BadRequestException("Homework image is invalid");
+      }
+    }
+
+    const submittedAt = new Date();
+    const updated = await this.prisma.$transaction(async (transaction) => {
+      const result = await transaction.homeworkSubmission.updateMany({
+        where: {
+          id: submission.id,
+          status: {
+            in: [
+              HomeworkStatus.pending,
+              HomeworkStatus.overdue,
+              HomeworkStatus.submitted,
+            ],
+          },
+        },
+        data: {
+          status: HomeworkStatus.submitted,
+          content: content || null,
+          fileUrls,
+          submittedAt,
+          reviewedAt: null,
+          remark: null,
+        },
+      });
+
+      if (result.count === 0) {
+        throw new ConflictException("Homework status has changed");
+      }
+
+      if (submission.status !== HomeworkStatus.submitted) {
+        await transaction.growthRecord.create({
+          data: {
+            studentId: submission.studentId,
+            teacherId: submission.homework.teacherId,
+            type: GrowthRecordType.homework,
+            title: `${submission.homework.title}已提交`,
+            content: `${submission.student.name}的作业已提交，等待老师批改。`,
+            happenedAt: submittedAt,
+          },
+        });
+      }
+
+      await this.audit.log(
+        {
+          userId: parentId,
+          action: "parent.homework.submit",
+          targetType: "HomeworkSubmission",
+          targetId: submission.id,
+          detail: {
+            homeworkId: submission.homeworkId,
+            studentId: submission.studentId,
+            fileCount: fileUrls.length,
+            resubmitted: submission.status === HomeworkStatus.submitted,
+          },
+        },
+        transaction,
+      );
+
+      return transaction.homeworkSubmission.findUniqueOrThrow({
+        where: { id: submission.id },
+        include: {
+          homework: { select: { id: true, title: true } },
+          student: { select: { id: true, name: true } },
+        },
+      });
+    });
+
+    return { data: updated };
   }
 
   async notices(parentId: string) {

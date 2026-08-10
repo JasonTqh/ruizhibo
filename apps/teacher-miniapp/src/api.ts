@@ -14,7 +14,9 @@ export async function teacherLogin() {
     },
   });
   if (response.statusCode >= 400 || !response.data || !response.data.data) {
-    throw new Error(`登录失败：${response.statusCode}`);
+    throw new Error(
+      apiErrorMessage(response, `登录失败：${response.statusCode}`),
+    );
   }
   const token = response.data.data.token;
   Taro.setStorageSync(TOKEN_KEY, token);
@@ -27,7 +29,28 @@ export async function teacherRequest(path, options = {}) {
     token = await teacherLogin();
   }
 
-  const response = await Taro.request({
+  let response = await request(path, options, token);
+  if (response.statusCode === 401) {
+    Taro.removeStorageSync(TOKEN_KEY);
+    token = await teacherLogin();
+    response = await request(path, options, token);
+  }
+
+  if (response.statusCode >= 400) {
+    throw new Error(
+      apiErrorMessage(response, `请求失败：${response.statusCode}`),
+    );
+  }
+
+  if (!response.data || response.data.data === undefined) {
+    throw new Error("接口返回格式不正确");
+  }
+
+  return response.data.data;
+}
+
+function request(path, options, token) {
+  return Taro.request({
     url: `${API_BASE_URL}${path}`,
     method: "GET",
     ...options,
@@ -37,14 +60,9 @@ export async function teacherRequest(path, options = {}) {
       ...options.header,
     },
   });
+}
 
-  if (response.statusCode >= 400) {
-    throw new Error(`请求失败：${response.statusCode}`);
-  }
-
-  if (!response.data || !response.data.data) {
-    throw new Error("接口返回格式不正确");
-  }
-
-  return response.data.data;
+function apiErrorMessage(response, fallback) {
+  const message = response && response.data && response.data.message;
+  return Array.isArray(message) ? message.join("；") : message || fallback;
 }
