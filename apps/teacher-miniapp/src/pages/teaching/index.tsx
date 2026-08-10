@@ -11,6 +11,7 @@ import {
 } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { teacherRequest } from "../../api";
+import "./index.scss";
 
 const h = React.createElement;
 const API_ORIGIN = "http://localhost:3000";

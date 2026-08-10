@@ -1,5 +1,6 @@
 import React from "react";
 import { Text, View } from "@tarojs/components";
+import "./index.scss";
 
 const h = React.createElement;
 

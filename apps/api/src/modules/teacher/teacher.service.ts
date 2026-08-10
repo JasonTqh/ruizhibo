@@ -760,9 +760,19 @@ export class TeacherService {
       },
     });
 
+    const parentIds = Array.from(
+      new Set(conversations.map((item) => item.parentId)),
+    );
+    const parents = await this.prisma.user.findMany({
+      where: { id: { in: parentIds } },
+      select: { id: true, name: true, phone: true },
+    });
+    const parentById = new Map(parents.map((parent) => [parent.id, parent]));
+
     const data = await Promise.all(
       conversations.map(async (conversation) => ({
         ...conversation,
+        parent: parentById.get(conversation.parentId) ?? null,
         unreadCount: await this.unreadCount(conversation.id, teacherId),
       })),
     );
@@ -799,19 +809,28 @@ export class TeacherService {
   ) {
     await this.assertTeacherConversation(teacherId, conversationId);
 
-    const message = await this.prisma.message.create({
-      data: {
-        conversationId,
-        senderId: teacherId,
-        kind: dto.kind ?? MessageKind.text,
-        content: dto.content,
-        fileUrls: dto.fileUrls ?? [],
-      },
-    });
+    const content = dto.content.trim();
+    if (!content) {
+      throw new BadRequestException("Message content is required");
+    }
 
-    await this.prisma.conversation.update({
-      where: { id: conversationId },
-      data: { updatedAt: new Date() },
+    const message = await this.prisma.$transaction(async (transaction) => {
+      const created = await transaction.message.create({
+        data: {
+          conversationId,
+          senderId: teacherId,
+          kind: dto.kind ?? MessageKind.text,
+          content,
+          fileUrls: dto.fileUrls ?? [],
+        },
+      });
+
+      await transaction.conversation.update({
+        where: { id: conversationId },
+        data: { updatedAt: created.createdAt },
+      });
+
+      return created;
     });
 
     return { data: message };

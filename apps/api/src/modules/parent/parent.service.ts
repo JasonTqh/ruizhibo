@@ -447,19 +447,28 @@ export class ParentService {
   ) {
     await this.assertParentConversation(parentId, conversationId);
 
-    const message = await this.prisma.message.create({
-      data: {
-        conversationId,
-        senderId: parentId,
-        kind: dto.kind ?? MessageKind.text,
-        content: dto.content,
-        fileUrls: dto.fileUrls ?? [],
-      },
-    });
+    const content = dto.content.trim();
+    if (!content) {
+      throw new BadRequestException("Message content is required");
+    }
 
-    await this.prisma.conversation.update({
-      where: { id: conversationId },
-      data: { updatedAt: new Date() },
+    const message = await this.prisma.$transaction(async (transaction) => {
+      const created = await transaction.message.create({
+        data: {
+          conversationId,
+          senderId: parentId,
+          kind: dto.kind ?? MessageKind.text,
+          content,
+          fileUrls: dto.fileUrls ?? [],
+        },
+      });
+
+      await transaction.conversation.update({
+        where: { id: conversationId },
+        data: { updatedAt: created.createdAt },
+      });
+
+      return created;
     });
 
     return { data: message };

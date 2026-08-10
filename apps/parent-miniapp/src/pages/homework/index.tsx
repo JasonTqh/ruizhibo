@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { Button, Image, Text, Textarea, View } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { parentRequest } from "../../api";
+import "./index.scss";
 
 const h = React.createElement;
 const API_ORIGIN = "http://localhost:3000";

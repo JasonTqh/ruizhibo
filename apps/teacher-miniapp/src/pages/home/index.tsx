@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { Button, Text, View } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { teacherRequest } from "../../api";
+import "./index.scss";
 
 const h = React.createElement;
 
@@ -88,6 +89,20 @@ export default function HomePage() {
             onClick: () => Taro.navigateTo({ url: "/pages/notices/index" }),
           },
           "发布通知 / 任务",
+        ),
+      ),
+      h(
+        View,
+        { className: "section" },
+        h(Text, { className: "subtitle" }, "家校沟通"),
+        h(Text, { className: "muted" }, "查看家长留言并及时回复。"),
+        h(
+          Button,
+          {
+            className: "primary-button workbench-entry-button",
+            onClick: () => Taro.navigateTo({ url: "/pages/messages/index" }),
+          },
+          "进入家校沟通",
         ),
       ),
     ),

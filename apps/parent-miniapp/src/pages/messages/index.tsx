@@ -1,7 +1,9 @@
 // @ts-nocheck
 import React, { useEffect, useState } from "react";
 import { Button, Text, View } from "@tarojs/components";
+import Taro from "@tarojs/taro";
 import { parentRequest } from "../../api";
+import "./index.scss";
 
 const h = React.createElement;
 
@@ -12,7 +14,6 @@ export default function MessagesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [pendingAction, setPendingAction] = useState("");
-  const [sendingConversationId, setSendingConversationId] = useState("");
 
   async function loadNotices() {
     const nextNotices = await parentRequest("/parent/notices");
@@ -127,22 +128,6 @@ export default function MessagesPage() {
       setError("确认失败，请重试。");
     } finally {
       setPendingAction("");
-    }
-  }
-
-  async function send(conversationId) {
-    setSendingConversationId(conversationId);
-    setError("");
-    try {
-      await parentRequest(`/parent/conversations/${conversationId}/messages`, {
-        method: "POST",
-        data: { content: "家长端测试消息" },
-      });
-      await loadConversations();
-    } catch (sendError) {
-      setError("消息发送失败，请重试。");
-    } finally {
-      setSendingConversationId("");
     }
   }
 
@@ -330,11 +315,14 @@ export default function MessagesPage() {
                   {
                     className: "conversation-action-button",
                     size: "mini",
-                    loading: sendingConversationId === conversation.id,
-                    disabled: Boolean(sendingConversationId),
-                    onClick: () => send(conversation.id),
+                    onClick: () => {
+                      const title = `${conversation.student.name} · ${conversation.teacher ? conversation.teacher.name : "老师"}`;
+                      Taro.navigateTo({
+                        url: `/pages/chat/index?conversationId=${conversation.id}&title=${encodeURIComponent(title)}`,
+                      });
+                    },
                   },
-                  "发送测试消息",
+                  "进入会话",
                 ),
               ),
             ),

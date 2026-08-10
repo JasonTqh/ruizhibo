@@ -4,6 +4,7 @@ export default defineAppConfig({
     "pages/homework/index",
     "pages/growth/index",
     "pages/messages/index",
+    "pages/chat/index",
     "pages/profile/index",
   ],
   window: {
