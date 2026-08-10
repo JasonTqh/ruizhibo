@@ -16,6 +16,7 @@ import { RolesGuard } from "../auth/roles.guard";
 import { CheckWorkflowStepDto } from "./dto/check-workflow-step.dto";
 import { CreateGrowthFeedbackDto } from "./dto/create-growth-feedback.dto";
 import { CreateHomeworkDto } from "./dto/create-homework.dto";
+import { CreateNoticeDto } from "./dto/create-notice.dto";
 import { CreateTeachingRecordDto } from "./dto/create-teaching-record.dto";
 import { SendTeacherMessageDto } from "./dto/send-teacher-message.dto";
 import { UpdateHomeworkSubmissionDto } from "./dto/update-homework-submission.dto";
@@ -111,6 +112,24 @@ export class TeacherController {
       submissionId,
       dto,
     );
+  }
+
+  @Get("notices")
+  notices(@CurrentUser() user: AuthUser) {
+    return this.teacherService.notices(user.id);
+  }
+
+  @Post("notices")
+  createNotice(@CurrentUser() user: AuthUser, @Body() dto: CreateNoticeDto) {
+    return this.teacherService.createNotice(user.id, dto);
+  }
+
+  @Get("notices/:noticeId/receipts")
+  noticeReceipts(
+    @CurrentUser() user: AuthUser,
+    @Param("noticeId") noticeId: string,
+  ) {
+    return this.teacherService.noticeReceipts(user.id, noticeId);
   }
 
   @Get("conversations")

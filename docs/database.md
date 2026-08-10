@@ -23,6 +23,11 @@ erDiagram
   Student ||--o{ GrowthRecord : has
   Student ||--o{ Conversation : has
   Conversation ||--o{ Message : has
+  Class ||--o{ Notice : receives
+  User ||--o{ Notice : publishes
+  Notice ||--o{ NoticeReceipt : tracks
+  Student ||--o{ NoticeReceipt : for
+  User ||--o{ NoticeReceipt : confirms
 ```
 
 ## 2. 用户与权限
@@ -89,7 +94,26 @@ erDiagram
 
 `Message` 支持文本、图片、文件和系统消息。第一版可使用轮询，后续再升级 WebSocket 或实时推送。
 
-## 8. 审计日志
+## 8. 通知、任务与家长回执
+
+班级广播使用独立的 `Notice`，不复用一对一聊天消息：
+
+- `kind = notice`：家长知晓类通知。
+- `kind = task`：需要家长处理并确认的待办任务。
+- `dueAt`：任务可选截止时间。
+- `unboundStudentCount`：发布当时尚未绑定有效家长的学生数量。
+
+发布时按当前 `StudentGuardian` 绑定为每个孩子、每位家长创建一条 `NoticeReceipt`。这是一份受众快照，因此同一家长的两个孩子需要分别确认，一个孩子的两位家长也各自拥有回执。
+
+回执状态不额外存枚举：
+
+- `viewedAt` 为空：未查看。
+- `viewedAt` 有值、`confirmedAt` 为空：已查看待确认。
+- `confirmedAt` 有值：已确认。
+
+家长访问回执时仍会检查当前 `StudentGuardian` 绑定，解绑后的历史家长不能继续读取或确认。
+
+## 9. 审计日志
 
 `AuditLog` 记录关键操作：
 

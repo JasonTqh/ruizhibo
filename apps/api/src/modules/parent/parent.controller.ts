@@ -43,6 +43,27 @@ export class ParentController {
     return this.parentService.homework(user.id, studentId);
   }
 
+  @Get("notices")
+  notices(@CurrentUser() user: AuthUser) {
+    return this.parentService.notices(user.id);
+  }
+
+  @Post("notice-receipts/:receiptId/view")
+  viewNotice(
+    @CurrentUser() user: AuthUser,
+    @Param("receiptId") receiptId: string,
+  ) {
+    return this.parentService.viewNotice(user.id, receiptId);
+  }
+
+  @Post("notice-receipts/:receiptId/confirm")
+  confirmNotice(
+    @CurrentUser() user: AuthUser,
+    @Param("receiptId") receiptId: string,
+  ) {
+    return this.parentService.confirmNotice(user.id, receiptId);
+  }
+
   @Get("conversations")
   conversations(@CurrentUser() user: AuthUser) {
     return this.parentService.conversations(user.id);

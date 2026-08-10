@@ -16,6 +16,10 @@ page {
   box-shadow: 0 4px 16px rgba(26, 46, 40, 0.08);
 }
 
+.card + .card {
+  margin-top: 24px;
+}
+
 .title {
   display: block;
   font-size: 28px;
@@ -44,4 +48,136 @@ page {
   margin-top: 20px;
   padding-top: 20px;
   border-top: 1px solid #e8e3db;
+}
+
+.page-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.page-heading__title {
+  margin-bottom: 0;
+}
+
+.refresh-button {
+  margin: 0;
+  color: #2f8064;
+  border-color: #2f8064;
+}
+
+.feedback-state {
+  padding: 28px 16px;
+  color: #6b746f;
+  font-size: 22px;
+  text-align: center;
+}
+
+.feedback-state--error {
+  margin-bottom: 20px;
+  color: #9b3a32;
+  background: #fff1ef;
+  border: 1px solid #f0c9c5;
+  border-radius: 8px;
+}
+
+.notice-card {
+  margin-top: 20px;
+  padding: 22px;
+  background: #faf8f4;
+  border: 1px solid #e8e3db;
+  border-radius: 8px;
+}
+
+.notice-card--confirmed {
+  background: #f3f8f5;
+  border-color: #cfe1d7;
+}
+
+.notice-card__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.notice-kind,
+.notice-status {
+  display: inline-block;
+  padding: 4px 12px;
+  font-size: 20px;
+  line-height: 1.5;
+  border-radius: 999px;
+}
+
+.notice-kind {
+  color: #286b55;
+  background: #deeee7;
+}
+
+.notice-kind--task {
+  color: #8c5b16;
+  background: #f8e9cb;
+}
+
+.notice-status {
+  color: #8b4c27;
+  background: #f8e6d9;
+}
+
+.notice-status--confirmed {
+  color: #286b55;
+  background: #deeee7;
+}
+
+.notice-title {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 25px;
+  font-weight: 700;
+}
+
+.notice-detail {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid #e8e3db;
+}
+
+.notice-content {
+  display: block;
+  font-size: 23px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.notice-meta {
+  margin-top: 10px;
+}
+
+.notice-actions {
+  display: flex;
+  align-items: center;
+  margin-top: 20px;
+}
+
+.notice-action-button,
+.conversation-action-button {
+  margin: 0 14px 0 0;
+}
+
+.notice-action-button--primary {
+  color: #fff;
+  background: #2f8064;
+  border-color: #2f8064;
+}
+
+.conversation-preview {
+  display: block;
+  margin: 10px 0 16px;
+  font-size: 23px;
+}
+
+.communication-card .title {
+  margin-bottom: 0;
 }

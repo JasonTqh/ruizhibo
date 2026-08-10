@@ -1,11 +1,15 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { MessageKind } from "@prisma/client";
+import { AuditService } from "../audit/audit.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { SendParentMessageDto } from "./dto/send-parent-message.dto";
 
 @Injectable()
 export class ParentService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+  ) {}
 
   async children(parentId: string) {
     const bindings = await this.prisma.studentGuardian.findMany({
@@ -109,6 +113,129 @@ export class ParentService {
     });
 
     return { data: submissions };
+  }
+
+  async notices(parentId: string) {
+    const receipts = await this.prisma.noticeReceipt.findMany({
+      where: {
+        parentId,
+        student: {
+          guardians: {
+            some: { parentId },
+          },
+        },
+      },
+      orderBy: {
+        notice: {
+          createdAt: "desc",
+        },
+      },
+      include: {
+        notice: {
+          include: {
+            class: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            teacher: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+        student: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    return {
+      data: receipts.map((receipt) => ({
+        id: receipt.id,
+        viewedAt: receipt.viewedAt,
+        confirmedAt: receipt.confirmedAt,
+        status: receipt.confirmedAt
+          ? "confirmed"
+          : receipt.viewedAt
+            ? "viewed"
+            : "pending",
+        notice: receipt.notice,
+        student: receipt.student,
+      })),
+    };
+  }
+
+  async viewNotice(parentId: string, receiptId: string) {
+    const receipt = await this.assertParentNoticeReceipt(parentId, receiptId);
+
+    if (!receipt.viewedAt) {
+      await this.prisma.noticeReceipt.updateMany({
+        where: {
+          id: receipt.id,
+          viewedAt: null,
+        },
+        data: { viewedAt: new Date() },
+      });
+    }
+
+    const updated = await this.prisma.noticeReceipt.findUniqueOrThrow({
+      where: { id: receipt.id },
+    });
+
+    return { data: updated };
+  }
+
+  async confirmNotice(parentId: string, receiptId: string) {
+    const receipt = await this.assertParentNoticeReceipt(parentId, receiptId);
+
+    const updated = await this.prisma.$transaction(async (transaction) => {
+      await transaction.noticeReceipt.updateMany({
+        where: {
+          id: receipt.id,
+          viewedAt: null,
+        },
+        data: { viewedAt: new Date() },
+      });
+
+      const result = await transaction.noticeReceipt.updateMany({
+        where: {
+          id: receipt.id,
+          confirmedAt: null,
+        },
+        data: {
+          confirmedAt: new Date(),
+        },
+      });
+
+      if (result.count > 0) {
+        await this.audit.log(
+          {
+            userId: parentId,
+            action: "parent.notice.confirm",
+            targetType: "NoticeReceipt",
+            targetId: receipt.id,
+            detail: {
+              noticeId: receipt.noticeId,
+              studentId: receipt.studentId,
+            },
+          },
+          transaction,
+        );
+      }
+
+      return transaction.noticeReceipt.findUniqueOrThrow({
+        where: { id: receipt.id },
+      });
+    });
+
+    return { data: updated };
   }
 
   async conversations(parentId: string) {
@@ -258,6 +385,33 @@ export class ParentService {
     if (!binding) {
       throw new NotFoundException("Student not found");
     }
+  }
+
+  private async assertParentNoticeReceipt(parentId: string, receiptId: string) {
+    const receipt = await this.prisma.noticeReceipt.findFirst({
+      where: {
+        id: receiptId,
+        parentId,
+        student: {
+          guardians: {
+            some: { parentId },
+          },
+        },
+      },
+      select: {
+        id: true,
+        noticeId: true,
+        studentId: true,
+        viewedAt: true,
+        confirmedAt: true,
+      },
+    });
+
+    if (!receipt) {
+      throw new NotFoundException("Notice receipt not found");
+    }
+
+    return receipt;
   }
 
   private async assertParentConversation(

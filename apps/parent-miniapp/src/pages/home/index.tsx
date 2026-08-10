@@ -1,7 +1,7 @@
 // @ts-nocheck
 import React, { useEffect, useState } from "react";
 import { Button, Text, View } from "@tarojs/components";
-import { parentLogin, parentRequest } from "../../api";
+import { parentRequest } from "../../api";
 
 const h = React.createElement;
 
@@ -10,11 +10,14 @@ export default function HomePage() {
   const [records, setRecords] = useState([]);
 
   async function load() {
-    await parentLogin();
+    setChildren([]);
+    setRecords([]);
     const nextChildren = await parentRequest("/parent/children");
     setChildren(nextChildren);
     if (nextChildren[0]) {
-      setRecords(await parentRequest(`/parent/children/${nextChildren[0].id}/timeline`));
+      setRecords(
+        await parentRequest(`/parent/children/${nextChildren[0].id}/timeline`),
+      );
     }
   }
 
@@ -35,12 +38,23 @@ export default function HomePage() {
           View,
           { className: "section", key: child.id },
           h(Text, { className: "subtitle" }, child.name),
-          h(Text, { className: "muted" }, `${child.class.name} · ${child.relation}`),
+          h(
+            Text,
+            { className: "muted" },
+            `${child.class.name} · ${child.relation}`,
+          ),
         ),
       ),
-      records.slice(0, 3).map((record) =>
-        h(View, { className: "section", key: record.id }, h(Text, { className: "subtitle" }, record.title), h(Text, null, record.content)),
-      ),
+      records
+        .slice(0, 3)
+        .map((record) =>
+          h(
+            View,
+            { className: "section", key: record.id },
+            h(Text, { className: "subtitle" }, record.title),
+            h(Text, null, record.content),
+          ),
+        ),
     ),
   );
 }

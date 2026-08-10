@@ -10,12 +10,14 @@ interface AuditLogInput {
   detail?: Prisma.InputJsonValue;
 }
 
+type AuditClient = Pick<PrismaService, "auditLog">;
+
 @Injectable()
 export class AuditService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async log(input: AuditLogInput) {
-    return this.prisma.auditLog.create({
+  async log(input: AuditLogInput, client: AuditClient = this.prisma) {
+    return client.auditLog.create({
       data: {
         userId: input.userId ?? null,
         action: input.action,

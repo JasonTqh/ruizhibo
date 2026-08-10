@@ -10,7 +10,8 @@
     "lint": "echo \"api lint pending\"",
     "format": "prettier --write \"src/**/*.ts\" \"prisma/**/*.prisma\"",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev",
+    "prisma:migrate": "prisma migrate deploy",
+    "prisma:migrate:dev": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "seed": "tsx prisma/seed.ts",
     "verify:admin": "powershell -ExecutionPolicy Bypass -File scripts/verify-admin-api.ps1"

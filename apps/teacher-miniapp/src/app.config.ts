@@ -5,6 +5,7 @@ export default defineAppConfig({
     "pages/research/index",
     "pages/teaching/index",
     "pages/workflow/index",
+    "pages/notices/index",
   ],
   window: {
     navigationBarTitleText: "锐之博教师端",

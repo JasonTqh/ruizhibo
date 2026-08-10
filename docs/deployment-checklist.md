@@ -30,6 +30,8 @@ pnpm --filter @ruizhibo/api prisma:generate
 pnpm --filter @ruizhibo/api prisma:migrate
 ```
 
+`prisma:migrate` 使用 `prisma migrate deploy`，只应用仓库中已提交的迁移。创建或调整本地开发迁移时使用 `prisma:migrate:dev`，不要在生产环境运行 `prisma migrate dev`。
+
 首次部署测试环境可以执行：
 
 ```powershell
@@ -78,6 +80,8 @@ GET /api/health
 - 老师只能看到自己的班级和学生。
 - 老师可以创建今日流程并完成打卡。
 - 家长只能看到绑定孩子的成长时间线、作业和出勤。
+- 老师可以向自己的班级发布通知或任务，家长端能查看并确认。
+- 老师刷新回执后能看到逐位家长的查看、确认状态；其他家长和教师不能访问该回执。
 - 家长和老师可以互发消息，未读数正确变化。
 - 文件上传拒绝非法类型和超大文件。
 - 管理端关键写操作会生成审计日志。

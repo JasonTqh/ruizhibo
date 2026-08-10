@@ -53,26 +53,33 @@ enum MessageKind {
   system
 }
 
-model User {
-  id             String          @id @default(cuid())
-  role           UserRole
-  name           String
-  phone          String?         @unique
-  wechatOpenid   String?         @unique
-  avatarUrl      String?
-  status         UserStatus      @default(active)
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+enum NoticeKind {
+  notice
+  task
+}
 
-  teachingClasses Class[]         @relation("ClassTeacher")
-  guardianships   StudentGuardian[]
-  attendanceLogs  AttendanceEvent[] @relation("AttendanceTeacher")
+model User {
+  id           String     @id @default(cuid())
+  role         UserRole
+  name         String
+  phone        String?    @unique
+  wechatOpenid String?    @unique
+  avatarUrl    String?
+  status       UserStatus @default(active)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  teachingClasses  Class[]              @relation("ClassTeacher")
+  guardianships    StudentGuardian[]
+  attendanceLogs   AttendanceEvent[]    @relation("AttendanceTeacher")
   workflowSessions WorkflowSession[]
-  workflowChecks  WorkflowStep[]  @relation("WorkflowStepTeacher")
+  workflowChecks   WorkflowStep[]       @relation("WorkflowStepTeacher")
   homeworkAssigned HomeworkAssignment[]
-  teachingRecords TeachingRecord[]
-  growthRecords   GrowthRecord[]
-  sentMessages    Message[]
+  teachingRecords  TeachingRecord[]
+  growthRecords    GrowthRecord[]
+  sentMessages     Message[]
+  publishedNotices Notice[]             @relation("NoticeTeacher")
+  noticeReceipts   NoticeReceipt[]      @relation("NoticeReceiptParent")
   auditLogs        AuditLog[]
 }
 
@@ -95,12 +102,13 @@ model Class {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  campus   Campus  @relation(fields: [campusId], references: [id])
-  teacher  User?   @relation("ClassTeacher", fields: [teacherId], references: [id])
-  students Student[]
-  workflowSessions WorkflowSession[]
+  campus              Campus               @relation(fields: [campusId], references: [id])
+  teacher             User?                @relation("ClassTeacher", fields: [teacherId], references: [id])
+  students            Student[]
+  workflowSessions    WorkflowSession[]
   homeworkAssignments HomeworkAssignment[]
-  teachingRecords TeachingRecord[]
+  teachingRecords     TeachingRecord[]
+  notices             Notice[]
 }
 
 model Student {
@@ -113,12 +121,13 @@ model Student {
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 
-  class       Class             @relation(fields: [classId], references: [id])
-  guardians   StudentGuardian[]
-  attendance  AttendanceEvent[]
-  submissions HomeworkSubmission[]
-  growthRecords GrowthRecord[]
-  conversations Conversation[]
+  class          Class                @relation(fields: [classId], references: [id])
+  guardians      StudentGuardian[]
+  attendance     AttendanceEvent[]
+  submissions    HomeworkSubmission[]
+  growthRecords  GrowthRecord[]
+  conversations  Conversation[]
+  noticeReceipts NoticeReceipt[]
 }
 
 model StudentGuardian {
@@ -135,13 +144,13 @@ model StudentGuardian {
 }
 
 model AttendanceEvent {
-  id        String         @id @default(cuid())
-  studentId String
-  type      AttendanceType
+  id         String         @id @default(cuid())
+  studentId  String
+  type       AttendanceType
   happenedAt DateTime
-  teacherId String?
-  remark    String?
-  createdAt DateTime @default(now())
+  teacherId  String?
+  remark     String?
+  createdAt  DateTime       @default(now())
 
   student Student @relation(fields: [studentId], references: [id])
   teacher User?   @relation("AttendanceTeacher", fields: [teacherId], references: [id])
@@ -160,12 +169,12 @@ model WorkflowTemplate {
 }
 
 model WorkflowTemplateStep {
-  id         String @id @default(cuid())
-  templateId String
-  stepKey    String
-  name       String
-  timeRange  String
-  sortOrder  Int
+  id           String  @id @default(cuid())
+  templateId   String
+  stepKey      String
+  name         String
+  timeRange    String
+  sortOrder    Int
   requirePhoto Boolean @default(false)
 
   template WorkflowTemplate @relation(fields: [templateId], references: [id])
@@ -192,46 +201,46 @@ model WorkflowSession {
 }
 
 model WorkflowStep {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   sessionId String
   stepKey   String
   name      String
   timeRange String
   sortOrder Int
-  checked   Boolean  @default(false)
+  checked   Boolean   @default(false)
   checkedAt DateTime?
   teacherId String?
-  photoUrls String[] @default([])
+  photoUrls String[]  @default([])
 
   session WorkflowSession @relation(fields: [sessionId], references: [id])
-  teacher User?          @relation("WorkflowStepTeacher", fields: [teacherId], references: [id])
+  teacher User?           @relation("WorkflowStepTeacher", fields: [teacherId], references: [id])
 
   @@unique([sessionId, stepKey])
 }
 
 model HomeworkAssignment {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   classId   String
   teacherId String
   title     String
   subject   String
   content   String
   dueAt     DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
-  class    Class @relation(fields: [classId], references: [id])
-  teacher  User  @relation(fields: [teacherId], references: [id])
+  class       Class                @relation(fields: [classId], references: [id])
+  teacher     User                 @relation(fields: [teacherId], references: [id])
   submissions HomeworkSubmission[]
 }
 
 model HomeworkSubmission {
-  id         String         @id @default(cuid())
-  homeworkId String
-  studentId  String
-  status     HomeworkStatus @default(pending)
-  content    String?
-  fileUrls   String[]       @default([])
+  id          String         @id @default(cuid())
+  homeworkId  String
+  studentId   String
+  status      HomeworkStatus @default(pending)
+  content     String?
+  fileUrls    String[]       @default([])
   submittedAt DateTime?
   reviewedAt  DateTime?
   remark      String?
@@ -257,15 +266,15 @@ model TeachingRecord {
 }
 
 model GrowthRecord {
-  id        String           @id @default(cuid())
-  studentId String
-  teacherId String?
-  type      GrowthRecordType
-  title     String
-  content   String
-  visibleToParent Boolean @default(true)
-  happenedAt DateTime @default(now())
-  createdAt  DateTime @default(now())
+  id              String           @id @default(cuid())
+  studentId       String
+  teacherId       String?
+  type            GrowthRecordType
+  title           String
+  content         String
+  visibleToParent Boolean          @default(true)
+  happenedAt      DateTime         @default(now())
+  createdAt       DateTime         @default(now())
 
   student Student @relation(fields: [studentId], references: [id])
   teacher User?   @relation(fields: [teacherId], references: [id])
@@ -279,7 +288,7 @@ model Conversation {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  student Student @relation(fields: [studentId], references: [id])
+  student  Student   @relation(fields: [studentId], references: [id])
   messages Message[]
 
   @@unique([studentId, parentId, teacherId])
@@ -297,6 +306,45 @@ model Message {
 
   conversation Conversation @relation(fields: [conversationId], references: [id])
   sender       User         @relation(fields: [senderId], references: [id])
+}
+
+model Notice {
+  id                  String     @id @default(cuid())
+  classId             String
+  teacherId           String
+  kind                NoticeKind
+  title               String
+  content             String
+  dueAt               DateTime?
+  unboundStudentCount Int        @default(0)
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  class    Class           @relation(fields: [classId], references: [id])
+  teacher  User            @relation("NoticeTeacher", fields: [teacherId], references: [id])
+  receipts NoticeReceipt[]
+
+  @@index([teacherId, createdAt])
+  @@index([classId, createdAt])
+}
+
+model NoticeReceipt {
+  id          String    @id @default(cuid())
+  noticeId    String
+  studentId   String
+  parentId    String
+  viewedAt    DateTime?
+  confirmedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  notice  Notice  @relation(fields: [noticeId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id])
+  parent  User    @relation("NoticeReceiptParent", fields: [parentId], references: [id])
+
+  @@unique([noticeId, studentId, parentId])
+  @@index([parentId, createdAt])
+  @@index([noticeId, confirmedAt])
 }
 
 model FileAsset {

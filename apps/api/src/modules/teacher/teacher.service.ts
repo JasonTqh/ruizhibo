@@ -1,10 +1,23 @@
-import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
-import { GrowthRecordType, HomeworkStatus, MessageKind, Prisma } from "@prisma/client";
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import {
+  GrowthRecordType,
+  HomeworkStatus,
+  MessageKind,
+  Prisma,
+  StudentStatus,
+  UserStatus,
+} from "@prisma/client";
 import { AuditService } from "../audit/audit.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { CheckWorkflowStepDto } from "./dto/check-workflow-step.dto";
 import { CreateGrowthFeedbackDto } from "./dto/create-growth-feedback.dto";
 import { CreateHomeworkDto } from "./dto/create-homework.dto";
+import { CreateNoticeDto } from "./dto/create-notice.dto";
 import { CreateTeachingRecordDto } from "./dto/create-teaching-record.dto";
 import { SendTeacherMessageDto } from "./dto/send-teacher-message.dto";
 import { UpdateHomeworkSubmissionDto } from "./dto/update-homework-submission.dto";
@@ -56,11 +69,15 @@ export class TeacherService {
       data: {
         date: today.toISOString(),
         classCount: classes.length,
-        studentCount: classes.reduce((sum, item) => sum + item._count.students, 0),
+        studentCount: classes.reduce(
+          (sum, item) => sum + item._count.students,
+          0,
+        ),
         workflow: {
           sessionCount: sessions.length,
           uncheckedStepCount: sessions.reduce(
-            (sum, session) => sum + session.steps.filter((step) => !step.checked).length,
+            (sum, session) =>
+              sum + session.steps.filter((step) => !step.checked).length,
             0,
           ),
         },
@@ -182,7 +199,9 @@ export class TeacherService {
     }
 
     if (session.class.teacherId !== teacherId) {
-      throw new ForbiddenException("Cannot check workflow for another teacher class");
+      throw new ForbiddenException(
+        "Cannot check workflow for another teacher class",
+      );
     }
 
     const step = session.steps[0];
@@ -392,6 +411,204 @@ export class TeacherService {
     });
 
     return { data: homework };
+  }
+
+  async notices(teacherId: string) {
+    const notices = await this.prisma.notice.findMany({
+      where: { teacherId },
+      orderBy: { createdAt: "desc" },
+      include: {
+        class: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        receipts: {
+          select: {
+            viewedAt: true,
+            confirmedAt: true,
+          },
+        },
+      },
+    });
+
+    return {
+      data: notices.map(({ receipts, ...notice }) => ({
+        ...notice,
+        receiptSummary: this.noticeReceiptSummary(receipts),
+      })),
+    };
+  }
+
+  async createNotice(teacherId: string, dto: CreateNoticeDto) {
+    await this.assertTeacherClass(teacherId, dto.classId);
+
+    const title = dto.title.trim();
+    const content = dto.content.trim();
+    if (!title || !content) {
+      throw new BadRequestException("Notice title and content are required");
+    }
+
+    const students = await this.prisma.student.findMany({
+      where: {
+        classId: dto.classId,
+        status: StudentStatus.active,
+      },
+      select: {
+        id: true,
+        guardians: {
+          where: {
+            parent: {
+              status: UserStatus.active,
+            },
+          },
+          select: {
+            parentId: true,
+          },
+        },
+      },
+    });
+
+    const recipients = students.flatMap((student) =>
+      student.guardians.map((guardian) => ({
+        studentId: student.id,
+        parentId: guardian.parentId,
+      })),
+    );
+    const unboundStudentCount = students.filter(
+      (student) => student.guardians.length === 0,
+    ).length;
+
+    if (recipients.length === 0) {
+      throw new BadRequestException(
+        "No active guardians available for this class",
+      );
+    }
+
+    const notice = await this.prisma.$transaction(async (transaction) => {
+      const created = await transaction.notice.create({
+        data: {
+          classId: dto.classId,
+          teacherId,
+          kind: dto.kind,
+          title,
+          content,
+          dueAt: dto.dueAt ? new Date(dto.dueAt) : null,
+          unboundStudentCount,
+          receipts: {
+            create: recipients,
+          },
+        },
+        include: {
+          class: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          receipts: {
+            select: {
+              viewedAt: true,
+              confirmedAt: true,
+            },
+          },
+        },
+      });
+
+      await this.audit.log(
+        {
+          userId: teacherId,
+          action: "teacher.notice.publish",
+          targetType: "Notice",
+          targetId: created.id,
+          detail: {
+            classId: dto.classId,
+            kind: dto.kind,
+            recipientCount: recipients.length,
+            unboundStudentCount,
+          },
+        },
+        transaction,
+      );
+
+      return created;
+    });
+
+    const { receipts, ...noticeData } = notice;
+    return {
+      data: {
+        ...noticeData,
+        receiptSummary: this.noticeReceiptSummary(receipts),
+      },
+    };
+  }
+
+  async noticeReceipts(teacherId: string, noticeId: string) {
+    const notice = await this.prisma.notice.findFirst({
+      where: {
+        id: noticeId,
+        teacherId,
+      },
+      include: {
+        class: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        receipts: {
+          orderBy: [{ student: { name: "asc" } }, { createdAt: "asc" }],
+          include: {
+            student: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            parent: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!notice) {
+      throw new NotFoundException("Notice not found");
+    }
+
+    const summary = this.noticeReceiptSummary(notice.receipts);
+    return {
+      data: {
+        notice: {
+          id: notice.id,
+          kind: notice.kind,
+          title: notice.title,
+          content: notice.content,
+          dueAt: notice.dueAt,
+          createdAt: notice.createdAt,
+          unboundStudentCount: notice.unboundStudentCount,
+          class: notice.class,
+        },
+        summary,
+        receipts: notice.receipts.map((receipt) => ({
+          id: receipt.id,
+          student: receipt.student,
+          parent: receipt.parent,
+          status: receipt.confirmedAt
+            ? "confirmed"
+            : receipt.viewedAt
+              ? "viewed"
+              : "pending",
+          viewedAt: receipt.viewedAt,
+          confirmedAt: receipt.confirmedAt,
+        })),
+      },
+    };
   }
 
   async updateHomeworkSubmission(
@@ -615,7 +832,10 @@ export class TeacherService {
     }
   }
 
-  private async assertTeacherConversation(teacherId: string, conversationId: string) {
+  private async assertTeacherConversation(
+    teacherId: string,
+    conversationId: string,
+  ) {
     const conversation = await this.prisma.conversation.findFirst({
       where: {
         id: conversationId,
@@ -637,6 +857,26 @@ export class TeacherService {
         readAt: null,
       },
     });
+  }
+
+  private noticeReceiptSummary(
+    receipts: Array<{
+      viewedAt: Date | null;
+      confirmedAt: Date | null;
+    }>,
+  ) {
+    const totalCount = receipts.length;
+    const viewedCount = receipts.filter((receipt) => receipt.viewedAt).length;
+    const confirmedCount = receipts.filter(
+      (receipt) => receipt.confirmedAt,
+    ).length;
+
+    return {
+      totalCount,
+      viewedCount,
+      confirmedCount,
+      pendingCount: totalCount - confirmedCount,
+    };
   }
 
   private today() {

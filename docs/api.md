@@ -33,11 +33,11 @@ Content-Type: application/json
 
 seed 数据内置账号：
 
-| 角色 | 手机号 | 说明 |
-| --- | --- | --- |
-| `admin` | `13800000000` | 系统管理员 |
-| `teacher` | `13800000001` | 李老师 |
-| `parent` | `13800000002` | 张小明家长 |
+| 角色      | 手机号        | 说明       |
+| --------- | ------------- | ---------- |
+| `admin`   | `13800000000` | 系统管理员 |
+| `teacher` | `13800000001` | 李老师     |
+| `parent`  | `13800000002` | 张小明家长 |
 
 响应：
 
@@ -76,6 +76,10 @@ GET  /api/parent/children/:studentId/timeline
 GET  /api/parent/children/:studentId/attendance
 GET  /api/parent/children/:studentId/homework
 
+GET  /api/parent/notices
+POST /api/parent/notice-receipts/:receiptId/view
+POST /api/parent/notice-receipts/:receiptId/confirm
+
 GET  /api/parent/conversations
 GET  /api/parent/conversations/:conversationId/messages
 POST /api/parent/conversations/:conversationId/messages
@@ -97,6 +101,44 @@ POST /api/parent/conversations/:conversationId/messages
 }
 ```
 
+### 家长查看并确认通知/任务
+
+`GET /api/parent/notices` 按当前登录家长返回发布回执。每个已绑定孩子各有一条独立回执，状态由 `viewedAt` 和 `confirmedAt` 推导。
+
+```json
+{
+  "data": [
+    {
+      "id": "<receipt-id>",
+      "status": "pending",
+      "viewedAt": null,
+      "confirmedAt": null,
+      "student": { "id": "<student-id>", "name": "张小明" },
+      "notice": {
+        "id": "<notice-id>",
+        "kind": "task",
+        "title": "亲子阅读确认",
+        "content": "今晚完成 20 分钟亲子阅读后请确认。",
+        "dueAt": "2026-08-07T12:00:00.000Z",
+        "createdAt": "2026-08-06T04:00:00.000Z",
+        "class": { "id": "<class-id>", "name": "晚托 A 班" },
+        "teacher": { "id": "<teacher-id>", "name": "李老师" }
+      }
+    }
+  ]
+}
+```
+
+家长打开详情时标记查看，完成阅读或任务后显式确认：
+
+```http
+POST /api/parent/notice-receipts/:receiptId/view
+POST /api/parent/notice-receipts/:receiptId/confirm
+Authorization: Bearer <parent-token>
+```
+
+两个写接口均幂等，并保留首次查看、首次确认时间。确认会在尚未查看时同时补上 `viewedAt`。家长只能操作自己当前仍绑定孩子的回执，跨家长访问返回 `NOT_FOUND`。
+
 ## 3. 教师端 API
 
 ```http
@@ -113,6 +155,10 @@ POST /api/teacher/teaching-records
 GET  /api/teacher/homework
 POST /api/teacher/homework
 PATCH /api/teacher/homework-submissions/:submissionId
+
+GET  /api/teacher/notices
+POST /api/teacher/notices
+GET  /api/teacher/notices/:noticeId/receipts
 
 GET  /api/teacher/conversations
 GET  /api/teacher/conversations/:conversationId/messages
@@ -139,6 +185,85 @@ Content-Type: application/json
   "photoUrls": ["/uploads/workflow/example.jpg"]
 }
 ```
+
+### 发布通知/家长任务
+
+这里的 `task` 表示需要家长查看并确认的待办事项；学生学业作业仍使用 `HomeworkAssignment`。
+
+```http
+POST /api/teacher/notices
+Authorization: Bearer <teacher-token>
+Content-Type: application/json
+
+{
+  "classId": "<class-id>",
+  "kind": "task",
+  "title": "亲子阅读确认",
+  "content": "今晚完成 20 分钟亲子阅读后请确认。",
+  "dueAt": "2026-08-07T12:00:00.000Z"
+}
+```
+
+`kind` 支持 `notice`、`task`；`dueAt` 可选。发布时会为班级内每个有效学生的每位有效家长创建一条回执快照。没有任何有效接收家长时返回 `BAD_REQUEST`，部分学生未绑定家长时通过 `unboundStudentCount` 提醒教师。
+
+教师发布列表包含回执汇总：
+
+```json
+{
+  "id": "<notice-id>",
+  "kind": "task",
+  "title": "亲子阅读确认",
+  "content": "今晚完成 20 分钟亲子阅读后请确认。",
+  "dueAt": "2026-08-07T12:00:00.000Z",
+  "createdAt": "2026-08-06T04:00:00.000Z",
+  "unboundStudentCount": 1,
+  "class": { "id": "<class-id>", "name": "晚托 A 班" },
+  "receiptSummary": {
+    "totalCount": 8,
+    "viewedCount": 5,
+    "confirmedCount": 3,
+    "pendingCount": 5
+  }
+}
+```
+
+查看逐位家长回执：
+
+```http
+GET /api/teacher/notices/:noticeId/receipts
+Authorization: Bearer <teacher-token>
+```
+
+```json
+{
+  "data": {
+    "notice": {
+      "id": "<notice-id>",
+      "kind": "task",
+      "title": "亲子阅读确认",
+      "class": { "id": "<class-id>", "name": "晚托 A 班" }
+    },
+    "summary": {
+      "totalCount": 8,
+      "viewedCount": 5,
+      "confirmedCount": 3,
+      "pendingCount": 5
+    },
+    "receipts": [
+      {
+        "id": "<receipt-id>",
+        "student": { "id": "<student-id>", "name": "张小明" },
+        "parent": { "id": "<parent-id>", "name": "张小明家长" },
+        "status": "confirmed",
+        "viewedAt": "2026-08-06T04:10:00.000Z",
+        "confirmedAt": "2026-08-06T04:12:00.000Z"
+      }
+    ]
+  }
+}
+```
+
+教师只能发布到自己负责的班级，也只能查看自己发布内容的回执。
 
 作业发布：
 
@@ -344,14 +469,14 @@ Content-Type: application/json
 
 常见错误码：
 
-| HTTP 状态 | code | 场景 |
-| --- | --- | --- |
-| 400 | `BAD_REQUEST` | 参数格式错误、DTO 校验失败 |
-| 401 | `UNAUTHORIZED` | 缺少 token、token 无效、用户已禁用 |
-| 403 | `FORBIDDEN` | 当前角色无权访问 |
-| 404 | `NOT_FOUND` | 资源不存在 |
-| 409 | `CONFLICT` | 手机号重复、绑定关系重复 |
-| 500 | `INTERNAL_SERVER_ERROR` | 未预期服务端错误 |
+| HTTP 状态 | code                    | 场景                               |
+| --------- | ----------------------- | ---------------------------------- |
+| 400       | `BAD_REQUEST`           | 参数格式错误、DTO 校验失败         |
+| 401       | `UNAUTHORIZED`          | 缺少 token、token 无效、用户已禁用 |
+| 403       | `FORBIDDEN`             | 当前角色无权访问                   |
+| 404       | `NOT_FOUND`             | 资源不存在                         |
+| 409       | `CONFLICT`              | 手机号重复、绑定关系重复           |
+| 500       | `INTERNAL_SERVER_ERROR` | 未预期服务端错误                   |
 
 ## 7. 本地验证
 
@@ -438,3 +563,5 @@ Authorization: Bearer <admin-token>
 - 流程模板创建和更新
 - 教师流程打卡
 - 教学记录、成长反馈、作业创建和作业状态更新
+- 教师发布通知/任务
+- 家长确认通知/任务

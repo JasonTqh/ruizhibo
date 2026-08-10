@@ -1,9 +1,10 @@
 {
   "description": "锐之博家长端小程序",
   "compileType": "miniprogram",
-  "appid": "wx0000000000000000",
+  "appid": "touristappid",
   "projectname": "锐之博家长端",
   "setting": {
+    "urlCheck": false,
     "es6": true,
     "minified": true,
     "postcss": true
