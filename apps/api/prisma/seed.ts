@@ -123,14 +123,20 @@ async function main() {
   });
 
   const workflowSteps = [
-    ["arrive", "到校签到", "16:30-17:00", 10],
-    ["homework", "作业辅导", "17:00-18:20", 20],
-    ["dinner", "晚餐休息", "18:20-19:00", 30],
-    ["review", "复习整理", "19:00-20:00", 40],
-    ["leave", "离校交接", "20:00-20:30", 50],
+    ["arrive", "到校签到", "16:30-17:00", 10, false],
+    ["homework", "作业辅导", "17:00-18:20", 20, false],
+    ["dinner", "晚餐休息", "18:20-19:00", 30, false],
+    ["review", "复习整理", "19:00-20:00", 40, false],
+    ["leave", "离校交接", "20:00-20:30", 50, true],
   ] as const;
 
-  for (const [stepKey, name, timeRange, sortOrder] of workflowSteps) {
+  for (const [
+    stepKey,
+    name,
+    timeRange,
+    sortOrder,
+    requirePhoto,
+  ] of workflowSteps) {
     await prisma.workflowTemplateStep.upsert({
       where: {
         templateId_stepKey: {
@@ -142,6 +148,7 @@ async function main() {
         name,
         timeRange,
         sortOrder,
+        requirePhoto,
       },
       create: {
         templateId: workflowTemplate.id,
@@ -149,7 +156,16 @@ async function main() {
         name,
         timeRange,
         sortOrder,
+        requirePhoto,
       },
+    });
+
+    await prisma.workflowStep.updateMany({
+      where: {
+        stepKey,
+        session: { templateId: workflowTemplate.id },
+      },
+      data: { requirePhoto },
     });
   }
 

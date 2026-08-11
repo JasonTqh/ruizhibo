@@ -63,6 +63,9 @@ function request(path, options, token) {
 }
 
 function apiErrorMessage(response, fallback) {
-  const message = response && response.data && response.data.message;
+  const message =
+    response &&
+    response.data &&
+    (response.data.message || response.data.error?.message);
   return Array.isArray(message) ? message.join("；") : message || fallback;
 }

@@ -187,6 +187,7 @@ Authorization: Bearer <teacher-token>
 ```
 
 如果当天没有流程实例，后端会使用激活的流程模板为老师负责的班级创建今日实例。
+每个步骤会返回 `requirePhoto`、`checkedAt` 和 `photoUrls`，前端据此展示照片要求、完成时间和已上传凭证。
 
 ```http
 POST /api/teacher/workflow/:sessionId/steps/:stepId/check
@@ -197,6 +198,10 @@ Content-Type: application/json
   "photoUrls": ["/uploads/workflow/example.jpg"]
 }
 ```
+
+- `photoUrls` 最多包含 3 张图片。
+- 当步骤的 `requirePhoto` 为 `true` 时，未提供照片会返回 `400`，不会写入打卡结果。
+- 已完成步骤再次提交会返回 `409`，用于阻止重复打卡和重复生成成长记录。
 
 ### 发布通知/家长任务
 
@@ -495,6 +500,8 @@ Content-Type: application/json
 - 作业图片
 - 流程打卡照片
 - 家校沟通图片
+
+单个文件解码后最大为 10 MB；API 请求体已为 Base64 编码开销预留空间。请求体过大时返回 `413 PAYLOAD_TOO_LARGE`，小程序会显示可读错误信息。
 
 开发期可以本地存储，生产期接腾讯云 COS 或阿里云 OSS。
 

@@ -201,16 +201,17 @@ model WorkflowSession {
 }
 
 model WorkflowStep {
-  id        String    @id @default(cuid())
-  sessionId String
-  stepKey   String
-  name      String
-  timeRange String
-  sortOrder Int
-  checked   Boolean   @default(false)
-  checkedAt DateTime?
-  teacherId String?
-  photoUrls String[]  @default([])
+  id           String    @id @default(cuid())
+  sessionId    String
+  stepKey      String
+  name         String
+  timeRange    String
+  sortOrder    Int
+  requirePhoto Boolean   @default(false)
+  checked      Boolean   @default(false)
+  checkedAt    DateTime?
+  teacherId    String?
+  photoUrls    String[]  @default([])
 
   session WorkflowSession @relation(fields: [sessionId], references: [id])
   teacher User?           @relation("WorkflowStepTeacher", fields: [teacherId], references: [id])

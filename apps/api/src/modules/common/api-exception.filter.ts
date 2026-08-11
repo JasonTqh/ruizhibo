@@ -14,21 +14,35 @@ type ExceptionResponseBody =
       message?: string | string[];
     };
 
+type StatusError = Error & {
+  status?: number;
+  statusCode?: number;
+};
+
 @Catch()
 export class ApiExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost) {
     const response = host.switchToHttp().getResponse<Response>();
-    const status =
-      exception instanceof HttpException
-        ? exception.getStatus()
-        : HttpStatus.INTERNAL_SERVER_ERROR;
+    const status = this.resolveStatus(exception);
 
     response.status(status).json({
       error: {
         code: this.resolveCode(status, exception),
-        message: this.resolveMessage(exception),
+        message: this.resolveMessage(exception, status),
       },
     });
+  }
+
+  private resolveStatus(exception: unknown) {
+    if (exception instanceof HttpException) {
+      return exception.getStatus();
+    }
+
+    const statusError = exception as StatusError;
+    const candidate = statusError?.status ?? statusError?.statusCode;
+    return typeof candidate === "number" && candidate >= 400 && candidate < 600
+      ? candidate
+      : HttpStatus.INTERNAL_SERVER_ERROR;
   }
 
   private resolveCode(status: number, exception: unknown) {
@@ -50,12 +64,18 @@ export class ApiExceptionFilter implements ExceptionFilter {
         return "NOT_FOUND";
       case HttpStatus.CONFLICT:
         return "CONFLICT";
+      case HttpStatus.PAYLOAD_TOO_LARGE:
+        return "PAYLOAD_TOO_LARGE";
       default:
         return "INTERNAL_SERVER_ERROR";
     }
   }
 
-  private resolveMessage(exception: unknown) {
+  private resolveMessage(exception: unknown, status: number) {
+    if (status === HttpStatus.PAYLOAD_TOO_LARGE) {
+      return "请求内容过大，请压缩图片或减少文件数量";
+    }
+
     if (!(exception instanceof HttpException)) {
       return "Internal server error";
     }

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -162,6 +163,7 @@ export class TeacherService {
               name: step.name,
               timeRange: step.timeRange,
               sortOrder: step.sortOrder,
+              requirePhoto: step.requirePhoto,
             })),
           },
         },
@@ -188,6 +190,7 @@ export class TeacherService {
           select: {
             id: true,
             name: true,
+            requirePhoto: true,
             checked: true,
           },
         },
@@ -205,21 +208,36 @@ export class TeacherService {
     }
 
     const step = session.steps[0];
+    if (step.checked) {
+      throw new ConflictException("该流程环节已经完成，请勿重复打卡");
+    }
+    if (step.requirePhoto && !dto.photoUrls?.length) {
+      throw new BadRequestException("该流程环节需要先上传照片凭证");
+    }
+
     const checkedAt = new Date();
-    const updatedStep = await this.prisma.workflowStep.update({
-      where: { id: stepId },
+    const updateResult = await this.prisma.workflowStep.updateMany({
+      where: { id: stepId, checked: false },
       data: {
         checked: true,
         checkedAt,
         teacherId,
         photoUrls: dto.photoUrls ?? [],
       },
+    });
+    if (updateResult.count === 0) {
+      throw new ConflictException("该流程环节已经完成，请勿重复打卡");
+    }
+
+    const updatedStep = await this.prisma.workflowStep.findUniqueOrThrow({
+      where: { id: stepId },
       select: {
         id: true,
         stepKey: true,
         name: true,
         timeRange: true,
         sortOrder: true,
+        requirePhoto: true,
         checked: true,
         checkedAt: true,
         photoUrls: true,
@@ -1019,6 +1037,7 @@ export class TeacherService {
           name: true,
           timeRange: true,
           sortOrder: true,
+          requirePhoto: true,
           checked: true,
           checkedAt: true,
           photoUrls: true,

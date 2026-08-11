@@ -45,6 +45,8 @@ export interface WorkflowStepSummary {
   stepKey: string;
   name: string;
   timeRange: string;
+  requirePhoto: boolean;
   checked: boolean;
   checkedAt?: string;
+  photoUrls: string[];
 }
