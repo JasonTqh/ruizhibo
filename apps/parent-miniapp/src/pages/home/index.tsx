@@ -47,6 +47,7 @@ export default function HomePage() {
       setHomework(nextHomework);
       setNotices(nextNotices);
       setConversations(nextConversations);
+      syncCommunicationBadge(nextNotices, nextConversations);
     } catch (loadError) {
       setError(
         loadError instanceof Error
@@ -310,6 +311,19 @@ export default function HomePage() {
           ),
     ),
   );
+}
+
+function syncCommunicationBadge(noticeItems, conversationItems) {
+  const pending = noticeItems.filter((item) => !item.confirmedAt).length;
+  const unread = conversationItems.reduce(
+    (total, item) => total + Number(item.unreadCount || 0),
+    0,
+  );
+  const total = pending + unread;
+  const task = total
+    ? Taro.setTabBarBadge({ index: 2, text: total > 99 ? "99+" : String(total) })
+    : Taro.removeTabBarBadge({ index: 2 });
+  Promise.resolve(task).catch(() => undefined);
 }
 
 function quickItem(icon, title, description, tone, onClick) {

@@ -1,1 +1,128 @@
-/* Page styles are provided by app.scss; this file keeps page WXSS generation stable. */
+.notices-card {
+  overflow: hidden;
+  padding: 28px;
+  border: 1px solid #ebe7df;
+  border-radius: 20px;
+  box-shadow: 0 7px 24px rgba(32, 62, 51, 0.06);
+}
+
+.notices-card:first-child {
+  position: relative;
+  padding-top: 32px;
+}
+
+.notices-card:first-child::before {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 8px;
+  content: "";
+  background: linear-gradient(90deg, #28785c, #4b9e7e);
+}
+
+.notices-card .title {
+  color: #243a32;
+  font-size: 29px;
+}
+
+.notices-card .form-field {
+  margin-top: 24px;
+}
+
+.notices-card .field-label {
+  color: #344a42;
+  font-size: 21px;
+  font-weight: 700;
+}
+
+.notices-card .form-input,
+.notices-card .form-textarea,
+.notices-card .picker-field {
+  background: #f7f8f7;
+  border-color: #dce4e0;
+  border-radius: 13px;
+}
+
+.notice-kind-switch {
+  padding: 6px;
+  background: #eef1ef;
+  border-radius: 14px;
+}
+
+.notice-kind-switch .kind-button {
+  border: 0;
+  border-radius: 10px;
+}
+
+.notice-kind-switch .kind-button-active {
+  background: #2b7c5e;
+  box-shadow: 0 4px 12px rgba(43, 124, 94, 0.18);
+}
+
+.notices-card .form-actions button {
+  min-height: 76px;
+  border-radius: 13px;
+}
+
+.notices-card > .row {
+  padding: 0 0 8px;
+}
+
+.notices-card > .row button {
+  margin: 0;
+  color: #2c785d;
+  background: #f5faf7;
+  border-color: #d4e5dd;
+}
+
+.notices-card > .section {
+  margin-top: 18px;
+  padding: 22px;
+  background: #faf9f6;
+  border: 1px solid #ece8e1;
+  border-radius: 16px;
+}
+
+.notice-heading-main .subtitle {
+  color: #283d35;
+  font-size: 25px;
+  line-height: 1.45;
+}
+
+.notice-content {
+  overflow-wrap: anywhere;
+  color: #41534c;
+  font-size: 22px;
+  word-break: break-word;
+}
+
+.receipt-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 16px;
+  background: #eef5f1;
+  border-radius: 12px;
+}
+
+.receipt-summary-text {
+  box-sizing: border-box;
+  padding: 5px 8px;
+  color: #486158;
+  font-size: 20px;
+}
+
+.notice-card-actions .secondary-button {
+  border-radius: 12px;
+}
+
+.receipt-panel {
+  background: #fff;
+  border: 1px solid #e3e9e6;
+  border-radius: 13px;
+}
+
+.receipt-row {
+  align-items: center;
+}

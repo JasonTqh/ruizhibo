@@ -1,1 +1,251 @@
-/* 页面公共样式由 app.scss 提供；保留此文件以稳定生成页面 WXSS。 */
+.teacher-messages-page {
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: 24px;
+  background: #f4f1ec;
+}
+
+.messages-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 30px;
+  color: #fff;
+  background: linear-gradient(135deg, #1f745a 0%, #30906e 100%);
+  border-radius: 22px;
+  box-shadow: 0 12px 30px rgba(31, 116, 90, 0.18);
+}
+
+.messages-hero__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.messages-eyebrow,
+.messages-title,
+.messages-description,
+.messages-counter__value,
+.messages-counter__label,
+.messages-toolbar__hint,
+.messages-empty__icon,
+.messages-empty__title,
+.messages-empty__text,
+.conversation-name,
+.conversation-class,
+.conversation-date,
+.conversation-snippet,
+.conversation-arrow {
+  display: block;
+}
+
+.messages-eyebrow {
+  margin-bottom: 8px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 20px;
+  letter-spacing: 2px;
+}
+
+.messages-title {
+  font-size: 34px;
+  font-weight: 800;
+}
+
+.messages-description {
+  margin-top: 10px;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 21px;
+  line-height: 1.55;
+}
+
+.messages-counter {
+  box-sizing: border-box;
+  flex-shrink: 0;
+  width: 104px;
+  padding: 18px 10px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 18px;
+}
+
+.messages-counter--active {
+  color: #7b321f;
+  background: #ffe2d4;
+  border-color: #ffe2d4;
+}
+
+.messages-counter__value {
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.messages-counter__label {
+  margin-top: 8px;
+  font-size: 19px;
+}
+
+.messages-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 22px 2px 12px;
+}
+
+.messages-toolbar__hint {
+  color: #718079;
+  font-size: 20px;
+}
+
+.messages-refresh {
+  margin: 0;
+  color: #25775b;
+  background: #fff;
+  border-color: #d5e4dd;
+}
+
+.messages-feedback,
+.messages-empty {
+  margin-top: 16px;
+  padding: 42px 24px;
+  color: #718079;
+  font-size: 22px;
+  line-height: 1.6;
+  text-align: center;
+  background: #fff;
+  border-radius: 18px;
+}
+
+.messages-feedback--error {
+  color: #a33e35;
+  background: #fff3f1;
+}
+
+.messages-feedback--error button {
+  margin-top: 18px;
+}
+
+.messages-empty__icon {
+  box-sizing: border-box;
+  width: 82px;
+  height: 82px;
+  margin: 0 auto 20px;
+  color: #2d8063;
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 82px;
+  background: #e5f2ec;
+  border-radius: 50%;
+}
+
+.messages-empty__title {
+  color: #20342d;
+  font-size: 26px;
+  font-weight: 700;
+}
+
+.messages-empty__text {
+  margin-top: 8px;
+  font-size: 21px;
+}
+
+.conversation-list {
+  overflow: hidden;
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 6px 20px rgba(33, 62, 51, 0.06);
+}
+
+.conversation-item {
+  display: flex;
+  gap: 18px;
+  padding: 24px;
+  border-bottom: 1px solid #edf0ee;
+}
+
+.conversation-item:last-child {
+  border-bottom: 0;
+}
+
+.conversation-item--unread {
+  background: #f5fbf8;
+}
+
+.conversation-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 78px;
+  height: 78px;
+  color: #236e55;
+  font-size: 28px;
+  font-weight: 800;
+  background: #dff0e8;
+  border-radius: 22px;
+}
+
+.conversation-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.conversation-topline,
+.conversation-bottomline {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.conversation-name {
+  flex: 1;
+  overflow: hidden;
+  color: #1f332c;
+  font-size: 25px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conversation-date,
+.conversation-class {
+  color: #89948f;
+  font-size: 19px;
+}
+
+.conversation-class {
+  margin-top: 6px;
+}
+
+.conversation-bottomline {
+  margin-top: 10px;
+}
+
+.conversation-snippet {
+  flex: 1;
+  overflow: hidden;
+  color: #63716b;
+  font-size: 22px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conversation-unread {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 8px;
+  color: #fff;
+  background: #d45a45;
+  border-radius: 999px;
+  font-size: 18px;
+}
+
+.conversation-arrow {
+  color: #a4ada9;
+  font-size: 30px;
+  line-height: 1;
+}
