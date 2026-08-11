@@ -1,7 +1,7 @@
 // @ts-nocheck
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Button, Image, Text, Textarea, View } from "@tarojs/components";
-import Taro from "@tarojs/taro";
+import Taro, { useDidShow } from "@tarojs/taro";
 import { parentRequest } from "../../api";
 import "./index.scss";
 
@@ -58,6 +58,7 @@ export default function HomeworkPage() {
   }
 
   async function chooseImages(submissionId) {
+    if (submittingId) return;
     const selected = localFiles[submissionId] || [];
     const remaining = 6 - selected.length;
     if (remaining <= 0) {
@@ -92,6 +93,7 @@ export default function HomeworkPage() {
   }
 
   async function submitHomework(item) {
+    if (submittingId) return;
     const content = (notes[item.id] || "").trim();
     const selectedFiles = localFiles[item.id] || [];
     if (!content && selectedFiles.length === 0 && item.fileUrls.length === 0) {
@@ -124,9 +126,9 @@ export default function HomeworkPage() {
     }
   }
 
-  useEffect(() => {
+  useDidShow(() => {
     load();
-  }, []);
+  });
 
   return h(
     View,

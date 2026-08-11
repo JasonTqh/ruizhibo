@@ -17,7 +17,12 @@ export default {
   sourceRoot: "src",
   outputRoot: "dist",
   framework: "react",
-  compiler: "webpack5",
+  compiler: {
+    type: "webpack5",
+    prebundle: {
+      enable: false,
+    },
+  },
   alias: {
     "@tarojs/shared": taroSharedPath,
   },

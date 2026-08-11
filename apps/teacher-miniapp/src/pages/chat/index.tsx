@@ -41,6 +41,7 @@ export default function ChatPage() {
   }
 
   async function send() {
+    if (sending || !conversationId) return;
     const nextContent = content.trim();
     if (!nextContent) {
       Taro.showToast({ title: "请输入消息内容", icon: "none" });
@@ -65,6 +66,18 @@ export default function ChatPage() {
   useEffect(() => {
     load();
   }, []);
+
+  useEffect(() => {
+    if (!loading) scrollToLatest();
+  }, [loading, messages.length]);
+
+  function scrollToLatest() {
+    Taro.nextTick(() => {
+      Taro.pageScrollTo({ scrollTop: 999999, duration: 120 }).catch(
+        () => undefined,
+      );
+    });
+  }
 
   return h(
     View,
@@ -116,6 +129,7 @@ export default function ChatPage() {
                 ),
               );
             }),
+      h(View, { className: "message-list-end" }),
     ),
     h(
       View,
@@ -125,15 +139,23 @@ export default function ChatPage() {
         value: content,
         maxlength: 2000,
         autoHeight: true,
+        adjustPosition: true,
+        cursorSpacing: 24,
+        confirmType: "send",
+        confirmHold: false,
+        disabled: sending || !conversationId,
         placeholder: "输入回复内容",
         onInput: (event) => setContent(event.detail.value),
+        onConfirm: send,
+        onFocus: scrollToLatest,
+        onKeyboardHeightChange: scrollToLatest,
       }),
       h(
         Button,
         {
           className: "message-send-button",
           loading: sending,
-          disabled: sending,
+          disabled: sending || !conversationId || !content.trim(),
           onClick: send,
         },
         "发送",

@@ -1,7 +1,7 @@
 // @ts-nocheck
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Button, Text, View } from "@tarojs/components";
-import Taro from "@tarojs/taro";
+import Taro, { useDidShow } from "@tarojs/taro";
 import { teacherRequest } from "../../api";
 import "./index.scss";
 
@@ -10,7 +10,7 @@ const h = React.createElement;
 export default function HomePage() {
   const [dashboard, setDashboard] = useState(null);
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   async function load() {
     setLoading(true);
@@ -26,9 +26,9 @@ export default function HomePage() {
     }
   }
 
-  useEffect(() => {
+  useDidShow(() => {
     load();
-  }, []);
+  });
 
   const workflow = dashboard && dashboard.workflow ? dashboard.workflow : {};
 
@@ -41,38 +41,48 @@ export default function HomePage() {
       h(Text, { className: "title" }, "教师工作台"),
       h(
         Button,
-        { className: "primary-button", loading, onClick: load },
+        {
+          className: "primary-button",
+          loading,
+          disabled: loading,
+          onClick: load,
+        },
         loading ? "加载中" : "刷新数据",
       ),
       error ? h(Text, { className: "error-text" }, error) : null,
-      h(
-        View,
-        { className: "grid" },
-        h(
-          View,
-          { className: "metric" },
-          h(Text, null, "班级"),
-          h(Text, null, dashboard ? dashboard.classCount : 0),
-        ),
-        h(
-          View,
-          { className: "metric" },
-          h(Text, null, "学生"),
-          h(Text, null, dashboard ? dashboard.studentCount : 0),
-        ),
-        h(
-          View,
-          { className: "metric" },
-          h(Text, null, "待打卡"),
-          h(Text, null, workflow.uncheckedStepCount || 0),
-        ),
-        h(
-          View,
-          { className: "metric" },
-          h(Text, null, "待批作业"),
-          h(Text, null, dashboard ? dashboard.homeworkPending : 0),
-        ),
-      ),
+      loading && !dashboard
+        ? h(Text, { className: "empty-state" }, "正在加载工作台…")
+        : null,
+      dashboard
+        ? h(
+            View,
+            { className: "grid" },
+            h(
+              View,
+              { className: "metric" },
+              h(Text, null, "班级"),
+              h(Text, null, dashboard.classCount),
+            ),
+            h(
+              View,
+              { className: "metric" },
+              h(Text, null, "学生"),
+              h(Text, null, dashboard.studentCount),
+            ),
+            h(
+              View,
+              { className: "metric" },
+              h(Text, null, "待打卡"),
+              h(Text, null, workflow.uncheckedStepCount || 0),
+            ),
+            h(
+              View,
+              { className: "metric" },
+              h(Text, null, "待批作业"),
+              h(Text, null, dashboard.homeworkPending),
+            ),
+          )
+        : null,
       h(
         View,
         { className: "section" },

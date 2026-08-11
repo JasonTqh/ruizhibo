@@ -1,7 +1,7 @@
 // @ts-nocheck
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Button, Text, View } from "@tarojs/components";
-import Taro from "@tarojs/taro";
+import Taro, { useDidShow } from "@tarojs/taro";
 import { parentRequest } from "../../api";
 import "./index.scss";
 
@@ -54,6 +54,7 @@ export default function MessagesPage() {
   }
 
   async function toggleNotice(receipt) {
+    if (pendingAction) return;
     if (expandedReceiptIds.includes(receipt.id)) {
       setExpandedReceiptIds((current) =>
         current.filter((receiptId) => receiptId !== receipt.id),
@@ -98,6 +99,7 @@ export default function MessagesPage() {
   }
 
   async function confirmNotice(receipt) {
+    if (pendingAction) return;
     if (!receipt.viewedAt || receipt.confirmedAt) {
       return;
     }
@@ -131,9 +133,9 @@ export default function MessagesPage() {
     }
   }
 
-  useEffect(() => {
+  useDidShow(() => {
     load();
-  }, []);
+  });
 
   return h(
     View,

@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   Button,
   Input,
@@ -8,7 +8,7 @@ import {
   Textarea,
   View,
 } from "@tarojs/components";
-import Taro from "@tarojs/taro";
+import Taro, { useDidShow } from "@tarojs/taro";
 import { teacherRequest } from "../../api";
 import "./index.scss";
 
@@ -71,7 +71,7 @@ export default function NoticesPage() {
   const [content, setContent] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [dueTime, setDueTime] = useState("20:00");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState("");
   const [expandedNoticeId, setExpandedNoticeId] = useState("");
@@ -106,6 +106,7 @@ export default function NoticesPage() {
   }
 
   async function publish() {
+    if (publishing) return;
     const nextTitle = title.trim();
     const nextContent = content.trim();
 
@@ -157,6 +158,7 @@ export default function NoticesPage() {
   }
 
   async function loadReceipts(noticeId) {
+    if (receiptLoading) return;
     setReceiptDetail(null);
     setReceiptError("");
     setReceiptLoading(true);
@@ -186,9 +188,9 @@ export default function NoticesPage() {
     await loadReceipts(noticeId);
   }
 
-  useEffect(() => {
+  useDidShow(() => {
     load();
-  }, []);
+  });
 
   const classNames = classes.map((item) => item.name);
   const selectedClassIndex = Math.max(
@@ -367,7 +369,7 @@ export default function NoticesPage() {
           {
             type: "primary",
             loading: publishing,
-            disabled: publishing || !classes.length,
+            disabled: loading || publishing || !classes.length,
             onClick: publish,
           },
           publishing ? "发布中" : `发布${kind === "task" ? "任务" : "通知"}`,

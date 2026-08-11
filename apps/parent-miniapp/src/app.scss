@@ -68,9 +68,11 @@ page {
 }
 
 .feedback-state {
+  display: block;
   padding: 28px 16px;
   color: #6b746f;
   font-size: 22px;
+  line-height: 1.6;
   text-align: center;
 }
 
@@ -451,6 +453,10 @@ page {
 .message-list {
   box-sizing: border-box;
   padding: 24px;
+}
+
+.message-list-end {
+  height: 8px;
 }
 
 .message-row {

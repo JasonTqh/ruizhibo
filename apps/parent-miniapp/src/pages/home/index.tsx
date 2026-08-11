@@ -1,7 +1,7 @@
 // @ts-nocheck
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Button, Text, View } from "@tarojs/components";
-import Taro from "@tarojs/taro";
+import Taro, { useDidShow } from "@tarojs/taro";
 import { parentRequest } from "../../api";
 import "./index.scss";
 
@@ -37,9 +37,9 @@ export default function HomePage() {
     }
   }
 
-  useEffect(() => {
+  useDidShow(() => {
     load();
-  }, []);
+  });
 
   return h(
     View,
@@ -70,7 +70,10 @@ export default function HomePage() {
           "刷新",
         ),
       ),
-      children.length === 0 && !loading
+      loading
+        ? h(Text, { className: "feedback-state" }, "正在加载今日成长…")
+        : null,
+      children.length === 0 && !loading && !error
         ? h(Text, { className: "feedback-state" }, "暂无已绑定的孩子")
         : children.map((child) =>
             h(
@@ -88,20 +91,32 @@ export default function HomePage() {
         Button,
         {
           className: "primary-button homework-entry-button",
+          disabled: loading || children.length === 0,
           onClick: () => Taro.navigateTo({ url: "/pages/homework/index" }),
         },
         "查看与提交作业",
       ),
-      records
-        .slice(0, 3)
-        .map((record) =>
+      !loading && children.length > 0 && records.length === 0
+        ? h(Text, { className: "feedback-state" }, "今天暂无新的成长记录")
+        : records.slice(0, 3).map((record) =>
           h(
             View,
             { className: "section", key: record.id },
+            h(Text, { className: "muted" }, recordTypeText(record.type)),
             h(Text, { className: "subtitle" }, record.title),
             h(Text, null, record.content),
           ),
         ),
     ),
   );
+}
+
+function recordTypeText(type) {
+  const labels = {
+    workflow: "流程记录",
+    teacher_feedback: "老师反馈",
+    homework: "作业记录",
+    attendance: "出勤记录",
+  };
+  return labels[type] || "成长记录";
 }

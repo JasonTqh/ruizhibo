@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   Button,
   Image,
@@ -9,7 +9,7 @@ import {
   Textarea,
   View,
 } from "@tarojs/components";
-import Taro from "@tarojs/taro";
+import Taro, { useDidShow } from "@tarojs/taro";
 import { teacherRequest } from "../../api";
 import "./index.scss";
 
@@ -64,6 +64,7 @@ export default function TeachingPage() {
   }
 
   async function publishHomework() {
+    if (publishing) return;
     const title = form.title.trim();
     const subject = form.subject.trim();
     const content = form.content.trim();
@@ -107,6 +108,7 @@ export default function TeachingPage() {
   }
 
   async function reviewSubmission(submission) {
+    if (reviewingId) return;
     setReviewingId(submission.id);
     setError("");
     try {
@@ -126,9 +128,9 @@ export default function TeachingPage() {
     }
   }
 
-  useEffect(() => {
+  useDidShow(() => {
     load();
-  }, []);
+  });
 
   const classIndex = Math.max(
     0,
@@ -237,7 +239,7 @@ export default function TeachingPage() {
         {
           className: "primary-button homework-submit-button",
           loading: publishing,
-          disabled: publishing || classes.length === 0,
+          disabled: loading || publishing || classes.length === 0,
           onClick: publishHomework,
         },
         publishing ? "发布中…" : "发布给全班",
