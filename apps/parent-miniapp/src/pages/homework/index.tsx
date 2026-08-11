@@ -3,10 +3,10 @@ import React, { useState } from "react";
 import { Button, Image, Text, Textarea, View } from "@tarojs/components";
 import Taro, { useDidShow } from "@tarojs/taro";
 import { parentRequest } from "../../api";
+import { resolveApiAssetUrl } from "../../config";
 import "./index.scss";
 
 const h = React.createElement;
-const API_ORIGIN = "http://localhost:3000";
 const statusLabels = {
   pending: "待提交",
   submitted: "已提交 · 待批改",
@@ -390,7 +390,7 @@ function mimeTypeFromPath(path) {
 }
 
 function absoluteUrl(url) {
-  return /^https?:\/\//.test(url) ? url : `${API_ORIGIN}${url}`;
+  return resolveApiAssetUrl(url);
 }
 
 function formatDate(value) {

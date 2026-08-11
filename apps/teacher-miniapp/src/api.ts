@@ -1,7 +1,7 @@
 // @ts-nocheck
 import Taro from "@tarojs/taro";
+import { API_BASE_URL } from "./config";
 
-const API_BASE_URL = "http://localhost:3000/api";
 const TOKEN_KEY = "teacherToken";
 
 export async function teacherLogin() {

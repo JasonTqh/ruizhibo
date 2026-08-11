@@ -11,10 +11,10 @@ import {
 } from "@tarojs/components";
 import Taro, { useDidShow } from "@tarojs/taro";
 import { teacherRequest } from "../../api";
+import { resolveApiAssetUrl } from "../../config";
 import "./index.scss";
 
 const h = React.createElement;
-const API_ORIGIN = "http://localhost:3000";
 
 const statusLabels = {
   pending: "待提交",
@@ -425,7 +425,7 @@ function renderSubmission(
 }
 
 function absoluteUrl(url) {
-  return /^https?:\/\//.test(url) ? url : `${API_ORIGIN}${url}`;
+  return resolveApiAssetUrl(url);
 }
 
 function formatDate(value) {

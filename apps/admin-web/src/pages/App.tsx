@@ -17,8 +17,7 @@ import {
   Tag,
   Typography,
 } from "antd";
-
-const API_BASE_URL = "http://localhost:3000/api";
+import { API_BASE_URL } from "../config";
 
 type ApiResult<T> = { data: T };
 
