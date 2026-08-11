@@ -58,6 +58,12 @@ enum NoticeKind {
   task
 }
 
+enum LessonPlanStatus {
+  draft
+  published
+  archived
+}
+
 model User {
   id           String     @id @default(cuid())
   role         UserRole
@@ -76,6 +82,7 @@ model User {
   workflowChecks   WorkflowStep[]       @relation("WorkflowStepTeacher")
   homeworkAssigned HomeworkAssignment[]
   teachingRecords  TeachingRecord[]
+  lessonPlans      LessonPlan[]
   growthRecords    GrowthRecord[]
   sentMessages     Message[]
   publishedNotices Notice[]             @relation("NoticeTeacher")
@@ -108,6 +115,7 @@ model Class {
   workflowSessions    WorkflowSession[]
   homeworkAssignments HomeworkAssignment[]
   teachingRecords     TeachingRecord[]
+  lessonPlans         LessonPlan[]
   notices             Notice[]
 }
 
@@ -264,6 +272,27 @@ model TeachingRecord {
 
   teacher User  @relation(fields: [teacherId], references: [id])
   class   Class @relation(fields: [classId], references: [id])
+}
+
+model LessonPlan {
+  id              String           @id @default(cuid())
+  teacherId       String
+  classId         String
+  theme           String
+  lessonDate      DateTime
+  durationMinutes Int
+  objectives      String
+  content         String
+  status          LessonPlanStatus @default(draft)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  teacher User  @relation(fields: [teacherId], references: [id])
+  class   Class @relation(fields: [classId], references: [id])
+
+  @@index([teacherId, lessonDate])
+  @@index([classId, lessonDate])
+  @@index([teacherId, status])
 }
 
 model GrowthRecord {

@@ -5,6 +5,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from "@nestjs/common";
 import { UserRole } from "@prisma/client";
@@ -16,10 +17,13 @@ import { RolesGuard } from "../auth/roles.guard";
 import { CheckWorkflowStepDto } from "./dto/check-workflow-step.dto";
 import { CreateGrowthFeedbackDto } from "./dto/create-growth-feedback.dto";
 import { CreateHomeworkDto } from "./dto/create-homework.dto";
+import { CreateLessonPlanDto } from "./dto/create-lesson-plan.dto";
 import { CreateNoticeDto } from "./dto/create-notice.dto";
 import { CreateTeachingRecordDto } from "./dto/create-teaching-record.dto";
 import { SendTeacherMessageDto } from "./dto/send-teacher-message.dto";
 import { UpdateHomeworkSubmissionDto } from "./dto/update-homework-submission.dto";
+import { UpdateLessonPlanDto } from "./dto/update-lesson-plan.dto";
+import { UpdateLessonPlanStatusDto } from "./dto/update-lesson-plan-status.dto";
 import { TeacherService } from "./teacher.service";
 
 @Controller("teacher")
@@ -91,6 +95,44 @@ export class TeacherController {
     @Body() dto: CreateGrowthFeedbackDto,
   ) {
     return this.teacherService.createGrowthFeedback(user.id, studentId, dto);
+  }
+
+  @Get("lesson-plans")
+  lessonPlans(
+    @CurrentUser() user: AuthUser,
+    @Query("scope") scope?: string,
+  ) {
+    return this.teacherService.lessonPlans(user.id, scope);
+  }
+
+  @Post("lesson-plans")
+  createLessonPlan(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: CreateLessonPlanDto,
+  ) {
+    return this.teacherService.createLessonPlan(user.id, dto);
+  }
+
+  @Patch("lesson-plans/:lessonPlanId")
+  updateLessonPlan(
+    @CurrentUser() user: AuthUser,
+    @Param("lessonPlanId") lessonPlanId: string,
+    @Body() dto: UpdateLessonPlanDto,
+  ) {
+    return this.teacherService.updateLessonPlan(user.id, lessonPlanId, dto);
+  }
+
+  @Patch("lesson-plans/:lessonPlanId/status")
+  updateLessonPlanStatus(
+    @CurrentUser() user: AuthUser,
+    @Param("lessonPlanId") lessonPlanId: string,
+    @Body() dto: UpdateLessonPlanStatusDto,
+  ) {
+    return this.teacherService.updateLessonPlanStatus(
+      user.id,
+      lessonPlanId,
+      dto,
+    );
   }
 
   @Get("homework")

@@ -2,6 +2,7 @@ import {
   AttendanceType,
   GrowthRecordType,
   HomeworkStatus,
+  LessonPlanStatus,
   MessageKind,
   PrismaClient,
   UserRole,
@@ -245,6 +246,33 @@ async function main() {
     },
   });
 
+  const lessonPlan = await prisma.lessonPlan.upsert({
+    where: { id: "seed-lesson-plan-clock" },
+    update: {
+      teacherId: teacher.id,
+      classId: klass.id,
+      theme: "认识时间与钟表",
+      lessonDate: new Date("2026-08-12T12:00:00.000Z"),
+      durationMinutes: 45,
+      objectives: "认识整点和半点，能够结合生活场景读取钟面时间。",
+      content:
+        "1. 用作息图片导入时间概念。\n2. 观察钟面，认识时针和分针。\n3. 小组拨钟练习。\n4. 完成课堂练习并总结。",
+      status: LessonPlanStatus.published,
+    },
+    create: {
+      id: "seed-lesson-plan-clock",
+      teacherId: teacher.id,
+      classId: klass.id,
+      theme: "认识时间与钟表",
+      lessonDate: new Date("2026-08-12T12:00:00.000Z"),
+      durationMinutes: 45,
+      objectives: "认识整点和半点，能够结合生活场景读取钟面时间。",
+      content:
+        "1. 用作息图片导入时间概念。\n2. 观察钟面，认识时针和分针。\n3. 小组拨钟练习。\n4. 完成课堂练习并总结。",
+      status: LessonPlanStatus.published,
+    },
+  });
+
   const conversation = await prisma.conversation.upsert({
     where: {
       studentId_parentId_teacherId: {
@@ -286,6 +314,7 @@ async function main() {
     parent: parent.name,
     student: student.name,
     workflowTemplate: workflowTemplate.name,
+    lessonPlan: lessonPlan.theme,
   });
 }
 

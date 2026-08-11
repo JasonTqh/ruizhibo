@@ -8,6 +8,7 @@ import {
 import {
   GrowthRecordType,
   HomeworkStatus,
+  LessonPlanStatus,
   MessageKind,
   Prisma,
   StudentStatus,
@@ -18,10 +19,13 @@ import { PrismaService } from "../prisma/prisma.service";
 import { CheckWorkflowStepDto } from "./dto/check-workflow-step.dto";
 import { CreateGrowthFeedbackDto } from "./dto/create-growth-feedback.dto";
 import { CreateHomeworkDto } from "./dto/create-homework.dto";
+import { CreateLessonPlanDto } from "./dto/create-lesson-plan.dto";
 import { CreateNoticeDto } from "./dto/create-notice.dto";
 import { CreateTeachingRecordDto } from "./dto/create-teaching-record.dto";
 import { SendTeacherMessageDto } from "./dto/send-teacher-message.dto";
 import { UpdateHomeworkSubmissionDto } from "./dto/update-homework-submission.dto";
+import { UpdateLessonPlanDto } from "./dto/update-lesson-plan.dto";
+import { UpdateLessonPlanStatusDto } from "./dto/update-lesson-plan-status.dto";
 
 @Injectable()
 export class TeacherService {
@@ -346,6 +350,134 @@ export class TeacherService {
     });
 
     return { data: records };
+  }
+
+  async lessonPlans(teacherId: string, scope = "week") {
+    const where: Prisma.LessonPlanWhereInput = { teacherId };
+    if (scope === "draft") {
+      where.status = LessonPlanStatus.draft;
+    } else if (scope === "week") {
+      const start = this.startOfWeek();
+      const end = new Date(start);
+      end.setUTCDate(end.getUTCDate() + 7);
+      where.lessonDate = { gte: start, lt: end };
+    } else if (scope !== "all") {
+      throw new BadRequestException("Unsupported lesson plan scope");
+    }
+
+    const lessonPlans = await this.prisma.lessonPlan.findMany({
+      where,
+      orderBy: [{ lessonDate: "asc" }, { createdAt: "desc" }],
+      include: {
+        class: { select: { id: true, name: true } },
+      },
+    });
+
+    return { data: lessonPlans };
+  }
+
+  async createLessonPlan(teacherId: string, dto: CreateLessonPlanDto) {
+    await this.assertTeacherClass(teacherId, dto.classId);
+    const lessonPlan = await this.prisma.lessonPlan.create({
+      data: {
+        teacherId,
+        classId: dto.classId,
+        theme: dto.theme.trim(),
+        lessonDate: new Date(dto.lessonDate),
+        durationMinutes: dto.durationMinutes,
+        objectives: dto.objectives.trim(),
+        content: dto.content.trim(),
+        status: dto.status ?? LessonPlanStatus.draft,
+      },
+      include: {
+        class: { select: { id: true, name: true } },
+      },
+    });
+
+    await this.audit.log({
+      userId: teacherId,
+      action: "teacher.lessonPlan.create",
+      targetType: "LessonPlan",
+      targetId: lessonPlan.id,
+      detail: {
+        classId: lessonPlan.classId,
+        lessonDate: lessonPlan.lessonDate.toISOString(),
+        status: lessonPlan.status,
+      },
+    });
+
+    return { data: lessonPlan };
+  }
+
+  async updateLessonPlan(
+    teacherId: string,
+    lessonPlanId: string,
+    dto: UpdateLessonPlanDto,
+  ) {
+    const existing = await this.assertOwnedLessonPlan(teacherId, lessonPlanId);
+    if (dto.classId && dto.classId !== existing.classId) {
+      await this.assertTeacherClass(teacherId, dto.classId);
+    }
+
+    const lessonPlan = await this.prisma.lessonPlan.update({
+      where: { id: lessonPlanId },
+      data: {
+        ...(dto.classId !== undefined ? { classId: dto.classId } : {}),
+        ...(dto.theme !== undefined ? { theme: dto.theme.trim() } : {}),
+        ...(dto.lessonDate !== undefined
+          ? { lessonDate: new Date(dto.lessonDate) }
+          : {}),
+        ...(dto.durationMinutes !== undefined
+          ? { durationMinutes: dto.durationMinutes }
+          : {}),
+        ...(dto.objectives !== undefined
+          ? { objectives: dto.objectives.trim() }
+          : {}),
+        ...(dto.content !== undefined ? { content: dto.content.trim() } : {}),
+        ...(dto.status !== undefined ? { status: dto.status } : {}),
+      },
+      include: {
+        class: { select: { id: true, name: true } },
+      },
+    });
+
+    await this.audit.log({
+      userId: teacherId,
+      action: "teacher.lessonPlan.update",
+      targetType: "LessonPlan",
+      targetId: lessonPlan.id,
+      detail: {
+        classId: lessonPlan.classId,
+        status: lessonPlan.status,
+      },
+    });
+
+    return { data: lessonPlan };
+  }
+
+  async updateLessonPlanStatus(
+    teacherId: string,
+    lessonPlanId: string,
+    dto: UpdateLessonPlanStatusDto,
+  ) {
+    await this.assertOwnedLessonPlan(teacherId, lessonPlanId);
+    const lessonPlan = await this.prisma.lessonPlan.update({
+      where: { id: lessonPlanId },
+      data: { status: dto.status },
+      include: {
+        class: { select: { id: true, name: true } },
+      },
+    });
+
+    await this.audit.log({
+      userId: teacherId,
+      action: "teacher.lessonPlan.status",
+      targetType: "LessonPlan",
+      targetId: lessonPlan.id,
+      detail: { status: lessonPlan.status },
+    });
+
+    return { data: lessonPlan };
   }
 
   async createGrowthFeedback(
@@ -879,6 +1011,32 @@ export class TeacherService {
     });
 
     return { data: message };
+  }
+
+  private async assertOwnedLessonPlan(
+    teacherId: string,
+    lessonPlanId: string,
+  ) {
+    const lessonPlan = await this.prisma.lessonPlan.findFirst({
+      where: { id: lessonPlanId, teacherId },
+      select: { id: true, classId: true },
+    });
+
+    if (!lessonPlan) {
+      throw new NotFoundException("Lesson plan not found");
+    }
+
+    return lessonPlan;
+  }
+
+  private startOfWeek() {
+    const now = new Date();
+    const start = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+    );
+    const day = start.getUTCDay();
+    start.setUTCDate(start.getUTCDate() - (day === 0 ? 6 : day - 1));
+    return start;
   }
 
   private async ensureTeacherConversations(teacherId: string) {
