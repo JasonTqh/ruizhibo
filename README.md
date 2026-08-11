@@ -1,6 +1,6 @@
 # 锐之博托管中心系统
 
-这是“锐之博”托管中心的工程化项目骨架，覆盖家长端小程序、教师端小程序、管理后台、后端 API、共享类型和经营工具。历史静态原型已归档保留。
+这是“锐之博”托管中心的工程化项目，覆盖家长端小程序、教师端小程序、管理后台、后端 API、共享类型和经营工具。历史静态原型已归档保留。
 
 学生不作为登录端存在，只作为业务实体由家长和教师围绕其成长记录、作业、出勤和沟通来协作。
 
@@ -33,8 +33,8 @@
 | --- | --- | --- |
 | 后端 API | `apps/api` | NestJS 服务，Prisma schema 已初始化 |
 | 管理后台 | `apps/admin-web` | 管理老师、班级、学生、家长绑定、流程模板 |
-| 家长小程序 | `apps/parent-miniapp` | 家长查看孩子动态、作业、成长记录并与老师沟通 |
-| 教师小程序 | `apps/teacher-miniapp` | 教师工作台、备课、教研、教学记录、一日流程打卡 |
+| 家长小程序 | `apps/parent-miniapp` | 家长查看孩子动态、提交作业、确认通知/任务并与老师沟通 |
+| 教师小程序 | `apps/teacher-miniapp` | 教师工作台、备课、教研、教学记录、一日流程打卡、家校沟通 |
 | 家长静态原型 | `archive/apps/parent-app/index.html` | 视觉和交互参考 |
 | 教师静态原型 | `archive/apps/teacher-app/index.html` | 小程序样式参考 |
 | 品牌官网 | `archive/apps/website/index.html` | 品牌展示与咨询转化 |
@@ -44,8 +44,11 @@
 
 - `docs/product.md`：产品定位、角色、MVP 范围和端侧功能。
 - `docs/database.md`：PostgreSQL + Prisma 数据模型设计。
-- `docs/api.md`：家长端、教师端、管理后台 API 草案。
-- `docs/development.md`：适合交给 Codex 分步开发的任务计划。
+- `docs/api.md`：当前后端 API、请求示例、错误格式和本地验证说明。
+- `docs/development.md`：当前开发状态、人工联调路径和下一阶段建议。
+- `docs/development-roadmap.md`：分阶段变更提案和后续提案池。
+- `docs/ui-development-path.md`：小程序页面、视觉和未完成功能的分批完善路径。
+- `docs/deployment-checklist.md`：测试环境/生产环境部署检查清单。
 - `docs/锐之博高端托管班级一日流程.xls`：原始班级一日流程资料。
 
 ## 开发准备
@@ -68,7 +71,13 @@ pnpm dev:teacher   # 构建并监听教师小程序
 pnpm build         # 构建所有正式工程
 ```
 
-> 依赖尚未安装时，先不要期待上述命令全部可运行；骨架文件和文档已经就位，下一步可以从 `docs/development.md` 的任务 1 开始。
+本地联调前建议先写入 seed 数据：
+
+```powershell
+$env:DATABASE_URL="postgresql://postgres:postgres@localhost:5432/ruizhibo"
+$env:JWT_SECRET="change-me-in-production"
+pnpm --filter @ruizhibo/api seed
+```
 
 ## 数据库
 
@@ -87,7 +96,9 @@ JWT_SECRET="replace-with-a-local-secret"
 
 ## 当前工程状态
 
-- 已保留上一阶段静态原型，用作正式小程序和后台开发的视觉参考。
-- 已搭建 `api`、`admin-web`、`parent-miniapp`、`teacher-miniapp`、`packages/shared`。
-- 已生成产品、接口、数据库和 Codex 开发计划文档。
-- 已保留经营测算工具，输出文件位于 `outputs/new_store_model/新店测算表_合肥分店.xlsx`。
+- `api` 已实现认证、角色权限、统一错误、管理基础数据、流程模板、教师工作台、一日流程打卡、教学记录、成长反馈、作业发布/提交/批改、家校消息、通知/任务回执、文件上传和审计日志。
+- `admin-web` 已接入真实 API，可维护老师、班级、学生、家长绑定、流程模板并查看审计日志。
+- `teacher-miniapp` 已接入真实 API，首页视觉重构中；流程打卡、作业、通知/任务、消息和聊天闭环可用，教学记录前端、备课和教研仍需补齐。
+- `parent-miniapp` 已接入真实 API，首页视觉重构中；作业提交、成长时间线、通知/任务、消息和聊天闭环可用，“我的”页面仍需补齐。
+- `parent-app`、`teacher-app`、`website` 已移动到 `archive/apps/`，仅作为历史视觉参考。
+- 环境配置抽离已经完成。当前优先执行 `docs/ui-development-path.md` 中的 UI-01 至 UI-09；页面和功能达到可持续试用状态后，再继续微信登录、自动验证脚本和测试环境部署。

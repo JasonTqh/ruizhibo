@@ -10,14 +10,25 @@
 
 ## 当前基线
 
-- 当前分支：`main`
-- 当前后端：NestJS + Prisma + PostgreSQL
-- 已完成能力：
-  - `POST /api/auth/dev-login`
-  - `GET /api/me`
-  - JWT 签发与鉴权 Guard
-  - 基础 seed 数据：管理员、老师、家长、班级、学生、家长绑定
-- 下一步优先级：先完成管理后台基础数据，再做教师端流程，再做家长端展示。
+- 当前主线：`main`
+- 后端：NestJS + Prisma + PostgreSQL
+- 管理后台：React + Vite + Ant Design
+- 小程序：Taro React 教师端、家长端
+- CP-01 到 CP-20 的核心代码主线已落地并进入联调阶段。
+- 其中 CP-17 目前是后端微信登录/手机号绑定占位实现，小程序端仍默认使用 dev-login；生产微信登录闭环放入 CP-23 继续完成。
+- CP-18 目前是本地文件存储实现；生产对象存储放入 CP-26 继续完成。
+- CP-21 小程序体验回归和 CP-22 环境配置抽离已完成第一轮实现。
+- 额外已完成家长提交作业与独立聊天页：
+  - 家长端 `POST /api/parent/homework-submissions/:submissionId/submit`
+  - 家长小程序 `homework` 页面提交作业
+  - 教师/家长小程序 `messages` 列表与 `chat` 详情页
+- 额外已完成通知/任务回执能力：
+  - 教师端 `GET/POST /api/teacher/notices`
+  - 教师端 `GET /api/teacher/notices/:noticeId/receipts`
+  - 家长端 `GET /api/parent/notices`
+  - 家长端 `POST /api/parent/notice-receipts/:receiptId/view`
+  - 家长端 `POST /api/parent/notice-receipts/:receiptId/confirm`
+- 当前优先级：暂停 CP-23 微信登录生产闭环，先执行 `docs/ui-development-path.md` 的 UI-01 至 UI-09，补齐正式小程序页面、占位功能和原型视觉迁移。
 
 ## 阶段 1：后端基础能力补齐
 
@@ -408,7 +419,7 @@ feat(api): add parent attendance and homework endpoints
 
 - 老师只能给自己班级发布作业。
 - 创建作业时为班级学生生成 `HomeworkSubmission`。
-- 第一版由老师代录提交状态。
+- 当前已扩展为家长可提交文字/图片，老师负责批改或更新状态。
 - 状态支持：`pending`、`submitted`、`reviewed`、`overdue`。
 - 作业状态变化可同步写入 `GrowthRecord`，类型为 `homework`。
 
@@ -449,7 +460,7 @@ feat(api): add teacher homework management
 - 会话维度：`studentId + parentId + teacherId`。
 - 家长只能访问自己的会话。
 - 老师只能访问自己班级学生的会话。
-- 第一版只支持文本消息。
+- 当前主要支持文本消息，同时数据模型和 DTO 预留图片/文件 URL。
 - `readAt` 可以先简单处理为读取消息列表时标记已读，或先留到下一提案。
 
 验收：
@@ -575,7 +586,7 @@ feat(admin): connect master data pages to api
 
 ```powershell
 pnpm --filter @ruizhibo/teacher-miniapp typecheck
-pnpm --filter @ruizhibo/teacher-miniapp build:weapp
+pnpm --filter @ruizhibo/teacher-miniapp build
 ```
 
 建议提交信息：
@@ -586,14 +597,14 @@ feat(teacher-miniapp): connect dashboard and workflow api
 
 ### CP-15 家长小程序接入孩子和时间线
 
-目标：家长端小程序能显示绑定孩子、今日成长和作业提醒。
+目标：家长端小程序能显示绑定孩子、今日成长、作业提醒，并支持进入作业页面提交。
 
 范围：
 
 - `apps/parent-miniapp`
 - 首页接入孩子列表和时间线
 - 成长页接入时间线
-- 作业模块接入家长作业接口
+- 作业模块接入家长作业查询和提交接口
 
 实现要点：
 
@@ -611,7 +622,7 @@ feat(teacher-miniapp): connect dashboard and workflow api
 
 ```powershell
 pnpm --filter @ruizhibo/parent-miniapp typecheck
-pnpm --filter @ruizhibo/parent-miniapp build:weapp
+pnpm --filter @ruizhibo/parent-miniapp build
 ```
 
 建议提交信息：
@@ -648,8 +659,8 @@ feat(parent-miniapp): connect children and timeline api
 验证命令：
 
 ```powershell
-pnpm --filter @ruizhibo/parent-miniapp build:weapp
-pnpm --filter @ruizhibo/teacher-miniapp build:weapp
+pnpm --filter @ruizhibo/parent-miniapp build
+pnpm --filter @ruizhibo/teacher-miniapp build
 ```
 
 建议提交信息：
@@ -687,8 +698,8 @@ feat(miniapps): add parent teacher messaging
 
 ```powershell
 pnpm --filter @ruizhibo/api build
-pnpm --filter @ruizhibo/parent-miniapp build:weapp
-pnpm --filter @ruizhibo/teacher-miniapp build:weapp
+pnpm --filter @ruizhibo/parent-miniapp build
+pnpm --filter @ruizhibo/teacher-miniapp build
 ```
 
 建议提交信息：
@@ -810,6 +821,172 @@ pnpm typecheck
 docs: add deployment checklist
 ```
 
+## 阶段 7：真实试用版打磨
+
+这一阶段不再追求大面积新增业务表，而是把已串通的核心链路打磨到可以让老师和家长试用。
+
+### CP-21 小程序体验回归与细节修复
+
+目标：围绕已接入真实 API 的小程序页面做体验回归，消除中文、状态提示和核心交互细节问题。
+
+范围：
+
+- 教师端和家长端所有页面中文文案。
+- 加载态、空状态、错误态、重试入口。
+- 表单必填校验和提交中状态。
+- 作业提交/批改、通知回执、消息列表和聊天详情。
+
+验收：
+
+- 微信开发者工具中所有页面中文显示正常。
+- API 请求失败时页面明确提示原因或可重试。
+- 没有数据时不误导为业务数据为 0。
+- 家长提交作业、教师批改、双方进入聊天详情的路径可顺畅完成。
+
+验证命令：
+
+```powershell
+pnpm --filter @ruizhibo/teacher-miniapp typecheck
+pnpm --filter @ruizhibo/teacher-miniapp build
+pnpm --filter @ruizhibo/parent-miniapp typecheck
+pnpm --filter @ruizhibo/parent-miniapp build
+```
+
+### CP-22 环境配置抽离
+
+目标：移除前端硬编码 `http://localhost:3000/api`，支持本地、真机、测试和生产环境切换。
+
+范围：
+
+- `apps/admin-web`
+- `apps/teacher-miniapp`
+- `apps/parent-miniapp`
+- `.env.example` 和相关文档
+
+验收：
+
+- 本地开发继续可用。
+- 真机预览可配置为电脑局域网 IP。
+- 测试/生产可配置为 HTTPS API 域名。
+
+验证命令：
+
+```powershell
+pnpm typecheck
+pnpm build
+```
+
+### 页面与功能完善支线（当前主线）
+
+目标：解决历史静态原型与正式 Taro 小程序画面差异较大、部分底部导航页仍为占位页、已有 API 未完整接入前端的问题。
+
+详细开发范围、状态、验收标准和验证要求统一记录在：
+
+```text
+docs/ui-development-path.md
+```
+
+提案顺序：
+
+- UI-01：双端首页与视觉基线。
+- UI-02：教师教学记录、学生成长反馈和作业管理整合。
+- UI-03：教师流程进度、分组打卡和拍照凭证。
+- UI-04：家长成长、作业和“我的”页面完善。
+- UI-05：通知、消息和聊天体验完善。
+- UI-06：教师备课真实数据与页面。
+- UI-07：教师教研真实数据与页面。
+- UI-08：管理后台业务查询和配置入口补齐。
+- UI-09：全页面回归、真机适配和最终人工验收。
+
+约束：
+
+- `archive/apps/teacher-app` 和 `archive/apps/parent-app` 只作为视觉与信息架构参考。
+- 不把原型中的静态数量、假活动和仅弹提示的按钮复制到正式工程。
+- UI-02 至 UI-05 优先复用现有 API；UI-06 至 UI-08 涉及新模型和接口时必须独立设计、迁移和验证。
+- UI-09 通过后再继续 CP-23。
+
+### CP-23 微信登录生产闭环
+
+目标：让小程序端从开发登录过渡到真实微信登录和手机号绑定。
+
+范围：
+
+- 小程序端调用 `wx.login`。
+- 后端 `POST /api/auth/wechat-login` 与 `POST /api/auth/bind-phone` 联调。
+- 生产环境关闭或限制 `POST /api/auth/dev-login`。
+
+验收：
+
+- 已绑定老师/家长可以通过微信进入对应端。
+- 未绑定微信用户得到明确提示。
+- 生产环境不能任意伪造角色登录。
+
+验证命令：
+
+```powershell
+pnpm --filter @ruizhibo/api build
+pnpm --filter @ruizhibo/teacher-miniapp build
+pnpm --filter @ruizhibo/parent-miniapp build
+```
+
+### CP-24 教师/家长自动验证脚本
+
+目标：把人工联调中的关键 API 链路沉淀成脚本，降低回归成本。
+
+范围：
+
+- 新增教师端验证脚本：工作台、流程、作业批改、通知/任务、消息和聊天详情。
+- 新增家长端验证脚本：孩子、时间线、出勤、作业提交、通知查看确认、消息和聊天详情。
+- 在 `apps/api/package.json` 增加对应脚本。
+
+验收：
+
+- 本地 seed 后可以一键验证 admin、teacher、parent 三类 API。
+- 脚本失败时能输出明确接口和错误内容。
+
+验证命令：
+
+```powershell
+pnpm --filter @ruizhibo/api verify:admin
+pnpm --filter @ruizhibo/api verify:teacher
+pnpm --filter @ruizhibo/api verify:parent
+```
+
+### CP-25 测试环境部署
+
+目标：准备一个可供内部试用的测试环境。
+
+范围：
+
+- 测试数据库。
+- 后端服务。
+- 管理后台访问地址。
+- 微信小程序体验版合法域名。
+- 上传目录或对象存储。
+
+验收：
+
+- `GET /api/health` 正常。
+- 管理后台可通过测试域名访问。
+- 微信开发者工具体验版可以访问测试 API。
+- `docs/deployment-checklist.md` 可以逐项打勾。
+
+### CP-26 文件存储生产化
+
+目标：把本地上传扩展为可用于测试/生产的存储方案。
+
+范围：
+
+- 保留当前 `POST /api/files` 接口协议。
+- 增加 COS/OSS 或等价对象存储驱动。
+- 补充上传失败、大小限制、类型限制的前端提示。
+
+验收：
+
+- 流程打卡、消息或作业图片可上传并可访问。
+- 上传文件元数据写入 `FileAsset`。
+- 非法类型和超大文件被拒绝。
+
 ## 推荐执行顺序
 
 严格建议按以下顺序推进：
@@ -821,12 +998,16 @@ CP-08 -> CP-09
 CP-10 -> CP-11 -> CP-12
 CP-13 -> CP-14 -> CP-15 -> CP-16
 CP-17 -> CP-18 -> CP-19 -> CP-20
+CP-21 -> CP-22
+UI-01 -> UI-02 -> UI-03 -> UI-04 -> UI-05 -> UI-06 -> UI-07 -> UI-08 -> UI-09
+CP-23 -> CP-24 -> CP-25 -> CP-26
 ```
 
-其中第一个真正要做的开发任务是：
+当前建议优先执行：
 
 ```text
-CP-01 管理后台基础数据 CRUD
+UI-01 双端首页与视觉基线（代码已实现，等待微信开发者工具人工验收）
+UI-02 教师教学中心补齐
 ```
 
 ## 每个提案的完成定义

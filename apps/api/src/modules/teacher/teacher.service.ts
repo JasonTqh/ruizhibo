@@ -303,6 +303,33 @@ export class TeacherService {
     return { data: record };
   }
 
+  async growthFeedbacks(teacherId: string) {
+    const records = await this.prisma.growthRecord.findMany({
+      where: {
+        teacherId,
+        type: GrowthRecordType.teacher_feedback,
+      },
+      orderBy: [{ happenedAt: "desc" }, { createdAt: "desc" }],
+      take: 100,
+      include: {
+        student: {
+          select: {
+            id: true,
+            name: true,
+            class: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return { data: records };
+  }
+
   async createGrowthFeedback(
     teacherId: string,
     studentId: string,

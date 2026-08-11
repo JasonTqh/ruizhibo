@@ -10,7 +10,7 @@
 
 ## 1. 认证
 
-开发期先使用 dev-login，微信登录第二阶段接入。
+开发期小程序仍默认使用 dev-login；后端已提供微信登录和手机号绑定接口，生产联调时需要配置微信 AppID/AppSecret，并关闭或限制 dev-login。
 
 ```http
 POST /api/auth/dev-login
@@ -61,7 +61,7 @@ seed 数据内置账号：
 Authorization: Bearer <jwt>
 ```
 
-后续微信登录：
+微信登录相关接口：
 
 ```http
 POST /api/auth/wechat-login
@@ -152,6 +152,8 @@ POST /api/teacher/workflow/:sessionId/steps/:stepId/check
 
 GET  /api/teacher/teaching-records
 POST /api/teacher/teaching-records
+GET  /api/teacher/growth-records
+POST /api/teacher/students/:studentId/growth-records
 
 GET  /api/teacher/homework
 POST /api/teacher/homework
@@ -167,6 +169,15 @@ POST /api/teacher/conversations/:conversationId/messages
 ```
 
 教师端接口必须登录，且角色必须是 `teacher`。老师只能访问自己负责班级的数据。
+
+教师成长反馈列表：
+
+```http
+GET /api/teacher/growth-records
+Authorization: Bearer <teacher-token>
+```
+
+只返回当前教师创建的 `teacher_feedback` 类型成长记录，按发生时间倒序排列，并包含学生及班级摘要。响应中的 `visibleToParent` 用于区分“家长可见”和“仅内部可见”；其他教师无法通过该接口读取这些记录。
 
 流程打卡：
 
@@ -335,6 +346,8 @@ DELETE /api/admin/students/:studentId/guardians/:guardianId
 GET    /api/admin/workflow-templates
 POST   /api/admin/workflow-templates
 PATCH  /api/admin/workflow-templates/:id
+
+GET    /api/admin/audit-logs
 ```
 
 ### 老师管理
@@ -523,7 +536,7 @@ pnpm --filter @ruizhibo/api seed
 ```powershell
 $env:DATABASE_URL="postgresql://postgres:postgres@localhost:5432/ruizhibo"
 $env:JWT_SECRET="change-me-in-production"
-pnpm --filter @ruizhibo/api start
+pnpm dev:api
 ```
 
 另开一个终端运行管理接口验证：

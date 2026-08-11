@@ -79,6 +79,11 @@ export class TeacherController {
     return this.teacherService.createTeachingRecord(user.id, dto);
   }
 
+  @Get("growth-records")
+  growthFeedbacks(@CurrentUser() user: AuthUser) {
+    return this.teacherService.growthFeedbacks(user.id);
+  }
+
   @Post("students/:studentId/growth-records")
   createGrowthFeedback(
     @CurrentUser() user: AuthUser,
