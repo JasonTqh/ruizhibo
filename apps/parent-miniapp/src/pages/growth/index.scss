@@ -1,1 +1,399 @@
-/* Page styles are provided by app.scss; this file keeps page WXSS generation stable. */
+.growth-page {
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: 24px 24px 48px;
+  background: #f5f0eb;
+}
+
+.growth-topbar,
+.growth-child-card,
+.attendance-heading,
+.growth-record-heading,
+.growth-error {
+  display: flex;
+  align-items: center;
+}
+
+.growth-topbar,
+.attendance-heading,
+.growth-record-heading,
+.growth-error {
+  justify-content: space-between;
+}
+
+.growth-eyebrow,
+.growth-title,
+.growth-child-name,
+.growth-child-meta,
+.growth-child-count__value,
+.growth-child-count__label,
+.attendance-title,
+.attendance-total,
+.attendance-metric__value,
+.attendance-metric__label,
+.growth-section-title,
+.growth-state,
+.growth-empty-icon,
+.growth-empty-title,
+.growth-empty-copy,
+.growth-day-label,
+.growth-record-type,
+.growth-record-time,
+.growth-record-title,
+.growth-record-content,
+.growth-record-teacher,
+.growth-error__text {
+  display: block;
+}
+
+.growth-eyebrow {
+  color: #2f8064;
+  font-size: 21px;
+  font-weight: 700;
+}
+
+.growth-title {
+  margin-top: 5px;
+  color: #1a3029;
+  font-size: 31px;
+  font-weight: 800;
+}
+
+.growth-refresh {
+  flex-shrink: 0;
+  margin: 0;
+  color: #2f8064;
+  background: #ffffff;
+  border: 1px solid #b8d6ca;
+  border-radius: 999px;
+}
+
+.growth-child-switcher {
+  display: flex;
+  gap: 12px;
+  margin-top: 22px;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.growth-child-chip {
+  flex-shrink: 0;
+  padding: 11px 20px;
+  color: #60716a;
+  background: #ffffff;
+  border: 1px solid #dce4e0;
+  border-radius: 999px;
+  font-size: 21px;
+}
+
+.growth-child-chip--active {
+  color: #ffffff;
+  background: #2f8064;
+  border-color: #2f8064;
+}
+
+.growth-error {
+  gap: 14px;
+  margin-top: 20px;
+  padding: 17px 20px;
+  color: #9b3a32;
+  background: #fff1ef;
+  border: 1px solid #f0c9c5;
+  border-radius: 14px;
+}
+
+.growth-error__text {
+  flex: 1;
+  min-width: 0;
+  font-size: 21px;
+}
+
+.growth-error__retry {
+  flex-shrink: 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.growth-child-card {
+  gap: 18px;
+  margin-top: 22px;
+  padding: 24px;
+  color: #ffffff;
+  background: linear-gradient(140deg, #246d56, #399075);
+  border-radius: 22px;
+  box-shadow: 0 10px 28px rgba(37, 104, 83, 0.18);
+}
+
+.growth-child-avatar {
+  display: flex;
+  flex: 0 0 78px;
+  align-items: center;
+  justify-content: center;
+  width: 78px;
+  height: 78px;
+  color: #246d56;
+  background: #f5d997;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  font-size: 30px;
+  font-weight: 800;
+}
+
+.growth-child-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.growth-child-name {
+  font-size: 29px;
+  font-weight: 800;
+}
+
+.growth-child-meta {
+  margin-top: 8px;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 20px;
+}
+
+.growth-child-count {
+  flex-shrink: 0;
+  text-align: center;
+}
+
+.growth-child-count__value {
+  font-size: 34px;
+  font-weight: 800;
+}
+
+.growth-child-count__label {
+  margin-top: 4px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 18px;
+}
+
+.attendance-card,
+.growth-filter-card,
+.growth-timeline,
+.growth-empty-card {
+  margin-top: 22px;
+  padding: 24px;
+  background: #ffffff;
+  border: 1px solid #e8e1d9;
+  border-radius: 20px;
+  box-shadow: 0 6px 20px rgba(37, 57, 50, 0.06);
+}
+
+.attendance-title,
+.growth-section-title {
+  color: #263b34;
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.attendance-total {
+  color: #84908b;
+  font-size: 19px;
+}
+
+.attendance-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.attendance-metric {
+  padding: 17px 8px;
+  border-radius: 14px;
+  text-align: center;
+}
+
+.attendance-metric--green {
+  color: #24644f;
+  background: #e5f3ed;
+}
+
+.attendance-metric--blue {
+  color: #326b8b;
+  background: #e7f2f8;
+}
+
+.attendance-metric--yellow {
+  color: #8a5b18;
+  background: #fff3d8;
+}
+
+.attendance-metric--coral {
+  color: #98483e;
+  background: #fceae6;
+}
+
+.attendance-metric__value {
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.attendance-metric__label {
+  margin-top: 6px;
+  font-size: 18px;
+}
+
+.growth-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 17px;
+}
+
+.growth-filter {
+  padding: 9px 16px;
+  color: #64716c;
+  background: #f4f6f5;
+  border: 1px solid #e1e6e3;
+  border-radius: 999px;
+  font-size: 19px;
+}
+
+.growth-filter--active {
+  color: #ffffff;
+  background: #2f8064;
+  border-color: #2f8064;
+}
+
+.growth-state {
+  padding: 52px 0;
+  color: #7c8782;
+  font-size: 22px;
+  text-align: center;
+}
+
+.growth-empty-card {
+  padding: 42px 28px;
+  text-align: center;
+}
+
+.growth-empty-icon {
+  color: #85aa9c;
+  font-size: 45px;
+}
+
+.growth-empty-title {
+  margin-top: 13px;
+  color: #2f433c;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.growth-empty-copy {
+  margin-top: 9px;
+  color: #84908b;
+  font-size: 20px;
+  line-height: 1.55;
+}
+
+.growth-day {
+  margin-top: 24px;
+}
+
+.growth-day-label {
+  margin: 0 4px 10px;
+  color: #53655e;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.growth-timeline {
+  margin-top: 0;
+}
+
+.growth-record {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px 0;
+  border-top: 1px solid #eee9e2;
+}
+
+.growth-record:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.growth-record:last-child {
+  padding-bottom: 0;
+}
+
+.growth-record-icon {
+  display: flex;
+  flex: 0 0 50px;
+  align-items: center;
+  justify-content: center;
+  width: 50px;
+  height: 50px;
+  border-radius: 15px;
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.growth-record-icon--green {
+  color: #24644f;
+  background: #e5f3ed;
+}
+
+.growth-record-icon--coral {
+  color: #98483e;
+  background: #fceae6;
+}
+
+.growth-record-icon--yellow {
+  color: #8a5b18;
+  background: #fff3d8;
+}
+
+.growth-record-icon--blue {
+  color: #326b8b;
+  background: #e7f2f8;
+}
+
+.growth-record-icon--purple {
+  color: #73548e;
+  background: #f0e9f6;
+}
+
+.growth-record-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.growth-record-type {
+  color: #2f8064;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.growth-record-time {
+  color: #939b97;
+  font-size: 18px;
+}
+
+.growth-record-title {
+  margin-top: 7px;
+  color: #263b34;
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.growth-record-content {
+  margin-top: 8px;
+  color: #52615c;
+  font-size: 21px;
+  line-height: 1.62;
+  white-space: pre-wrap;
+}
+
+.growth-record-teacher {
+  margin-top: 9px;
+  color: #929a96;
+  font-size: 18px;
+}
