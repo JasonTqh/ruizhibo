@@ -64,6 +64,25 @@ enum LessonPlanStatus {
   archived
 }
 
+enum ResearchActivityType {
+  discussion
+  observation
+  training
+}
+
+enum ResearchActivityStatus {
+  draft
+  open
+  completed
+  cancelled
+}
+
+enum ResearchParticipationStatus {
+  registered
+  attended
+  cancelled
+}
+
 model User {
   id           String     @id @default(cuid())
   role         UserRole
@@ -83,6 +102,8 @@ model User {
   homeworkAssigned HomeworkAssignment[]
   teachingRecords  TeachingRecord[]
   lessonPlans      LessonPlan[]
+  researchActivities ResearchActivity[]    @relation("ResearchActivityOrganizer")
+  researchParticipations ResearchParticipant[]
   growthRecords    GrowthRecord[]
   sentMessages     Message[]
   publishedNotices Notice[]             @relation("NoticeTeacher")
@@ -98,7 +119,8 @@ model Campus {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  classes Class[]
+  classes            Class[]
+  researchActivities ResearchActivity[]
 }
 
 model Class {
@@ -292,6 +314,44 @@ model LessonPlan {
 
   @@index([teacherId, lessonDate])
   @@index([classId, lessonDate])
+  @@index([teacherId, status])
+}
+
+model ResearchActivity {
+  id           String                 @id @default(cuid())
+  organizerId  String
+  campusId     String
+  type         ResearchActivityType
+  title        String
+  description  String
+  startAt      DateTime
+  endAt        DateTime
+  location     String
+  status       ResearchActivityStatus @default(draft)
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+
+  organizer   User                    @relation("ResearchActivityOrganizer", fields: [organizerId], references: [id])
+  campus      Campus                  @relation(fields: [campusId], references: [id])
+  participants ResearchParticipant[]
+
+  @@index([campusId, startAt])
+  @@index([organizerId, startAt])
+  @@index([type, status])
+}
+
+model ResearchParticipant {
+  id         String                      @id @default(cuid())
+  activityId String
+  teacherId  String
+  status     ResearchParticipationStatus @default(registered)
+  joinedAt   DateTime                    @default(now())
+  updatedAt  DateTime                    @updatedAt
+
+  activity ResearchActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  teacher  User             @relation(fields: [teacherId], references: [id])
+
+  @@unique([activityId, teacherId])
   @@index([teacherId, status])
 }
 

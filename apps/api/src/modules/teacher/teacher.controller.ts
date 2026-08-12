@@ -19,11 +19,14 @@ import { CreateGrowthFeedbackDto } from "./dto/create-growth-feedback.dto";
 import { CreateHomeworkDto } from "./dto/create-homework.dto";
 import { CreateLessonPlanDto } from "./dto/create-lesson-plan.dto";
 import { CreateNoticeDto } from "./dto/create-notice.dto";
+import { CreateResearchActivityDto } from "./dto/create-research-activity.dto";
 import { CreateTeachingRecordDto } from "./dto/create-teaching-record.dto";
 import { SendTeacherMessageDto } from "./dto/send-teacher-message.dto";
 import { UpdateHomeworkSubmissionDto } from "./dto/update-homework-submission.dto";
 import { UpdateLessonPlanDto } from "./dto/update-lesson-plan.dto";
 import { UpdateLessonPlanStatusDto } from "./dto/update-lesson-plan-status.dto";
+import { UpdateResearchActivityDto } from "./dto/update-research-activity.dto";
+import { UpdateResearchParticipationDto } from "./dto/update-research-participation.dto";
 import { TeacherService } from "./teacher.service";
 
 @Controller("teacher")
@@ -131,6 +134,45 @@ export class TeacherController {
     return this.teacherService.updateLessonPlanStatus(
       user.id,
       lessonPlanId,
+      dto,
+    );
+  }
+
+  @Get("research-activities")
+  researchActivities(
+    @CurrentUser() user: AuthUser,
+    @Query("type") type?: string,
+    @Query("scope") scope?: string,
+  ) {
+    return this.teacherService.researchActivities(user.id, type, scope);
+  }
+
+  @Post("research-activities")
+  createResearchActivity(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: CreateResearchActivityDto,
+  ) {
+    return this.teacherService.createResearchActivity(user.id, dto);
+  }
+
+  @Patch("research-activities/:activityId")
+  updateResearchActivity(
+    @CurrentUser() user: AuthUser,
+    @Param("activityId") activityId: string,
+    @Body() dto: UpdateResearchActivityDto,
+  ) {
+    return this.teacherService.updateResearchActivity(user.id, activityId, dto);
+  }
+
+  @Patch("research-activities/:activityId/participation")
+  updateResearchParticipation(
+    @CurrentUser() user: AuthUser,
+    @Param("activityId") activityId: string,
+    @Body() dto: UpdateResearchParticipationDto,
+  ) {
+    return this.teacherService.updateResearchParticipation(
+      user.id,
+      activityId,
       dto,
     );
   }

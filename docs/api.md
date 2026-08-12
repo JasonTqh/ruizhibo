@@ -155,6 +155,16 @@ POST /api/teacher/teaching-records
 GET  /api/teacher/growth-records
 POST /api/teacher/students/:studentId/growth-records
 
+GET   /api/teacher/lesson-plans
+POST  /api/teacher/lesson-plans
+PATCH /api/teacher/lesson-plans/:lessonPlanId
+PATCH /api/teacher/lesson-plans/:lessonPlanId/status
+
+GET   /api/teacher/research-activities
+POST  /api/teacher/research-activities
+PATCH /api/teacher/research-activities/:activityId
+PATCH /api/teacher/research-activities/:activityId/participation
+
 GET  /api/teacher/homework
 POST /api/teacher/homework
 PATCH /api/teacher/homework-submissions/:submissionId
@@ -169,6 +179,8 @@ POST /api/teacher/conversations/:conversationId/messages
 ```
 
 教师端接口必须登录，且角色必须是 `teacher`。老师只能访问自己负责班级的数据。
+
+教研活动按教师任教班级所属校区隔离。查询支持 `type=all|discussion|observation|training` 和 `scope=upcoming|mine|all`；草稿仅组织者可见。活动只有组织者可以编辑、发布、结束或取消，同校区其他教师可以报名和取消报名，出席状态由后续管理能力确认。
 
 教师成长反馈列表：
 

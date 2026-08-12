@@ -28,6 +28,10 @@ erDiagram
   Notice ||--o{ NoticeReceipt : tracks
   Student ||--o{ NoticeReceipt : for
   User ||--o{ NoticeReceipt : confirms
+  Campus ||--o{ ResearchActivity : hosts
+  User ||--o{ ResearchActivity : organizes
+  ResearchActivity ||--o{ ResearchParticipant : has
+  User ||--o{ ResearchParticipant : joins
 ```
 
 ## 2. 用户与权限

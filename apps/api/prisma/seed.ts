@@ -5,6 +5,9 @@ import {
   LessonPlanStatus,
   MessageKind,
   PrismaClient,
+  ResearchActivityStatus,
+  ResearchActivityType,
+  ResearchParticipationStatus,
   UserRole,
 } from "@prisma/client";
 
@@ -273,6 +276,50 @@ async function main() {
     },
   });
 
+  const researchActivity = await prisma.researchActivity.upsert({
+    where: { id: "seed-research-observation-math" },
+    update: {
+      organizerId: teacher.id,
+      campusId: campus.id,
+      type: ResearchActivityType.observation,
+      title: "数学作业讲评示范课",
+      description:
+        "围绕错题分类、学生表达和课堂反馈开展听课评课，活动后共同沉淀可复用的讲评策略。",
+      startAt: new Date("2026-08-13T06:00:00.000Z"),
+      endAt: new Date("2026-08-13T07:30:00.000Z"),
+      location: "锐之博托管中心 · 晚托 A 班教室",
+      status: ResearchActivityStatus.open,
+    },
+    create: {
+      id: "seed-research-observation-math",
+      organizerId: teacher.id,
+      campusId: campus.id,
+      type: ResearchActivityType.observation,
+      title: "数学作业讲评示范课",
+      description:
+        "围绕错题分类、学生表达和课堂反馈开展听课评课，活动后共同沉淀可复用的讲评策略。",
+      startAt: new Date("2026-08-13T06:00:00.000Z"),
+      endAt: new Date("2026-08-13T07:30:00.000Z"),
+      location: "锐之博托管中心 · 晚托 A 班教室",
+      status: ResearchActivityStatus.open,
+    },
+  });
+
+  await prisma.researchParticipant.upsert({
+    where: {
+      activityId_teacherId: {
+        activityId: researchActivity.id,
+        teacherId: teacher.id,
+      },
+    },
+    update: { status: ResearchParticipationStatus.registered },
+    create: {
+      activityId: researchActivity.id,
+      teacherId: teacher.id,
+      status: ResearchParticipationStatus.registered,
+    },
+  });
+
   const conversation = await prisma.conversation.upsert({
     where: {
       studentId_parentId_teacherId: {
@@ -315,6 +362,7 @@ async function main() {
     student: student.name,
     workflowTemplate: workflowTemplate.name,
     lessonPlan: lessonPlan.theme,
+    researchActivity: researchActivity.title,
   });
 }
 

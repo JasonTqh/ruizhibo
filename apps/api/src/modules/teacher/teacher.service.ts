@@ -11,6 +11,9 @@ import {
   LessonPlanStatus,
   MessageKind,
   Prisma,
+  ResearchActivityStatus,
+  ResearchActivityType,
+  ResearchParticipationStatus,
   StudentStatus,
   UserStatus,
 } from "@prisma/client";
@@ -21,11 +24,27 @@ import { CreateGrowthFeedbackDto } from "./dto/create-growth-feedback.dto";
 import { CreateHomeworkDto } from "./dto/create-homework.dto";
 import { CreateLessonPlanDto } from "./dto/create-lesson-plan.dto";
 import { CreateNoticeDto } from "./dto/create-notice.dto";
+import { CreateResearchActivityDto } from "./dto/create-research-activity.dto";
 import { CreateTeachingRecordDto } from "./dto/create-teaching-record.dto";
 import { SendTeacherMessageDto } from "./dto/send-teacher-message.dto";
 import { UpdateHomeworkSubmissionDto } from "./dto/update-homework-submission.dto";
 import { UpdateLessonPlanDto } from "./dto/update-lesson-plan.dto";
 import { UpdateLessonPlanStatusDto } from "./dto/update-lesson-plan-status.dto";
+import { UpdateResearchActivityDto } from "./dto/update-research-activity.dto";
+import { UpdateResearchParticipationDto } from "./dto/update-research-participation.dto";
+
+const RESEARCH_ACTIVITY_INCLUDE = Prisma.validator<Prisma.ResearchActivityInclude>()({
+  organizer: { select: { id: true, name: true } },
+  campus: { select: { id: true, name: true } },
+  participants: {
+    orderBy: { joinedAt: "asc" },
+    include: { teacher: { select: { id: true, name: true } } },
+  },
+});
+
+type ResearchActivityWithRelations = Prisma.ResearchActivityGetPayload<{
+  include: typeof RESEARCH_ACTIVITY_INCLUDE;
+}>;
 
 @Injectable()
 export class TeacherService {
@@ -478,6 +497,187 @@ export class TeacherService {
     });
 
     return { data: lessonPlan };
+  }
+
+  async researchActivities(
+    teacherId: string,
+    type?: string,
+    scope = "upcoming",
+  ) {
+    const campusIds = await this.teacherCampusIds(teacherId);
+    const where: Prisma.ResearchActivityWhereInput = {
+      campusId: { in: campusIds },
+      AND: [
+        {
+          OR: [
+            { status: { not: ResearchActivityStatus.draft } },
+            { organizerId: teacherId },
+          ],
+        },
+      ],
+    };
+
+    if (type && type !== "all") {
+      if (!Object.values(ResearchActivityType).includes(type as ResearchActivityType)) {
+        throw new BadRequestException("Unsupported research activity type");
+      }
+      where.type = type as ResearchActivityType;
+    }
+
+    if (scope === "upcoming") {
+      where.endAt = { gte: new Date() };
+      where.status = { in: [ResearchActivityStatus.open, ResearchActivityStatus.draft] };
+    } else if (scope === "mine") {
+      where.OR = [
+        { organizerId: teacherId },
+        {
+          participants: {
+            some: {
+              teacherId,
+              status: { not: ResearchParticipationStatus.cancelled },
+            },
+          },
+        },
+      ];
+    } else if (scope !== "all") {
+      throw new BadRequestException("Unsupported research activity scope");
+    }
+
+    const activities = await this.prisma.researchActivity.findMany({
+      where,
+      orderBy: [{ startAt: "asc" }, { createdAt: "desc" }],
+      include: RESEARCH_ACTIVITY_INCLUDE,
+    });
+
+    return {
+      data: activities.map((activity) =>
+        this.researchActivityView(activity, teacherId),
+      ),
+    };
+  }
+
+  async createResearchActivity(
+    teacherId: string,
+    dto: CreateResearchActivityDto,
+  ) {
+    await this.assertTeacherCampus(teacherId, dto.campusId);
+    const { startAt, endAt } = this.researchActivityDates(dto.startAt, dto.endAt);
+    const activity = await this.prisma.researchActivity.create({
+      data: {
+        organizerId: teacherId,
+        campusId: dto.campusId,
+        type: dto.type,
+        title: dto.title.trim(),
+        description: dto.description.trim(),
+        startAt,
+        endAt,
+        location: dto.location.trim(),
+        status: dto.status ?? ResearchActivityStatus.draft,
+        participants: {
+          create: {
+            teacherId,
+            status: ResearchParticipationStatus.registered,
+          },
+        },
+      },
+      include: RESEARCH_ACTIVITY_INCLUDE,
+    });
+
+    await this.audit.log({
+      userId: teacherId,
+      action: "teacher.researchActivity.create",
+      targetType: "ResearchActivity",
+      targetId: activity.id,
+      detail: {
+        campusId: activity.campusId,
+        type: activity.type,
+        status: activity.status,
+      },
+    });
+
+    return { data: this.researchActivityView(activity, teacherId) };
+  }
+
+  async updateResearchActivity(
+    teacherId: string,
+    activityId: string,
+    dto: UpdateResearchActivityDto,
+  ) {
+    const existing = await this.assertOwnedResearchActivity(
+      teacherId,
+      activityId,
+    );
+    let dates: { startAt: Date; endAt: Date } | undefined;
+    if (dto.startAt !== undefined || dto.endAt !== undefined) {
+      dates = this.researchActivityDates(
+        dto.startAt ?? existing.startAt.toISOString(),
+        dto.endAt ?? existing.endAt.toISOString(),
+      );
+    }
+
+    const activity = await this.prisma.researchActivity.update({
+      where: { id: activityId },
+      data: {
+        ...(dto.type !== undefined ? { type: dto.type } : {}),
+        ...(dto.title !== undefined ? { title: dto.title.trim() } : {}),
+        ...(dto.description !== undefined
+          ? { description: dto.description.trim() }
+          : {}),
+        ...(dates ?? {}),
+        ...(dto.location !== undefined
+          ? { location: dto.location.trim() }
+          : {}),
+        ...(dto.status !== undefined ? { status: dto.status } : {}),
+      },
+      include: RESEARCH_ACTIVITY_INCLUDE,
+    });
+
+    await this.audit.log({
+      userId: teacherId,
+      action: "teacher.researchActivity.update",
+      targetType: "ResearchActivity",
+      targetId: activity.id,
+      detail: { type: activity.type, status: activity.status },
+    });
+
+    return { data: this.researchActivityView(activity, teacherId) };
+  }
+
+  async updateResearchParticipation(
+    teacherId: string,
+    activityId: string,
+    dto: UpdateResearchParticipationDto,
+  ) {
+    const activity = await this.assertVisibleResearchActivity(
+      teacherId,
+      activityId,
+    );
+    if (activity.status !== ResearchActivityStatus.open) {
+      throw new ConflictException("当前活动未开放参与操作");
+    }
+    if (dto.status === ResearchParticipationStatus.attended) {
+      throw new ForbiddenException("活动出席状态需由活动组织者确认");
+    }
+
+    await this.prisma.researchParticipant.upsert({
+      where: { activityId_teacherId: { activityId, teacherId } },
+      update: { status: dto.status },
+      create: { activityId, teacherId, status: dto.status },
+    });
+
+    const updated = await this.prisma.researchActivity.findUniqueOrThrow({
+      where: { id: activityId },
+      include: RESEARCH_ACTIVITY_INCLUDE,
+    });
+    await this.audit.log({
+      userId: teacherId,
+      action: "teacher.researchActivity.participation",
+      targetType: "ResearchActivity",
+      targetId: activityId,
+      detail: { status: dto.status },
+    });
+
+    return { data: this.researchActivityView(updated, teacherId) };
   }
 
   async createGrowthFeedback(
@@ -1027,6 +1227,80 @@ export class TeacherService {
     }
 
     return lessonPlan;
+  }
+
+  private async teacherCampusIds(teacherId: string) {
+    const classes = await this.prisma.class.findMany({
+      where: { teacherId },
+      select: { campusId: true },
+      distinct: ["campusId"],
+    });
+    return classes.map((item) => item.campusId);
+  }
+
+  private async assertTeacherCampus(teacherId: string, campusId: string) {
+    const klass = await this.prisma.class.findFirst({
+      where: { teacherId, campusId },
+      select: { id: true },
+    });
+    if (!klass) {
+      throw new ForbiddenException("Cannot manage another campus activity");
+    }
+  }
+
+  private async assertOwnedResearchActivity(
+    teacherId: string,
+    activityId: string,
+  ) {
+    const activity = await this.prisma.researchActivity.findFirst({
+      where: { id: activityId, organizerId: teacherId },
+      select: { id: true, startAt: true, endAt: true },
+    });
+    if (!activity) {
+      throw new NotFoundException("Research activity not found");
+    }
+    return activity;
+  }
+
+  private async assertVisibleResearchActivity(
+    teacherId: string,
+    activityId: string,
+  ) {
+    const campusIds = await this.teacherCampusIds(teacherId);
+    const activity = await this.prisma.researchActivity.findFirst({
+      where: { id: activityId, campusId: { in: campusIds } },
+      select: { id: true, status: true },
+    });
+    if (!activity) {
+      throw new NotFoundException("Research activity not found");
+    }
+    return activity;
+  }
+
+  private researchActivityDates(startValue: string, endValue: string) {
+    const startAt = new Date(startValue);
+    const endAt = new Date(endValue);
+    if (endAt <= startAt) {
+      throw new BadRequestException("活动结束时间必须晚于开始时间");
+    }
+    return { startAt, endAt };
+  }
+
+  private researchActivityView(
+    activity: ResearchActivityWithRelations,
+    teacherId: string,
+  ) {
+    const participation = activity.participants.find(
+      (item) => item.teacherId === teacherId,
+    );
+    return {
+      ...activity,
+      isOrganizer: activity.organizerId === teacherId,
+      myParticipationStatus: participation?.status ?? null,
+      participantCount: activity.participants.filter(
+        (item) => item.status !== ResearchParticipationStatus.cancelled,
+      ).length,
+    };
   }
 
   private startOfWeek() {
