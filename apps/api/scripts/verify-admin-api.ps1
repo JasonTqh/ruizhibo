@@ -150,12 +150,6 @@ if ($IncludeWrites) {
   } -ExpectedStatus 201
   $teacherId = $createdTeacher.Body.data.id
 
-  $updatedTeacher = Invoke-Api -Method "PATCH" -Path "/admin/teachers/$teacherId" -Token $adminToken -Body @{
-    name = "verify-teacher-$suffix-updated"
-    status = "disabled"
-  }
-  Assert-True ($updatedTeacher.Body.data.status -eq "disabled") "Teacher update did not persist"
-
   $createdClass = Invoke-Api -Method "POST" -Path "/admin/classes" -Token $adminToken -Body @{
     campusId = $campusId
     name = "verify-class-$suffix"
@@ -183,6 +177,56 @@ if ($IncludeWrites) {
   $guardianId = $guardian.Body.data.id
 
   Invoke-Api -Method "DELETE" -Path "/admin/students/$studentId/guardians/$guardianId" -Token $adminToken | Out-Null
+
+  Write-Step "Checking teacher reference protection and safe cleanup"
+  $createdTeacherLogin = Invoke-Api -Method "POST" -Path "/auth/dev-login" -Body @{
+    role = "teacher"
+    phone = "13999$phoneSuffix"
+  } -ExpectedStatus 201
+  $createdTeacherToken = $createdTeacherLogin.Body.data.token
+
+  Invoke-Api -Method "POST" -Path "/teacher/lesson-plans" -Token $createdTeacherToken -Body @{
+    classId = $classId
+    theme = "verify-lesson-$suffix"
+    lessonDate = (Get-Date).AddDays(1).ToString("o")
+    durationMinutes = 45
+    objectives = "Verify teacher reference cleanup"
+    content = "Temporary lesson plan for automated verification"
+  } -ExpectedStatus 201 | Out-Null
+
+  Invoke-Api -Method "POST" -Path "/teacher/research-activities" -Token $createdTeacherToken -Body @{
+    campusId = $campusId
+    type = "discussion"
+    title = "verify-research-$suffix"
+    description = "Temporary research activity for automated verification"
+    startAt = (Get-Date).AddDays(2).ToString("o")
+    endAt = (Get-Date).AddDays(2).AddHours(1).ToString("o")
+    location = "verify-room"
+  } -ExpectedStatus 201 | Out-Null
+
+  $references = Invoke-Api -Method "GET" -Path "/admin/teachers/$teacherId/references" -Token $adminToken
+  Assert-True ($references.Body.data.classes -eq 1) "Expected one teacher class reference"
+  Assert-True ($references.Body.data.lessonPlans -eq 1) "Expected one teacher lesson plan reference"
+  Assert-True ($references.Body.data.organizedResearchActivities -eq 1) "Expected one organized research activity"
+  Assert-True ($references.Body.data.researchParticipations -eq 1) "Expected one research participation"
+
+  Invoke-Api -Method "DELETE" -Path "/admin/teachers/$teacherId" -Token $adminToken -ExpectedStatus 409 | Out-Null
+  Invoke-Api -Method "DELETE" -Path "/admin/teachers/$teacherId`?force=true" -Token $adminToken -ExpectedStatus 400 | Out-Null
+
+  $updatedTeacher = Invoke-Api -Method "PATCH" -Path "/admin/teachers/$teacherId" -Token $adminToken -Body @{
+    name = "verify-teacher-$suffix-updated"
+    status = "disabled"
+  }
+  Assert-True ($updatedTeacher.Body.data.status -eq "disabled") "Teacher update did not persist"
+
+  Invoke-Api -Method "DELETE" -Path "/admin/teachers/$teacherId`?force=true" -Token $adminToken | Out-Null
+  Invoke-Api -Method "GET" -Path "/admin/teachers/$teacherId/references" -Token $adminToken -ExpectedStatus 404 | Out-Null
+
+  $plainTeacher = Invoke-Api -Method "POST" -Path "/admin/teachers" -Token $adminToken -Body @{
+    name = "verify-plain-teacher-$suffix"
+    phone = "13699$phoneSuffix"
+  } -ExpectedStatus 201
+  Invoke-Api -Method "DELETE" -Path "/admin/teachers/$($plainTeacher.Body.data.id)" -Token $adminToken | Out-Null
 }
 
 Write-Host "Admin API verification passed."

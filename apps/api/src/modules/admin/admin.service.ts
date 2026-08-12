@@ -110,11 +110,126 @@ export class AdminService {
     return { data: teacher };
   }
 
-  async deleteTeacher(actorId: string, id: string) {
+  async teacherReferences(id: string) {
     await this.assertUserWithRoleExists(id, UserRole.teacher, "Teacher");
+    const [
+      classes,
+      attendance,
+      workflowSessions,
+      workflowChecks,
+      homeworkAssignments,
+      teachingRecords,
+      lessonPlans,
+      organizedResearchActivities,
+      researchParticipations,
+      growthRecords,
+      sentMessages,
+      notices,
+      conversations,
+    ] = await Promise.all([
+      this.prisma.class.count({ where: { teacherId: id } }),
+      this.prisma.attendanceEvent.count({ where: { teacherId: id } }),
+      this.prisma.workflowSession.count({ where: { teacherId: id } }),
+      this.prisma.workflowStep.count({ where: { teacherId: id } }),
+      this.prisma.homeworkAssignment.count({ where: { teacherId: id } }),
+      this.prisma.teachingRecord.count({ where: { teacherId: id } }),
+      this.prisma.lessonPlan.count({ where: { teacherId: id } }),
+      this.prisma.researchActivity.count({ where: { organizerId: id } }),
+      this.prisma.researchParticipant.count({ where: { teacherId: id } }),
+      this.prisma.growthRecord.count({ where: { teacherId: id } }),
+      this.prisma.message.count({ where: { senderId: id } }),
+      this.prisma.notice.count({ where: { teacherId: id } }),
+      this.prisma.conversation.count({ where: { teacherId: id } }),
+    ]);
+    return {
+      data: {
+        classes,
+        attendance,
+        workflowSessions,
+        workflowChecks,
+        homeworkAssignments,
+        teachingRecords,
+        lessonPlans,
+        organizedResearchActivities,
+        researchParticipations,
+        growthRecords,
+        sentMessages,
+        notices,
+        conversations,
+      },
+    };
+  }
+
+  async deleteTeacher(actorId: string, id: string, force = false) {
+    const current = await this.prisma.user.findFirst({
+      where: { id, role: UserRole.teacher },
+      select: { id: true, status: true },
+    });
+    if (!current) throw new NotFoundException("Teacher not found");
+    if (force && current.status === UserStatus.active) {
+      throw new BadRequestException("请先将老师设为停用，再清理引用并删除");
+    }
+    const deletedReferences = force
+      ? (await this.teacherReferences(id)).data
+      : undefined;
     const teacher = await this.deleteWithRelationCheck(
       () =>
-        this.prisma.user.delete({ where: { id }, select: userSummarySelect }),
+        this.prisma.$transaction(async (tx) => {
+          if (force) {
+            await tx.class.updateMany({
+              where: { teacherId: id },
+              data: { teacherId: null },
+            });
+            await tx.attendanceEvent.updateMany({
+              where: { teacherId: id },
+              data: { teacherId: null },
+            });
+            await tx.workflowStep.updateMany({
+              where: { teacherId: id },
+              data: { teacherId: null },
+            });
+            await tx.growthRecord.updateMany({
+              where: { teacherId: id },
+              data: { teacherId: null },
+            });
+            await tx.message.deleteMany({
+              where: {
+                OR: [{ senderId: id }, { conversation: { teacherId: id } }],
+              },
+            });
+            await tx.conversation.deleteMany({ where: { teacherId: id } });
+            await tx.noticeReceipt.deleteMany({
+              where: { notice: { teacherId: id } },
+            });
+            await tx.notice.deleteMany({ where: { teacherId: id } });
+            await tx.homeworkSubmission.deleteMany({
+              where: { homework: { teacherId: id } },
+            });
+            await tx.homeworkAssignment.deleteMany({
+              where: { teacherId: id },
+            });
+            await tx.workflowStep.deleteMany({
+              where: { session: { teacherId: id } },
+            });
+            await tx.workflowSession.deleteMany({ where: { teacherId: id } });
+            await tx.teachingRecord.deleteMany({ where: { teacherId: id } });
+            await tx.lessonPlan.deleteMany({ where: { teacherId: id } });
+            await tx.researchParticipant.deleteMany({
+              where: {
+                OR: [{ teacherId: id }, { activity: { organizerId: id } }],
+              },
+            });
+            await tx.researchActivity.deleteMany({
+              where: { organizerId: id },
+            });
+          }
+          // 保留审计历史，但解除操作者外键，避免无业务引用的账号无法删除。
+          await tx.auditLog.updateMany({
+            where: { userId: id },
+            data: { userId: null },
+          });
+          return tx.user.delete({ where: { id }, select: userSummarySelect });
+        }),
       "该老师已有班级或业务记录，不能删除；可将状态改为停用",
     );
     await this.audit.log({
@@ -122,6 +237,7 @@ export class AdminService {
       action: "admin.teacher.delete",
       targetType: "User",
       targetId: id,
+      detail: { force, deletedReferences },
     });
     return { data: teacher };
   }
@@ -1042,11 +1158,7 @@ export class AdminService {
 
   async listLessonPlans(query: BusinessQueryDto) {
     const { skip, take, page, pageSize } = this.pagination(query);
-    const status = this.optionalEnum(
-      query.status,
-      LessonPlanStatus,
-      "status",
-    );
+    const status = this.optionalEnum(query.status, LessonPlanStatus, "status");
     const where: Prisma.LessonPlanWhereInput = {
       classId: query.classId,
       teacherId: query.teacherId,
@@ -1104,11 +1216,7 @@ export class AdminService {
       ResearchActivityStatus,
       "status",
     );
-    const type = this.optionalEnum(
-      query.type,
-      ResearchActivityType,
-      "type",
-    );
+    const type = this.optionalEnum(query.type, ResearchActivityType, "type");
     const where: Prisma.ResearchActivityWhereInput = {
       organizerId: query.teacherId,
       status,

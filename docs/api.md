@@ -348,6 +348,8 @@ Content-Type: application/json
 GET    /api/admin/teachers
 POST   /api/admin/teachers
 PATCH  /api/admin/teachers/:id
+GET    /api/admin/teachers/:id/references
+DELETE /api/admin/teachers/:id
 
 GET    /api/admin/classes
 POST   /api/admin/classes
@@ -395,6 +397,22 @@ Content-Type: application/json
   "status": "disabled"
 }
 ```
+
+删除老师前可查询其业务引用：
+
+```http
+GET /api/admin/teachers/:id/references
+Authorization: Bearer <admin-token>
+```
+
+返回负责班级、考勤、流程、作业、教学记录、备课计划、组织/参与教研、成长记录、消息、通知和会话的数量。无引用时可直接删除；存在引用时普通删除返回 `409 Conflict`。需要清理引用时必须先停用老师，再显式确认强制删除：
+
+```http
+DELETE /api/admin/teachers/:id?force=true
+Authorization: Bearer <admin-token>
+```
+
+强制删除会保留班级、考勤、成长反馈和审计历史并解除老师引用，同时永久删除该老师私有的流程、作业、教学、备课、教研、通知及家校会话数据。管理后台会在操作前展示逐项引用统计；该操作不可撤销。
 
 ### 班级管理
 
@@ -644,7 +662,7 @@ pnpm --filter @ruizhibo/api verify:admin
 pnpm --filter @ruizhibo/api verify:admin -- -IncludeWrites
 ```
 
-该模式会创建一组本地验证老师、班级、学生和家长用户，并测试家长绑定/解绑。它适合本地开发库，不建议对生产数据库运行。
+该模式会创建一组本地验证老师、班级、学生和家长用户，测试家长绑定/解绑，并覆盖老师无引用删除、引用保护、启用状态强制删除保护以及停用后关联清理。它适合本地开发库，不建议对生产数据库运行。
 
 ## 8. 微信登录
 

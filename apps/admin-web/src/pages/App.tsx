@@ -167,6 +167,22 @@ const parentReferenceLabels = {
   conversations: "家校会话",
 };
 
+const teacherReferenceLabels = {
+  classes: "负责班级",
+  attendance: "考勤记录",
+  workflowSessions: "一日流程",
+  workflowChecks: "流程打卡",
+  homeworkAssignments: "发布作业",
+  teachingRecords: "教学记录",
+  lessonPlans: "备课计划",
+  organizedResearchActivities: "组织教研活动",
+  researchParticipations: "参与教研活动",
+  growthRecords: "成长记录",
+  sentMessages: "发送消息",
+  notices: "通知/任务",
+  conversations: "家校会话",
+};
+
 function referenceTotal(counts: ReferenceCounts) {
   return Object.values(counts).reduce((sum, value) => sum + value, 0);
 }
@@ -442,6 +458,58 @@ function TeachersPanel({
   const [form] = Form.useForm();
   const [editForm] = Form.useForm();
   const [editing, setEditing] = useState<UserSummary | null>(null);
+  const [referenceTarget, setReferenceTarget] = useState<{
+    record: UserSummary;
+    counts: ReferenceCounts;
+  } | null>(null);
+
+  async function loadTeacherReferences(record: UserSummary) {
+    await submitChange(async () => {
+      const counts = await request<ReferenceCounts>(
+        `/admin/teachers/${record.id}/references`,
+      );
+      setReferenceTarget({ record, counts });
+    });
+  }
+
+  async function deleteTeacher(record: UserSummary) {
+    await submitChange(async () => {
+      const counts = await request<ReferenceCounts>(
+        `/admin/teachers/${record.id}/references`,
+      );
+      const total = referenceTotal(counts);
+      if (total > 0 && record.status === "active") {
+        Modal.warning({
+          title: "请先停用老师",
+          content: `该老师共有 ${total} 条关联记录。请先编辑并设为停用，再清理引用并删除。`,
+        });
+        return;
+      }
+      Modal.confirm({
+        title: total ? "清理关联数据并删除老师？" : "删除老师？",
+        content: total ? (
+          <Space direction="vertical" className="admin-stack">
+            <Typography.Text type="danger">
+              将解除负责班级，并永久删除该老师产生的流程、作业、教学、备课、教研、通知和会话数据。此操作不可撤销。
+            </Typography.Text>
+            <ReferenceSummary counts={counts} labels={teacherReferenceLabels} />
+          </Space>
+        ) : (
+          "该老师没有关联数据，删除后不可恢复。"
+        ),
+        okText: total ? "清理并删除" : "删除",
+        okButtonProps: { danger: true },
+        onOk: () =>
+          submitChange(async () => {
+            await request(
+              `/admin/teachers/${record.id}${total ? "?force=true" : ""}`,
+              { method: "DELETE" },
+            );
+            await refreshAll();
+          }),
+      });
+    });
+  }
   return (
     <Space direction="vertical" size={16} className="admin-stack">
       <Card title="新增老师">
@@ -485,6 +553,12 @@ function TeachersPanel({
               <Space>
                 <Button
                   type="link"
+                  onClick={() => loadTeacherReferences(record)}
+                >
+                  查看引用
+                </Button>
+                <Button
+                  type="link"
                   onClick={() => {
                     setEditing(record);
                     editForm.setFieldsValue(record);
@@ -492,22 +566,13 @@ function TeachersPanel({
                 >
                   编辑
                 </Button>
-                <Popconfirm
-                  title="确定删除这位老师吗？"
-                  description="已有班级或业务记录的老师不能删除。"
-                  onConfirm={() =>
-                    submitChange(async () => {
-                      await request(`/admin/teachers/${record.id}`, {
-                        method: "DELETE",
-                      });
-                      await refreshAll();
-                    })
-                  }
+                <Button
+                  type="link"
+                  danger
+                  onClick={() => deleteTeacher(record)}
                 >
-                  <Button type="link" danger>
-                    删除
-                  </Button>
-                </Popconfirm>
+                  删除
+                </Button>
               </Space>
             ),
           },
@@ -548,6 +613,19 @@ function TeachersPanel({
             />
           </Form.Item>
         </Form>
+      </Modal>
+      <Modal
+        title={`${referenceTarget?.record.name ?? "老师"}的引用`}
+        open={Boolean(referenceTarget)}
+        footer={null}
+        onCancel={() => setReferenceTarget(null)}
+      >
+        {referenceTarget ? (
+          <ReferenceSummary
+            counts={referenceTarget.counts}
+            labels={teacherReferenceLabels}
+          />
+        ) : null}
       </Modal>
     </Space>
   );

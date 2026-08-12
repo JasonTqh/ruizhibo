@@ -57,9 +57,18 @@ export class AdminController {
     return this.adminService.updateTeacher(user.id, id, dto);
   }
 
+  @Get("teachers/:id/references")
+  teacherReferences(@Param("id") id: string) {
+    return this.adminService.teacherReferences(id);
+  }
+
   @Delete("teachers/:id")
-  deleteTeacher(@CurrentUser() user: AuthUser, @Param("id") id: string) {
-    return this.adminService.deleteTeacher(user.id, id);
+  deleteTeacher(
+    @CurrentUser() user: AuthUser,
+    @Param("id") id: string,
+    @Query("force") force?: string,
+  ) {
+    return this.adminService.deleteTeacher(user.id, id, force === "true");
   }
 
   @Get("parents")
