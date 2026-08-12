@@ -32,7 +32,7 @@
 | 模块 | 路径 | 说明 |
 | --- | --- | --- |
 | 后端 API | `apps/api` | NestJS 服务，Prisma schema 已初始化 |
-| 管理后台 | `apps/admin-web` | 管理老师、班级、学生、家长绑定、流程模板 |
+| 管理后台 | `apps/admin-web` | 管理老师、班级、学生、家长绑定、流程模板，并查询关键业务记录 |
 | 家长小程序 | `apps/parent-miniapp` | 家长查看孩子动态、提交作业、确认通知/任务并与老师沟通 |
 | 教师小程序 | `apps/teacher-miniapp` | 教师工作台、备课、教研、教学记录、一日流程打卡、家校沟通 |
 | 家长静态原型 | `archive/apps/parent-app/index.html` | 视觉和交互参考 |

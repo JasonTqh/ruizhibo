@@ -25,6 +25,7 @@ import {
   Typography,
 } from "antd";
 import { API_BASE_URL } from "../config";
+import { BusinessPanel } from "./BusinessPanel";
 
 type ApiResult<T> = { data: T };
 
@@ -224,6 +225,7 @@ const modules = [
   { key: "parents", label: "家长管理" },
   { key: "classes", label: "班级管理" },
   { key: "students", label: "学生管理" },
+  { key: "business", label: "业务查询" },
   { key: "workflow", label: "流程模板" },
   { key: "audit", label: "审计日志" },
 ];
@@ -373,6 +375,13 @@ export function App() {
               parents={parents}
               request={request}
               refreshAll={refreshAll}
+            />
+          ) : activeKey === "business" ? (
+            <BusinessPanel
+              classes={classes}
+              teachers={teachers}
+              students={students}
+              request={request}
             />
           ) : activeKey === "workflow" ? (
             <WorkflowPanel

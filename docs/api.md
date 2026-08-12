@@ -498,6 +498,42 @@ Authorization: Bearer <admin-token>
 
 管理后台还提供老师、家长、班级、学生和流程模板的引用检查与安全删除接口。存在业务引用时普通删除返回 `409`；需要强制清理的数据必须先将对应家长、学生或流程模板停用，再显式使用 `?force=true`，页面会展示引用统计和不可撤销提示。
 
+### 4.6 业务记录查询与状态管理
+
+管理员可查询以下业务数据：
+
+```http
+GET /api/admin/business/homework
+GET /api/admin/business/teaching-records
+GET /api/admin/business/growth-records
+GET /api/admin/business/attendance
+GET /api/admin/business/workflows
+GET /api/admin/business/lesson-plans
+GET /api/admin/business/research-activities
+```
+
+通用查询参数包括 `page`、`pageSize`、`classId`、`teacherId`、`studentId`、`status`、`type`、`from` 和 `to`。各接口按业务实际字段使用适用参数，统一返回：
+
+```json
+{
+  "data": {
+    "items": [],
+    "total": 0,
+    "page": 1,
+    "pageSize": 10
+  }
+}
+```
+
+管理员还可调整教案与教研活动状态：
+
+```http
+PATCH /api/admin/business/lesson-plans/:id/status
+PATCH /api/admin/business/research-activities/:id/status
+```
+
+请求体为 `{ "status": "<目标状态>" }`。教案支持 `draft`、`published`、`archived`；教研活动支持 `draft`、`open`、`completed`、`cancelled`。每次状态变化均写入审计日志。
+
 ## 5. 文件上传
 
 第一版接口：

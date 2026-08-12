@@ -4,7 +4,18 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { Prisma, StudentStatus, UserRole, UserStatus } from "@prisma/client";
+import {
+  AttendanceType,
+  GrowthRecordType,
+  HomeworkStatus,
+  LessonPlanStatus,
+  Prisma,
+  ResearchActivityType,
+  ResearchActivityStatus,
+  StudentStatus,
+  UserRole,
+  UserStatus,
+} from "@prisma/client";
 import { AuditService } from "../audit/audit.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { BindGuardianDto } from "./dto/bind-guardian.dto";
@@ -17,6 +28,7 @@ import { UpdateStudentDto } from "./dto/update-student.dto";
 import { UpdateTeacherDto } from "./dto/update-teacher.dto";
 import { UpdateWorkflowTemplateDto } from "./dto/update-workflow-template.dto";
 import { UpdateGuardianDto } from "./dto/update-guardian.dto";
+import { BusinessQueryDto } from "./dto/business-query.dto";
 
 const userSummarySelect = {
   id: true,
@@ -876,9 +888,336 @@ export class AdminService {
     return { data: template };
   }
 
+  async listHomework(query: BusinessQueryDto) {
+    const { skip, take, page, pageSize } = this.pagination(query);
+    const status = this.optionalEnum(query.status, HomeworkStatus, "status");
+    const where: Prisma.HomeworkAssignmentWhereInput = {
+      classId: query.classId,
+      teacherId: query.teacherId,
+      createdAt: this.dateRange(query),
+      submissions:
+        query.studentId || status
+          ? { some: { studentId: query.studentId, status } }
+          : undefined,
+    };
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.homeworkAssignment.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip,
+        take,
+        include: {
+          class: { select: { id: true, name: true } },
+          teacher: { select: { id: true, name: true } },
+          submissions: {
+            orderBy: { submittedAt: "desc" },
+            select: {
+              id: true,
+              status: true,
+              submittedAt: true,
+              reviewedAt: true,
+              remark: true,
+              student: { select: { id: true, name: true } },
+            },
+          },
+        },
+      }),
+      this.prisma.homeworkAssignment.count({ where }),
+    ]);
+    return this.paginated(items, total, page, pageSize);
+  }
+
+  async listTeachingRecords(query: BusinessQueryDto) {
+    const { skip, take, page, pageSize } = this.pagination(query);
+    const where: Prisma.TeachingRecordWhereInput = {
+      classId: query.classId,
+      teacherId: query.teacherId,
+      date: this.dateRange(query),
+    };
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.teachingRecord.findMany({
+        where,
+        orderBy: { date: "desc" },
+        skip,
+        take,
+        include: {
+          class: { select: { id: true, name: true } },
+          teacher: { select: { id: true, name: true } },
+        },
+      }),
+      this.prisma.teachingRecord.count({ where }),
+    ]);
+    return this.paginated(items, total, page, pageSize);
+  }
+
+  async listGrowthRecords(query: BusinessQueryDto) {
+    const { skip, take, page, pageSize } = this.pagination(query);
+    const type = this.optionalEnum(query.type, GrowthRecordType, "type");
+    const where: Prisma.GrowthRecordWhereInput = {
+      studentId: query.studentId,
+      teacherId: query.teacherId,
+      type,
+      happenedAt: this.dateRange(query),
+      student: query.classId ? { classId: query.classId } : undefined,
+    };
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.growthRecord.findMany({
+        where,
+        orderBy: { happenedAt: "desc" },
+        skip,
+        take,
+        include: {
+          student: {
+            select: {
+              id: true,
+              name: true,
+              class: { select: { id: true, name: true } },
+            },
+          },
+          teacher: { select: { id: true, name: true } },
+        },
+      }),
+      this.prisma.growthRecord.count({ where }),
+    ]);
+    return this.paginated(items, total, page, pageSize);
+  }
+
+  async listAttendance(query: BusinessQueryDto) {
+    const { skip, take, page, pageSize } = this.pagination(query);
+    const type = this.optionalEnum(query.type, AttendanceType, "type");
+    const where: Prisma.AttendanceEventWhereInput = {
+      studentId: query.studentId,
+      teacherId: query.teacherId,
+      type,
+      happenedAt: this.dateRange(query),
+      student: query.classId ? { classId: query.classId } : undefined,
+    };
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.attendanceEvent.findMany({
+        where,
+        orderBy: { happenedAt: "desc" },
+        skip,
+        take,
+        include: {
+          student: {
+            select: {
+              id: true,
+              name: true,
+              class: { select: { id: true, name: true } },
+            },
+          },
+          teacher: { select: { id: true, name: true } },
+        },
+      }),
+      this.prisma.attendanceEvent.count({ where }),
+    ]);
+    return this.paginated(items, total, page, pageSize);
+  }
+
+  async listWorkflowSessions(query: BusinessQueryDto) {
+    const { skip, take, page, pageSize } = this.pagination(query);
+    const where: Prisma.WorkflowSessionWhereInput = {
+      classId: query.classId,
+      teacherId: query.teacherId,
+      status: query.status,
+      date: this.dateRange(query),
+    };
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.workflowSession.findMany({
+        where,
+        orderBy: { date: "desc" },
+        skip,
+        take,
+        include: {
+          class: { select: { id: true, name: true } },
+          teacher: { select: { id: true, name: true } },
+          template: { select: { id: true, name: true, version: true } },
+          steps: { orderBy: { sortOrder: "asc" } },
+        },
+      }),
+      this.prisma.workflowSession.count({ where }),
+    ]);
+    return this.paginated(items, total, page, pageSize);
+  }
+
+  async listLessonPlans(query: BusinessQueryDto) {
+    const { skip, take, page, pageSize } = this.pagination(query);
+    const status = this.optionalEnum(
+      query.status,
+      LessonPlanStatus,
+      "status",
+    );
+    const where: Prisma.LessonPlanWhereInput = {
+      classId: query.classId,
+      teacherId: query.teacherId,
+      status,
+      lessonDate: this.dateRange(query),
+    };
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.lessonPlan.findMany({
+        where,
+        orderBy: { lessonDate: "desc" },
+        skip,
+        take,
+        include: {
+          class: { select: { id: true, name: true } },
+          teacher: { select: { id: true, name: true } },
+        },
+      }),
+      this.prisma.lessonPlan.count({ where }),
+    ]);
+    return this.paginated(items, total, page, pageSize);
+  }
+
+  async updateLessonPlanStatus(
+    actorId: string,
+    id: string,
+    status: LessonPlanStatus,
+  ) {
+    const current = await this.prisma.lessonPlan.findUnique({
+      where: { id },
+      select: { id: true, status: true },
+    });
+    if (!current) throw new NotFoundException("Lesson plan not found");
+    const lessonPlan = await this.prisma.lessonPlan.update({
+      where: { id },
+      data: { status },
+      include: {
+        class: { select: { id: true, name: true } },
+        teacher: { select: { id: true, name: true } },
+      },
+    });
+    await this.audit.log({
+      userId: actorId,
+      action: "admin.lessonPlan.status.update",
+      targetType: "LessonPlan",
+      targetId: id,
+      detail: { from: current.status, to: status },
+    });
+    return { data: lessonPlan };
+  }
+
+  async listResearchActivities(query: BusinessQueryDto) {
+    const { skip, take, page, pageSize } = this.pagination(query);
+    const status = this.optionalEnum(
+      query.status,
+      ResearchActivityStatus,
+      "status",
+    );
+    const type = this.optionalEnum(
+      query.type,
+      ResearchActivityType,
+      "type",
+    );
+    const where: Prisma.ResearchActivityWhereInput = {
+      organizerId: query.teacherId,
+      status,
+      type,
+      startAt: this.dateRange(query),
+      participants: query.studentId
+        ? { some: { teacherId: query.studentId } }
+        : undefined,
+    };
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.researchActivity.findMany({
+        where,
+        orderBy: { startAt: "desc" },
+        skip,
+        take,
+        include: {
+          campus: { select: { id: true, name: true } },
+          organizer: { select: { id: true, name: true } },
+          participants: {
+            include: { teacher: { select: { id: true, name: true } } },
+          },
+        },
+      }),
+      this.prisma.researchActivity.count({ where }),
+    ]);
+    return this.paginated(items, total, page, pageSize);
+  }
+
+  async updateResearchActivityStatus(
+    actorId: string,
+    id: string,
+    status: ResearchActivityStatus,
+  ) {
+    const current = await this.prisma.researchActivity.findUnique({
+      where: { id },
+      select: { id: true, status: true },
+    });
+    if (!current) throw new NotFoundException("Research activity not found");
+    const activity = await this.prisma.researchActivity.update({
+      where: { id },
+      data: { status },
+      include: {
+        campus: { select: { id: true, name: true } },
+        organizer: { select: { id: true, name: true } },
+        participants: {
+          include: { teacher: { select: { id: true, name: true } } },
+        },
+      },
+    });
+    await this.audit.log({
+      userId: actorId,
+      action: "admin.researchActivity.status.update",
+      targetType: "ResearchActivity",
+      targetId: id,
+      detail: { from: current.status, to: status },
+    });
+    return { data: activity };
+  }
+
   async auditLogs() {
     const logs = await this.audit.listRecent();
     return { data: logs };
+  }
+
+  private pagination(query: BusinessQueryDto) {
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 10;
+    return {
+      page,
+      pageSize,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    };
+  }
+
+  private paginated<T>(
+    items: T[],
+    total: number,
+    page: number,
+    pageSize: number,
+  ) {
+    return { data: { items, total, page, pageSize } };
+  }
+
+  private dateRange(query: BusinessQueryDto) {
+    if (!query.from && !query.to) return undefined;
+    const from = query.from ? new Date(query.from) : undefined;
+    const to = query.to ? new Date(query.to) : undefined;
+    if (to && query.to?.length === 10) {
+      to.setUTCHours(23, 59, 59, 999);
+    }
+    if (from && to && from > to) {
+      throw new BadRequestException("from must be earlier than to");
+    }
+    return { gte: from, lte: to };
+  }
+
+  private optionalEnum<T extends Record<string, string>>(
+    value: string | undefined,
+    values: T,
+    label: string,
+  ): T[keyof T] | undefined {
+    if (!value) return undefined;
+    if (!Object.values(values).includes(value)) {
+      throw new BadRequestException(
+        `${label} must be one of: ${Object.values(values).join(", ")}`,
+      );
+    }
+    return value as T[keyof T];
   }
 
   private async deleteWithRelationCheck<T>(

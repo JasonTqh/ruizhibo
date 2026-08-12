@@ -17,6 +17,7 @@ import { Roles } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
 import { AdminService } from "./admin.service";
 import { BindGuardianDto } from "./dto/bind-guardian.dto";
+import { BusinessQueryDto } from "./dto/business-query.dto";
 import { CreateClassDto } from "./dto/create-class.dto";
 import { CreateStudentDto } from "./dto/create-student.dto";
 import { CreateTeacherDto } from "./dto/create-teacher.dto";
@@ -26,6 +27,10 @@ import { UpdateStudentDto } from "./dto/update-student.dto";
 import { UpdateTeacherDto } from "./dto/update-teacher.dto";
 import { UpdateWorkflowTemplateDto } from "./dto/update-workflow-template.dto";
 import { UpdateGuardianDto } from "./dto/update-guardian.dto";
+import {
+  UpdateLessonPlanStatusDto,
+  UpdateResearchActivityStatusDto,
+} from "./dto/update-business-status.dto";
 
 @Controller("admin")
 @UseGuards(AuthGuard, RolesGuard)
@@ -226,6 +231,63 @@ export class AdminController {
       user.id,
       id,
       force === "true",
+    );
+  }
+
+  @Get("business/homework")
+  listHomework(@Query() query: BusinessQueryDto) {
+    return this.adminService.listHomework(query);
+  }
+
+  @Get("business/teaching-records")
+  listTeachingRecords(@Query() query: BusinessQueryDto) {
+    return this.adminService.listTeachingRecords(query);
+  }
+
+  @Get("business/growth-records")
+  listGrowthRecords(@Query() query: BusinessQueryDto) {
+    return this.adminService.listGrowthRecords(query);
+  }
+
+  @Get("business/attendance")
+  listAttendance(@Query() query: BusinessQueryDto) {
+    return this.adminService.listAttendance(query);
+  }
+
+  @Get("business/workflows")
+  listWorkflowSessions(@Query() query: BusinessQueryDto) {
+    return this.adminService.listWorkflowSessions(query);
+  }
+
+  @Get("business/lesson-plans")
+  listLessonPlans(@Query() query: BusinessQueryDto) {
+    return this.adminService.listLessonPlans(query);
+  }
+
+  @Patch("business/lesson-plans/:id/status")
+  updateLessonPlanStatus(
+    @CurrentUser() user: AuthUser,
+    @Param("id") id: string,
+    @Body() dto: UpdateLessonPlanStatusDto,
+  ) {
+    return this.adminService.updateLessonPlanStatus(user.id, id, dto.status);
+  }
+
+  @Get("business/research-activities")
+  listResearchActivities(@Query() query: BusinessQueryDto) {
+    return this.adminService.listResearchActivities(query);
+  }
+
+  @Patch("business/research-activities/:id/status")
+  updateResearchActivityStatus(
+    @CurrentUser() user: AuthUser,
+    @Param("id") id: string,
+    @Body() dto: UpdateResearchActivityStatusDto,
+  ) {
+    return this.adminService.updateResearchActivityStatus(
+      user.id,
+      id,
+      dto.status,
     );
   }
 
