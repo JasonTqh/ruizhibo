@@ -1,7 +1,7 @@
 .parent-home {
   box-sizing: border-box;
   min-height: 100vh;
-  padding: 24px 24px 44px;
+  padding: 24px 24px calc(44px + env(safe-area-inset-bottom));
   background: #f5f0eb;
 }
 
@@ -95,6 +95,12 @@
   gap: 10px;
   margin-bottom: 14px;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.child-switcher::-webkit-scrollbar {
+  display: none;
 }
 
 .child-switcher__item {
@@ -414,4 +420,15 @@
   margin-bottom: 8px;
   color: #8db5a5;
   font-size: 42px;
+}
+
+@media (max-width: 680px) {
+  .parent-quick-grid {
+    grid-template-columns: repeat(2, 1fr);
+    row-gap: 20px;
+  }
+
+  .child-hero__today {
+    display: none;
+  }
 }

@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { Text, View } from "@tarojs/components";
 import Taro, { useDidShow } from "@tarojs/taro";
 import { teacherRequest } from "../../api";
@@ -48,8 +48,11 @@ export default function HomePage() {
   const [conversations, setConversations] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const loadingRef = useRef(false);
 
   async function load() {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
     setLoading(true);
     setError("");
     try {
@@ -66,6 +69,7 @@ export default function HomePage() {
       setError(message);
       Taro.showToast({ title: message, icon: "none" });
     } finally {
+      loadingRef.current = false;
       setLoading(false);
     }
   }
@@ -96,7 +100,10 @@ export default function HomePage() {
       ),
       h(
         View,
-        { className: `refresh-chip${loading ? " refresh-chip--loading" : ""}`, onClick: load },
+        {
+          className: `refresh-chip${loading ? " refresh-chip--loading" : ""}`,
+          onClick: () => !loading && load(),
+        },
         h(Text, { className: "refresh-chip__icon" }, "↻"),
         h(Text, null, loading ? "加载中" : "刷新"),
       ),

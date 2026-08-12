@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { Text, View } from "@tarojs/components";
 import Taro, { useDidShow } from "@tarojs/taro";
 import { parentRequest } from "../../api";
@@ -17,8 +17,13 @@ export default function HomePage() {
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const requestSequence = useRef(0);
+  const loadingRef = useRef(false);
 
   async function load() {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
+    const sequence = ++requestSequence.current;
     setLoading(true);
     setError("");
     try {
@@ -43,24 +48,28 @@ export default function HomePage() {
           parentRequest("/parent/notices"),
           parentRequest("/parent/conversations"),
         ]);
+      if (sequence !== requestSequence.current) return;
       setRecords(nextRecords);
       setHomework(nextHomework);
       setNotices(nextNotices);
       setConversations(nextConversations);
       syncCommunicationBadge(nextNotices, nextConversations);
     } catch (loadError) {
-      setError(
+      if (sequence === requestSequence.current) setError(
         loadError instanceof Error
           ? loadError.message
           : "首页加载失败，请稍后重试。",
       );
     } finally {
-      setLoading(false);
+      if (sequence === requestSequence.current) setLoading(false);
+      loadingRef.current = false;
     }
   }
 
   async function selectChild(childId) {
     if (childId === activeChildId || loading) return;
+    loadingRef.current = true;
+    const sequence = ++requestSequence.current;
     setActiveChildId(childId);
     Taro.setStorageSync(ACTIVE_CHILD_KEY, childId);
     setLoading(true);
@@ -70,12 +79,14 @@ export default function HomePage() {
         parentRequest(`/parent/children/${childId}/timeline`),
         parentRequest(`/parent/children/${childId}/homework`),
       ]);
+      if (sequence !== requestSequence.current) return;
       setRecords(nextRecords);
       setHomework(nextHomework);
     } catch (loadError) {
-      setError("切换孩子失败，请重试。");
+      if (sequence === requestSequence.current) setError("切换孩子失败，请重试。");
     } finally {
-      setLoading(false);
+      if (sequence === requestSequence.current) setLoading(false);
+      loadingRef.current = false;
     }
   }
 
@@ -110,7 +121,7 @@ export default function HomePage() {
         View,
         {
           className: `parent-refresh${loading ? " parent-refresh--loading" : ""}`,
-          onClick: load,
+          onClick: () => !loading && load(),
         },
         h(Text, null, "↻"),
       ),

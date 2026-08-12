@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { Button, Text, View } from "@tarojs/components";
 import Taro, { useDidShow } from "@tarojs/taro";
 import { parentRequest } from "../../api";
@@ -15,35 +15,42 @@ export default function MessagesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [pendingAction, setPendingAction] = useState("");
+  const loadingRef = useRef(false);
 
   async function load(showLoading = true) {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
     if (showLoading) setLoading(true);
     setError("");
-    const [noticeResult, conversationResult] = await Promise.allSettled([
-      parentRequest("/parent/notices"),
-      parentRequest("/parent/conversations"),
-    ]);
+    try {
+      const [noticeResult, conversationResult] = await Promise.allSettled([
+        parentRequest("/parent/notices"),
+        parentRequest("/parent/conversations"),
+      ]);
 
-    const failedSections = [];
-    let nextNotices = notices;
-    let nextConversations = conversations;
-    if (noticeResult.status === "fulfilled") {
-      nextNotices = noticeResult.value;
-      setNotices(nextNotices);
-    } else {
-      failedSections.push("通知任务");
+      const failedSections = [];
+      let nextNotices = notices;
+      let nextConversations = conversations;
+      if (noticeResult.status === "fulfilled") {
+        nextNotices = noticeResult.value;
+        setNotices(nextNotices);
+      } else {
+        failedSections.push("通知任务");
+      }
+      if (conversationResult.status === "fulfilled") {
+        nextConversations = conversationResult.value;
+        setConversations(nextConversations);
+      } else {
+        failedSections.push("家校会话");
+      }
+      if (failedSections.length) {
+        setError(`${failedSections.join("、")}加载失败，请重试。`);
+      }
+      syncTabBarBadge(nextNotices, nextConversations);
+    } finally {
+      if (showLoading) setLoading(false);
+      loadingRef.current = false;
     }
-    if (conversationResult.status === "fulfilled") {
-      nextConversations = conversationResult.value;
-      setConversations(nextConversations);
-    } else {
-      failedSections.push("家校会话");
-    }
-    if (failedSections.length) {
-      setError(`${failedSections.join("、")}加载失败，请重试。`);
-    }
-    syncTabBarBadge(nextNotices, nextConversations);
-    if (showLoading) setLoading(false);
   }
 
   useDidShow(() => {

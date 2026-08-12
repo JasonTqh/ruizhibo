@@ -1,7 +1,7 @@
 .growth-page {
   box-sizing: border-box;
   min-height: 100vh;
-  padding: 24px 24px 48px;
+  padding: 24px 24px calc(48px + env(safe-area-inset-bottom));
   background: #f5f0eb;
 }
 
@@ -73,7 +73,13 @@
   gap: 12px;
   margin-top: 22px;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
   white-space: nowrap;
+}
+
+.growth-child-switcher::-webkit-scrollbar {
+  display: none;
 }
 
 .growth-child-chip {
@@ -390,10 +396,22 @@
   font-size: 21px;
   line-height: 1.62;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .growth-record-teacher {
   margin-top: 9px;
   color: #929a96;
   font-size: 18px;
+}
+
+@media (max-width: 680px) {
+  .attendance-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .growth-child-count {
+    display: none;
+  }
 }

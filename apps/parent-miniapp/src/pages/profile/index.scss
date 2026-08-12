@@ -1,7 +1,7 @@
 .profile-page {
   box-sizing: border-box;
   min-height: 100vh;
-  padding: 24px 24px 48px;
+  padding: 24px 24px calc(48px + env(safe-area-inset-bottom));
   background: #f5f0eb;
 }
 
@@ -157,6 +157,8 @@
   margin-top: 7px;
   color: rgba(255, 255, 255, 0.6);
   font-size: 17px;
+  overflow-wrap: anywhere;
+  word-break: break-all;
 }
 
 .profile-readonly {

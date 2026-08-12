@@ -3,6 +3,8 @@
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
+  min-height: 0;
   overflow: hidden;
   background: #f2efea;
 }
@@ -153,6 +155,7 @@
   align-items: flex-end;
   gap: 12px;
   flex-shrink: 0;
+  min-width: 0;
   padding: 16px 20px calc(16px + env(safe-area-inset-bottom));
   background: #fff;
   border-top: 1px solid #e1e6e3;
@@ -190,6 +193,7 @@
 .parent-chat-send {
   flex-shrink: 0;
   width: 126px;
+  max-width: 28%;
   min-height: 74px;
   margin: 0;
   color: #fff;

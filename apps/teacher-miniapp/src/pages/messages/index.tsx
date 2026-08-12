@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { Button, Text, View } from "@tarojs/components";
 import Taro, { useDidShow } from "@tarojs/taro";
 import { teacherRequest } from "../../api";
@@ -11,8 +11,11 @@ export default function MessagesPage() {
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const loadingRef = useRef(false);
 
   async function load(showLoading = true) {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
     if (showLoading) setLoading(true);
     setError("");
     try {
@@ -20,6 +23,7 @@ export default function MessagesPage() {
     } catch (loadError) {
       setError(errorMessage(loadError, "会话加载失败，请确认 API 已启动。"));
     } finally {
+      loadingRef.current = false;
       if (showLoading) setLoading(false);
     }
   }

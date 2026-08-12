@@ -1,7 +1,7 @@
 .parent-homework-page {
   box-sizing: border-box;
   min-height: 100vh;
-  padding: 24px 24px 48px;
+  padding: 24px 24px calc(48px + env(safe-area-inset-bottom));
   background: #f5f0eb;
 }
 
@@ -72,7 +72,14 @@
   gap: 12px;
   margin-top: 22px;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
   white-space: nowrap;
+}
+
+.parent-homework-children::-webkit-scrollbar,
+.homework-filter-bar::-webkit-scrollbar {
+  display: none;
 }
 
 .parent-homework-child {
@@ -161,6 +168,8 @@
   gap: 10px;
   margin-top: 20px;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
   white-space: nowrap;
 }
 
@@ -326,6 +335,8 @@
   font-size: 22px;
   line-height: 1.65;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .parent-homework-submit,
@@ -506,4 +517,16 @@
   margin-top: 9px;
   color: #87918d;
   font-size: 20px;
+}
+
+@media (max-width: 680px) {
+  .homework-summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .homework-deadline {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
 }
