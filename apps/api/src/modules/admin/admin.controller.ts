@@ -1,4 +1,14 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
 import { UserRole } from "@prisma/client";
 import { AuthGuard } from "../auth/auth.guard";
 import { AuthUser } from "../auth/auth.types";
@@ -15,6 +25,7 @@ import { UpdateClassDto } from "./dto/update-class.dto";
 import { UpdateStudentDto } from "./dto/update-student.dto";
 import { UpdateTeacherDto } from "./dto/update-teacher.dto";
 import { UpdateWorkflowTemplateDto } from "./dto/update-workflow-template.dto";
+import { UpdateGuardianDto } from "./dto/update-guardian.dto";
 
 @Controller("admin")
 @UseGuards(AuthGuard, RolesGuard)
@@ -41,6 +52,44 @@ export class AdminController {
     return this.adminService.updateTeacher(user.id, id, dto);
   }
 
+  @Delete("teachers/:id")
+  deleteTeacher(@CurrentUser() user: AuthUser, @Param("id") id: string) {
+    return this.adminService.deleteTeacher(user.id, id);
+  }
+
+  @Get("parents")
+  listParents() {
+    return this.adminService.listParents();
+  }
+
+  @Post("parents")
+  createParent(@CurrentUser() user: AuthUser, @Body() dto: CreateTeacherDto) {
+    return this.adminService.createParent(user.id, dto);
+  }
+
+  @Patch("parents/:id")
+  updateParent(
+    @CurrentUser() user: AuthUser,
+    @Param("id") id: string,
+    @Body() dto: UpdateTeacherDto,
+  ) {
+    return this.adminService.updateParent(user.id, id, dto);
+  }
+
+  @Get("parents/:id/references")
+  parentReferences(@Param("id") id: string) {
+    return this.adminService.parentReferences(id);
+  }
+
+  @Delete("parents/:id")
+  deleteParent(
+    @CurrentUser() user: AuthUser,
+    @Param("id") id: string,
+    @Query("force") force?: string,
+  ) {
+    return this.adminService.deleteParent(user.id, id, force === "true");
+  }
+
   @Get("classes")
   listClasses() {
     return this.adminService.listClasses();
@@ -58,6 +107,20 @@ export class AdminController {
     @Body() dto: UpdateClassDto,
   ) {
     return this.adminService.updateClass(user.id, id, dto);
+  }
+
+  @Get("classes/:id/references")
+  classReferences(@Param("id") id: string) {
+    return this.adminService.classReferences(id);
+  }
+
+  @Delete("classes/:id")
+  deleteClass(
+    @CurrentUser() user: AuthUser,
+    @Param("id") id: string,
+    @Query("force") force?: string,
+  ) {
+    return this.adminService.deleteClass(user.id, id, force === "true");
   }
 
   @Get("students")
@@ -79,6 +142,20 @@ export class AdminController {
     return this.adminService.updateStudent(user.id, id, dto);
   }
 
+  @Get("students/:id/references")
+  studentReferences(@Param("id") id: string) {
+    return this.adminService.studentReferences(id);
+  }
+
+  @Delete("students/:id")
+  deleteStudent(
+    @CurrentUser() user: AuthUser,
+    @Param("id") id: string,
+    @Query("force") force?: string,
+  ) {
+    return this.adminService.deleteStudent(user.id, id, force === "true");
+  }
+
   @Post("students/:studentId/guardians")
   bindGuardian(
     @CurrentUser() user: AuthUser,
@@ -95,6 +172,21 @@ export class AdminController {
     @Param("guardianId") guardianId: string,
   ) {
     return this.adminService.unbindGuardian(user.id, studentId, guardianId);
+  }
+
+  @Patch("students/:studentId/guardians/:guardianId")
+  updateGuardian(
+    @CurrentUser() user: AuthUser,
+    @Param("studentId") studentId: string,
+    @Param("guardianId") guardianId: string,
+    @Body() dto: UpdateGuardianDto,
+  ) {
+    return this.adminService.updateGuardian(
+      user.id,
+      studentId,
+      guardianId,
+      dto,
+    );
   }
 
   @Get("workflow-templates")
@@ -117,6 +209,24 @@ export class AdminController {
     @Body() dto: UpdateWorkflowTemplateDto,
   ) {
     return this.adminService.updateWorkflowTemplate(user.id, id, dto);
+  }
+
+  @Get("workflow-templates/:id/references")
+  workflowTemplateReferences(@Param("id") id: string) {
+    return this.adminService.workflowTemplateReferences(id);
+  }
+
+  @Delete("workflow-templates/:id")
+  deleteWorkflowTemplate(
+    @CurrentUser() user: AuthUser,
+    @Param("id") id: string,
+    @Query("force") force?: string,
+  ) {
+    return this.adminService.deleteWorkflowTemplate(
+      user.id,
+      id,
+      force === "true",
+    );
   }
 
   @Get("audit-logs")

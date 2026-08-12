@@ -859,6 +859,8 @@ export class TeacherService {
         id: true,
         guardians: {
           where: {
+            status: "active",
+            canReceiveNotice: true,
             parent: {
               status: UserStatus.active,
             },
@@ -1119,8 +1121,26 @@ export class TeacherService {
   async conversations(teacherId: string) {
     await this.ensureTeacherConversations(teacherId);
 
+    const activeBindings = await this.prisma.studentGuardian.findMany({
+      where: {
+        status: "active",
+        student: { class: { teacherId } },
+      },
+      select: { studentId: true, parentId: true },
+    });
+
+    if (!activeBindings.length) {
+      return { data: [] };
+    }
+
     const conversations = await this.prisma.conversation.findMany({
-      where: { teacherId },
+      where: {
+        teacherId,
+        OR: activeBindings.map((binding) => ({
+          studentId: binding.studentId,
+          parentId: binding.parentId,
+        })),
+      },
       orderBy: { updatedAt: "desc" },
       include: {
         student: {
@@ -1316,6 +1336,7 @@ export class TeacherService {
   private async ensureTeacherConversations(teacherId: string) {
     const guardians = await this.prisma.studentGuardian.findMany({
       where: {
+        status: "active",
         student: {
           class: {
             teacherId,
@@ -1382,10 +1403,23 @@ export class TeacherService {
         id: conversationId,
         teacherId,
       },
-      select: { id: true },
+      select: { id: true, studentId: true, parentId: true },
     });
 
     if (!conversation) {
+      throw new NotFoundException("Conversation not found");
+    }
+
+    const activeBinding = await this.prisma.studentGuardian.findFirst({
+      where: {
+        studentId: conversation.studentId,
+        parentId: conversation.parentId,
+        status: "active",
+      },
+      select: { id: true },
+    });
+
+    if (!activeBinding) {
       throw new NotFoundException("Conversation not found");
     }
   }

@@ -19,7 +19,7 @@ export class ParentService {
 
   async children(parentId: string) {
     const bindings = await this.prisma.studentGuardian.findMany({
-      where: { parentId },
+      where: { parentId, status: "active" },
       orderBy: { createdAt: "asc" },
       include: {
         student: {
@@ -50,7 +50,9 @@ export class ParentService {
   }
 
   async timeline(parentId: string, studentId: string) {
-    await this.assertParentStudent(parentId, studentId);
+    await this.assertParentStudent(parentId, studentId, {
+      canViewGrowth: true,
+    });
 
     const records = await this.prisma.growthRecord.findMany({
       where: {
@@ -73,7 +75,9 @@ export class ParentService {
   }
 
   async attendance(parentId: string, studentId: string) {
-    await this.assertParentStudent(parentId, studentId);
+    await this.assertParentStudent(parentId, studentId, {
+      canViewGrowth: true,
+    });
 
     const events = await this.prisma.attendanceEvent.findMany({
       where: { studentId },
@@ -131,7 +135,7 @@ export class ParentService {
         id: submissionId,
         student: {
           guardians: {
-            some: { parentId },
+            some: { parentId, status: "active", canSubmitHomework: true },
           },
         },
       },
@@ -253,7 +257,7 @@ export class ParentService {
         parentId,
         student: {
           guardians: {
-            some: { parentId },
+            some: { parentId, status: "active", canReceiveNotice: true },
           },
         },
       },
@@ -374,7 +378,14 @@ export class ParentService {
     await this.ensureParentConversations(parentId);
 
     const conversations = await this.prisma.conversation.findMany({
-      where: { parentId },
+      where: {
+        parentId,
+        student: {
+          guardians: {
+            some: { parentId, status: "active" },
+          },
+        },
+      },
       orderBy: { updatedAt: "desc" },
       include: {
         student: {
@@ -476,7 +487,7 @@ export class ParentService {
 
   private async ensureParentConversations(parentId: string) {
     const bindings = await this.prisma.studentGuardian.findMany({
-      where: { parentId },
+      where: { parentId, status: "active" },
       select: {
         studentId: true,
         parentId: true,
@@ -514,11 +525,17 @@ export class ParentService {
     }
   }
 
-  private async assertParentStudent(parentId: string, studentId: string) {
+  private async assertParentStudent(
+    parentId: string,
+    studentId: string,
+    permissions: { canViewGrowth?: boolean } = {},
+  ) {
     const binding = await this.prisma.studentGuardian.findFirst({
       where: {
         parentId,
         studentId,
+        status: "active",
+        ...permissions,
       },
       select: { id: true },
     });
@@ -535,7 +552,7 @@ export class ParentService {
         parentId,
         student: {
           guardians: {
-            some: { parentId },
+            some: { parentId, status: "active", canReceiveNotice: true },
           },
         },
       },
@@ -563,6 +580,11 @@ export class ParentService {
       where: {
         id: conversationId,
         parentId,
+        student: {
+          guardians: {
+            some: { parentId, status: "active" },
+          },
+        },
       },
       select: { id: true },
     });

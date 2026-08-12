@@ -16,6 +16,7 @@ import { UpdateClassDto } from "./dto/update-class.dto";
 import { UpdateStudentDto } from "./dto/update-student.dto";
 import { UpdateTeacherDto } from "./dto/update-teacher.dto";
 import { UpdateWorkflowTemplateDto } from "./dto/update-workflow-template.dto";
+import { UpdateGuardianDto } from "./dto/update-guardian.dto";
 
 const userSummarySelect = {
   id: true,
@@ -97,6 +98,139 @@ export class AdminService {
     return { data: teacher };
   }
 
+  async deleteTeacher(actorId: string, id: string) {
+    await this.assertUserWithRoleExists(id, UserRole.teacher, "Teacher");
+    const teacher = await this.deleteWithRelationCheck(
+      () =>
+        this.prisma.user.delete({ where: { id }, select: userSummarySelect }),
+      "该老师已有班级或业务记录，不能删除；可将状态改为停用",
+    );
+    await this.audit.log({
+      userId: actorId,
+      action: "admin.teacher.delete",
+      targetType: "User",
+      targetId: id,
+    });
+    return { data: teacher };
+  }
+
+  async listParents() {
+    const parents = await this.prisma.user.findMany({
+      where: { role: UserRole.parent },
+      orderBy: { createdAt: "desc" },
+      select: {
+        ...userSummarySelect,
+        guardianships: {
+          select: {
+            id: true,
+            relation: true,
+            isPrimary: true,
+            canReceiveNotice: true,
+            canSubmitHomework: true,
+            canViewGrowth: true,
+            status: true,
+            remark: true,
+            student: {
+              select: {
+                id: true,
+                name: true,
+                class: { select: { name: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+    return { data: parents };
+  }
+
+  async createParent(actorId: string, dto: CreateTeacherDto) {
+    await this.assertPhoneAvailable(dto.phone);
+    const parent = await this.prisma.user.create({
+      data: {
+        role: UserRole.parent,
+        name: dto.name,
+        phone: dto.phone,
+        status: dto.status ?? UserStatus.active,
+      },
+      select: userSummarySelect,
+    });
+    await this.audit.log({
+      userId: actorId,
+      action: "admin.parent.create",
+      targetType: "User",
+      targetId: parent.id,
+      detail: { phone: parent.phone },
+    });
+    return { data: parent };
+  }
+
+  async updateParent(actorId: string, id: string, dto: UpdateTeacherDto) {
+    await this.assertUserWithRoleExists(id, UserRole.parent, "Parent");
+    if (dto.phone) await this.assertPhoneAvailable(dto.phone, id);
+    const parent = await this.prisma.user.update({
+      where: { id },
+      data: { name: dto.name, phone: dto.phone, status: dto.status },
+      select: userSummarySelect,
+    });
+    await this.audit.log({
+      userId: actorId,
+      action: "admin.parent.update",
+      targetType: "User",
+      targetId: id,
+      detail: dto as Prisma.InputJsonValue,
+    });
+    return { data: parent };
+  }
+
+  async parentReferences(id: string) {
+    await this.assertUserWithRoleExists(id, UserRole.parent, "Parent");
+    const [guardianships, noticeReceipts, conversations] = await Promise.all([
+      this.prisma.studentGuardian.count({ where: { parentId: id } }),
+      this.prisma.noticeReceipt.count({ where: { parentId: id } }),
+      this.prisma.conversation.count({ where: { parentId: id } }),
+    ]);
+    return { data: { guardianships, noticeReceipts, conversations } };
+  }
+
+  async deleteParent(actorId: string, id: string, force = false) {
+    const current = await this.prisma.user.findFirst({
+      where: { id, role: UserRole.parent },
+      select: { id: true, status: true },
+    });
+    if (!current) throw new NotFoundException("Parent not found");
+    if (force && current.status === UserStatus.active) {
+      throw new BadRequestException("请先将家长设为停用，再清理引用并删除");
+    }
+    const parent = await this.deleteWithRelationCheck(
+      () =>
+        this.prisma.$transaction(async (tx) => {
+          if (force) {
+            await tx.message.deleteMany({
+              where: { conversation: { parentId: id } },
+            });
+            await tx.conversation.deleteMany({ where: { parentId: id } });
+            await tx.noticeReceipt.deleteMany({ where: { parentId: id } });
+            await tx.studentGuardian.deleteMany({ where: { parentId: id } });
+            await tx.auditLog.updateMany({
+              where: { userId: id },
+              data: { userId: null },
+            });
+          }
+          return tx.user.delete({ where: { id }, select: userSummarySelect });
+        }),
+      "该家长已有学生绑定或业务记录，不能删除；可先停用后清理引用",
+    );
+    await this.audit.log({
+      userId: actorId,
+      action: "admin.parent.delete",
+      targetType: "User",
+      targetId: id,
+      detail: { force },
+    });
+    return { data: parent };
+  }
+
   async listClasses() {
     const classes = await this.prisma.class.findMany({
       orderBy: { createdAt: "desc" },
@@ -131,7 +265,11 @@ export class AdminService {
     await this.assertCampusExists(dto.campusId);
     const teacherId = this.normalizeOptionalId(dto.teacherId);
     if (teacherId) {
-      await this.assertUserWithRoleExists(teacherId, UserRole.teacher, "Teacher");
+      await this.assertUserWithRoleExists(
+        teacherId,
+        UserRole.teacher,
+        "Teacher",
+      );
     }
 
     const klass = await this.prisma.class.create({
@@ -166,7 +304,11 @@ export class AdminService {
     if (dto.teacherId !== undefined) {
       const teacherId = this.normalizeOptionalId(dto.teacherId);
       if (teacherId) {
-        await this.assertUserWithRoleExists(teacherId, UserRole.teacher, "Teacher");
+        await this.assertUserWithRoleExists(
+          teacherId,
+          UserRole.teacher,
+          "Teacher",
+        );
       }
       data.teacherId = teacherId;
     }
@@ -185,6 +327,116 @@ export class AdminService {
       detail: dto as Prisma.InputJsonValue,
     });
 
+    return { data: klass };
+  }
+
+  async classReferences(id: string) {
+    await this.assertClassExists(id);
+    const [
+      direct,
+      guardians,
+      attendance,
+      submissions,
+      growthRecords,
+      conversations,
+      noticeReceipts,
+    ] = await Promise.all([
+      this.prisma.class.findUniqueOrThrow({
+        where: { id },
+        select: {
+          _count: {
+            select: {
+              students: true,
+              workflowSessions: true,
+              homeworkAssignments: true,
+              teachingRecords: true,
+              lessonPlans: true,
+              notices: true,
+            },
+          },
+        },
+      }),
+      this.prisma.studentGuardian.count({
+        where: { student: { classId: id } },
+      }),
+      this.prisma.attendanceEvent.count({
+        where: { student: { classId: id } },
+      }),
+      this.prisma.homeworkSubmission.count({
+        where: { student: { classId: id } },
+      }),
+      this.prisma.growthRecord.count({ where: { student: { classId: id } } }),
+      this.prisma.conversation.count({ where: { student: { classId: id } } }),
+      this.prisma.noticeReceipt.count({ where: { student: { classId: id } } }),
+    ]);
+    return {
+      data: {
+        ...direct._count,
+        studentGuardians: guardians,
+        studentAttendance: attendance,
+        studentSubmissions: submissions,
+        studentGrowthRecords: growthRecords,
+        studentConversations: conversations,
+        studentNoticeReceipts: noticeReceipts,
+      },
+    };
+  }
+
+  async deleteClass(actorId: string, id: string, force = false) {
+    await this.assertClassExists(id);
+    const klass = await this.deleteWithRelationCheck(
+      () =>
+        this.prisma.$transaction(async (tx) => {
+          if (force) {
+            await tx.message.deleteMany({
+              where: { conversation: { student: { classId: id } } },
+            });
+            await tx.workflowStep.deleteMany({
+              where: { session: { classId: id } },
+            });
+            await tx.noticeReceipt.deleteMany({
+              where: {
+                OR: [{ notice: { classId: id } }, { student: { classId: id } }],
+              },
+            });
+            await tx.homeworkSubmission.deleteMany({
+              where: {
+                OR: [
+                  { homework: { classId: id } },
+                  { student: { classId: id } },
+                ],
+              },
+            });
+            await tx.studentGuardian.deleteMany({
+              where: { student: { classId: id } },
+            });
+            await tx.attendanceEvent.deleteMany({
+              where: { student: { classId: id } },
+            });
+            await tx.growthRecord.deleteMany({
+              where: { student: { classId: id } },
+            });
+            await tx.conversation.deleteMany({
+              where: { student: { classId: id } },
+            });
+            await tx.workflowSession.deleteMany({ where: { classId: id } });
+            await tx.homeworkAssignment.deleteMany({ where: { classId: id } });
+            await tx.teachingRecord.deleteMany({ where: { classId: id } });
+            await tx.lessonPlan.deleteMany({ where: { classId: id } });
+            await tx.notice.deleteMany({ where: { classId: id } });
+            await tx.student.deleteMany({ where: { classId: id } });
+          }
+          return tx.class.delete({ where: { id }, select: this.classSelect() });
+        }),
+      "该班级已有学生或业务记录，不能删除",
+    );
+    await this.audit.log({
+      userId: actorId,
+      action: "admin.class.delete",
+      targetType: "Class",
+      targetId: id,
+      detail: { force },
+    });
     return { data: klass };
   }
 
@@ -254,19 +506,113 @@ export class AdminService {
     return { data: student };
   }
 
+  async studentReferences(id: string) {
+    await this.assertStudentExists(id);
+    const counts = await this.prisma.student.findUniqueOrThrow({
+      where: { id },
+      select: {
+        _count: {
+          select: {
+            guardians: true,
+            attendance: true,
+            submissions: true,
+            growthRecords: true,
+            conversations: true,
+            noticeReceipts: true,
+          },
+        },
+      },
+    });
+    return { data: counts._count };
+  }
+
+  async deleteStudent(actorId: string, id: string, force = false) {
+    const current = await this.prisma.student.findUnique({
+      where: { id },
+      select: { id: true, status: true },
+    });
+    if (!current) throw new NotFoundException("Student not found");
+    if (force && current.status === StudentStatus.active) {
+      throw new BadRequestException(
+        "请先将学生状态设为停用或结业，再清理引用并删除",
+      );
+    }
+    const student = await this.deleteWithRelationCheck(
+      () =>
+        this.prisma.$transaction(async (tx) => {
+          if (force) {
+            await tx.message.deleteMany({
+              where: { conversation: { studentId: id } },
+            });
+            await tx.noticeReceipt.deleteMany({ where: { studentId: id } });
+            await tx.homeworkSubmission.deleteMany({
+              where: { studentId: id },
+            });
+            await tx.studentGuardian.deleteMany({ where: { studentId: id } });
+            await tx.attendanceEvent.deleteMany({ where: { studentId: id } });
+            await tx.growthRecord.deleteMany({ where: { studentId: id } });
+            await tx.conversation.deleteMany({ where: { studentId: id } });
+          }
+          return tx.student.delete({
+            where: { id },
+            select: this.studentSelect(),
+          });
+        }),
+      "该学生已有家长绑定或业务记录，不能删除；可将状态改为停用",
+    );
+    await this.audit.log({
+      userId: actorId,
+      action: "admin.student.delete",
+      targetType: "Student",
+      targetId: id,
+      detail: { force },
+    });
+    return { data: student };
+  }
+
   async bindGuardian(actorId: string, studentId: string, dto: BindGuardianDto) {
     await this.assertStudentExists(studentId);
 
     const parent = await this.resolveGuardianParent(dto);
 
     try {
-      const guardian = await this.prisma.studentGuardian.create({
-        data: {
-          studentId,
-          parentId: parent.id,
-          relation: dto.relation,
-        },
-        select: this.guardianSelect(),
+      const guardian = await this.prisma.$transaction(async (tx) => {
+        if (dto.isPrimary && (dto.status ?? "active") === "active") {
+          await tx.studentGuardian.updateMany({
+            where: { studentId, status: "active" },
+            data: { isPrimary: false },
+          });
+        }
+        return tx.studentGuardian.upsert({
+          where: { studentId_parentId: { studentId, parentId: parent.id } },
+          create: {
+            studentId,
+            parentId: parent.id,
+            relation: dto.relation,
+            isPrimary:
+              (dto.status ?? "active") === "active"
+                ? (dto.isPrimary ?? false)
+                : false,
+            canReceiveNotice: dto.canReceiveNotice ?? true,
+            canSubmitHomework: dto.canSubmitHomework ?? true,
+            canViewGrowth: dto.canViewGrowth ?? true,
+            status: dto.status ?? "active",
+            remark: dto.remark,
+          },
+          update: {
+            relation: dto.relation,
+            isPrimary:
+              (dto.status ?? "active") === "active"
+                ? (dto.isPrimary ?? false)
+                : false,
+            canReceiveNotice: dto.canReceiveNotice ?? true,
+            canSubmitHomework: dto.canSubmitHomework ?? true,
+            canViewGrowth: dto.canViewGrowth ?? true,
+            status: dto.status ?? "active",
+            remark: dto.remark,
+          },
+          select: this.guardianSelect(),
+        });
       });
 
       await this.audit.log({
@@ -283,7 +629,9 @@ export class AdminService {
       return { data: guardian };
     } catch (error) {
       if (this.isUniqueConstraintError(error)) {
-        throw new ConflictException("Guardian is already bound to this student");
+        throw new ConflictException(
+          "Guardian is already bound to this student",
+        );
       }
       throw error;
     }
@@ -304,8 +652,9 @@ export class AdminService {
       throw new NotFoundException("Guardian binding not found");
     }
 
-    const deleted = await this.prisma.studentGuardian.delete({
+    const deleted = await this.prisma.studentGuardian.update({
       where: { id: guardianId },
+      data: { status: "unlinked", isPrimary: false },
       select: this.guardianSelect(),
     });
 
@@ -323,6 +672,49 @@ export class AdminService {
     return { data: deleted };
   }
 
+  async updateGuardian(
+    actorId: string,
+    studentId: string,
+    guardianId: string,
+    dto: UpdateGuardianDto,
+  ) {
+    const existing = await this.prisma.studentGuardian.findFirst({
+      where: { id: guardianId, studentId },
+      select: { id: true, status: true },
+    });
+    if (!existing) throw new NotFoundException("Guardian binding not found");
+    const guardian = await this.prisma.$transaction(async (tx) => {
+      const nextStatus = dto.status ?? existing.status;
+      if (dto.isPrimary && nextStatus === "active") {
+        await tx.studentGuardian.updateMany({
+          where: { studentId, id: { not: guardianId }, status: "active" },
+          data: { isPrimary: false },
+        });
+      }
+      return tx.studentGuardian.update({
+        where: { id: guardianId },
+        data: {
+          relation: dto.relation,
+          isPrimary: nextStatus === "active" ? dto.isPrimary : false,
+          canReceiveNotice: dto.canReceiveNotice,
+          canSubmitHomework: dto.canSubmitHomework,
+          canViewGrowth: dto.canViewGrowth,
+          status: dto.status,
+          remark: dto.remark,
+        },
+        select: this.guardianSelect(),
+      });
+    });
+    await this.audit.log({
+      userId: actorId,
+      action: "admin.guardian.update",
+      targetType: "StudentGuardian",
+      targetId: guardianId,
+      detail: dto as Prisma.InputJsonValue,
+    });
+    return { data: guardian };
+  }
+
   async listWorkflowTemplates() {
     const templates = await this.prisma.workflowTemplate.findMany({
       orderBy: [{ isActive: "desc" }, { updatedAt: "desc" }],
@@ -332,7 +724,10 @@ export class AdminService {
     return { data: templates };
   }
 
-  async createWorkflowTemplate(actorId: string, dto: CreateWorkflowTemplateDto) {
+  async createWorkflowTemplate(
+    actorId: string,
+    dto: CreateWorkflowTemplateDto,
+  ) {
     this.assertUniqueStepKeys(dto.steps);
 
     const template = await this.prisma.workflowTemplate.create({
@@ -421,14 +816,95 @@ export class AdminService {
     return { data: template };
   }
 
+  async workflowTemplateReferences(id: string) {
+    await this.assertWorkflowTemplateExists(id);
+    const sessions = await this.prisma.workflowSession.findMany({
+      where: { templateId: id },
+      orderBy: { date: "desc" },
+      select: {
+        id: true,
+        date: true,
+        status: true,
+        class: { select: { id: true, name: true } },
+        teacher: { select: { id: true, name: true } },
+        _count: { select: { steps: true } },
+      },
+    });
+    return { data: sessions };
+  }
+
+  async deleteWorkflowTemplate(actorId: string, id: string, force = false) {
+    const current = await this.prisma.workflowTemplate.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        isActive: true,
+        _count: { select: { sessions: true } },
+      },
+    });
+    if (!current) throw new NotFoundException("Workflow template not found");
+    if (force && current.isActive) {
+      throw new BadRequestException("请先将模板设为停用，再清理引用并删除");
+    }
+    const referenceCount = current._count.sessions;
+    const template = await this.deleteWithRelationCheck(
+      () =>
+        this.prisma.$transaction(async (tx) => {
+          if (force && referenceCount > 0) {
+            await tx.workflowStep.deleteMany({
+              where: { session: { templateId: id } },
+            });
+            await tx.workflowSession.deleteMany({ where: { templateId: id } });
+          }
+          await tx.workflowTemplateStep.deleteMany({
+            where: { templateId: id },
+          });
+          return tx.workflowTemplate.delete({
+            where: { id },
+            select: this.workflowTemplateSelect(),
+          });
+        }),
+      "该流程模板已被一日流程使用，不能删除；可将模板设为停用",
+    );
+    await this.audit.log({
+      userId: actorId,
+      action: "admin.workflowTemplate.delete",
+      targetType: "WorkflowTemplate",
+      targetId: id,
+      detail: { force, deletedSessionCount: force ? referenceCount : 0 },
+    });
+    return { data: template };
+  }
+
   async auditLogs() {
     const logs = await this.audit.listRecent();
     return { data: logs };
   }
 
+  private async deleteWithRelationCheck<T>(
+    operation: () => Promise<T>,
+    message: string,
+  ) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2003"
+      ) {
+        throw new ConflictException(message);
+      }
+      throw error;
+    }
+  }
+
   private async resolveGuardianParent(dto: BindGuardianDto) {
     if (dto.parentId) {
-      return this.assertUserWithRoleExists(dto.parentId, UserRole.parent, "Parent");
+      return this.assertUserWithRoleExists(
+        dto.parentId,
+        UserRole.parent,
+        "Parent",
+      );
     }
 
     if (!dto.parentPhone) {
@@ -442,7 +918,9 @@ export class AdminService {
 
     if (existing) {
       if (existing.role !== UserRole.parent) {
-        throw new ConflictException("Phone number is already used by another role");
+        throw new ConflictException(
+          "Phone number is already used by another role",
+        );
       }
 
       if (dto.parentName && dto.parentName !== existing.name) {
@@ -457,7 +935,9 @@ export class AdminService {
     }
 
     if (!dto.parentName) {
-      throw new BadRequestException("parentName is required when creating a parent");
+      throw new BadRequestException(
+        "parentName is required when creating a parent",
+      );
     }
 
     return this.prisma.user.create({
@@ -625,9 +1105,16 @@ export class AdminService {
     return {
       id: true,
       relation: true,
+      isPrimary: true,
+      canReceiveNotice: true,
+      canSubmitHomework: true,
+      canViewGrowth: true,
+      status: true,
+      remark: true,
       studentId: true,
       parentId: true,
       createdAt: true,
+      updatedAt: true,
       parent: {
         select: userSummarySelect,
       },
@@ -653,6 +1140,7 @@ export class AdminService {
           requirePhoto: true,
         },
       },
+      _count: { select: { sessions: true } },
     } satisfies Prisma.WorkflowTemplateSelect;
   }
 

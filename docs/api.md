@@ -443,7 +443,13 @@ Content-Type: application/json
 
 {
   "parentId": "<parent-user-id>",
-  "relation": "妈妈"
+  "relation": "妈妈",
+  "isPrimary": true,
+  "canReceiveNotice": true,
+  "canSubmitHomework": true,
+  "canViewGrowth": true,
+  "status": "active",
+  "remark": "主要联系人"
 }
 ```
 
@@ -461,6 +467,26 @@ Content-Type: application/json
 }
 ```
 
+更新绑定关系：
+
+```http
+PATCH /api/admin/students/:studentId/guardians/:guardianId
+Authorization: Bearer <admin-token>
+Content-Type: application/json
+
+{
+  "relation": "父亲",
+  "isPrimary": false,
+  "canReceiveNotice": true,
+  "canSubmitHomework": false,
+  "canViewGrowth": true,
+  "status": "active",
+  "remark": "仅接收通知和查看成长"
+}
+```
+
+同一孩子只有一位正常绑定家长可以是主要联系人。`canReceiveNotice` 控制通知回执，`canSubmitHomework` 控制作业提交，`canViewGrowth` 控制成长时间线和考勤读取；权限不足时业务接口按不可见资源返回 `404`。
+
 解绑家长：
 
 ```http
@@ -468,7 +494,9 @@ DELETE /api/admin/students/:studentId/guardians/:guardianId
 Authorization: Bearer <admin-token>
 ```
 
-解绑只删除 `StudentGuardian` 绑定关系，不删除家长用户。
+解绑会将 `StudentGuardian.status` 更新为 `unlinked` 并取消主要联系人标记，保留历史关系和审计记录，不删除家长用户。解绑后孩子、通知和家校会话立即不可访问；重新绑定同一位家长会复用并恢复原关系记录。
+
+管理后台还提供老师、家长、班级、学生和流程模板的引用检查与安全删除接口。存在业务引用时普通删除返回 `409`；需要强制清理的数据必须先将对应家长、学生或流程模板停用，再显式使用 `?force=true`，页面会展示引用统计和不可撤销提示。
 
 ## 5. 文件上传
 

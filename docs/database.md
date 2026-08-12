@@ -59,6 +59,9 @@ erDiagram
 
 - 一个孩子可以绑定多个家长。
 - 一个家长可以绑定多个孩子。
+- `isPrimary` 标记主要联系人，同一孩子只允许一个正常绑定关系为主要联系人。
+- `canReceiveNotice`、`canSubmitHomework`、`canViewGrowth` 分别控制通知回执、作业提交、成长与考勤查看。
+- `status` 支持 `active`、`pending`、`unlinked`；解绑采用状态变更而不是物理删除，以保留历史关系和审计记录。
 
 ## 4. 一日流程
 

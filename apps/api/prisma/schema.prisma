@@ -165,7 +165,14 @@ model StudentGuardian {
   studentId String
   parentId  String
   relation  String
+  isPrimary Boolean  @default(false)
+  canReceiveNotice Boolean @default(true)
+  canSubmitHomework Boolean @default(true)
+  canViewGrowth Boolean @default(true)
+  status    String   @default("active")
+  remark    String?
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   student Student @relation(fields: [studentId], references: [id])
   parent  User    @relation(fields: [parentId], references: [id])
