@@ -1,12 +1,14 @@
 {
   "description": "锐之博教师端小程序",
   "compileType": "miniprogram",
-  "appid": "touristappid",
+  "appid": "wxdde73d60a0be16e2",
   "projectname": "锐之博教师端",
   "setting": {
     "urlCheck": false,
     "es6": true,
     "minified": true,
-    "postcss": true
+    "postcss": true,
+    "swc": false,
+    "disableSWC": true
   }
 }

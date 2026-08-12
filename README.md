@@ -101,4 +101,4 @@ JWT_SECRET="replace-with-a-local-secret"
 - `teacher-miniapp` 已接入真实 API，首页视觉重构中；流程打卡、作业、通知/任务、消息和聊天闭环可用，教学记录前端、备课和教研仍需补齐。
 - `parent-miniapp` 已接入真实 API，首页视觉重构中；作业提交、成长时间线、通知/任务、消息和聊天闭环可用，“我的”页面仍需补齐。
 - `parent-app`、`teacher-app`、`website` 已移动到 `archive/apps/`，仅作为历史视觉参考。
-- 环境配置抽离已经完成。当前优先执行 `docs/ui-development-path.md` 中的 UI-01 至 UI-09；页面和功能达到可持续试用状态后，再继续微信登录、自动验证脚本和测试环境部署。
+- 环境配置抽离及 UI-01 至 UI-09 已完成，并通过微信开发者工具与真机验收。当前进入 CP-23 微信登录生产闭环，随后继续自动验证脚本和测试环境部署。

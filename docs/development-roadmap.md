@@ -28,7 +28,7 @@
   - 家长端 `GET /api/parent/notices`
   - 家长端 `POST /api/parent/notice-receipts/:receiptId/view`
   - 家长端 `POST /api/parent/notice-receipts/:receiptId/confirm`
-- 当前优先级：暂停 CP-23 微信登录生产闭环，先执行 `docs/ui-development-path.md` 的 UI-01 至 UI-09，补齐正式小程序页面、占位功能和原型视觉迁移。
+- UI-01 至 UI-09 已完成，并通过微信开发者工具与真机人工验收；当前优先执行 CP-23 微信登录生产闭环。
 
 ## 阶段 1：后端基础能力补齐
 
@@ -898,6 +898,8 @@ docs/ui-development-path.md
 - UI-08：管理后台业务查询和配置入口补齐。
 - UI-09：全页面回归、真机适配和最终人工验收。
 
+状态：UI-01 至 UI-09 已全部完成，真机已跑通流程、作业、通知和聊天主链路。
+
 约束：
 
 - `archive/apps/teacher-app` 和 `archive/apps/parent-app` 只作为视觉与信息架构参考。
@@ -1006,8 +1008,8 @@ CP-23 -> CP-24 -> CP-25 -> CP-26
 当前建议优先执行：
 
 ```text
-UI-01 双端首页与视觉基线（代码已实现，等待微信开发者工具人工验收）
-UI-02 教师教学中心补齐
+CP-23 微信登录生产闭环
+CP-24 教师/家长自动验证脚本
 ```
 
 ## 每个提案的完成定义
