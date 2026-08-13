@@ -10,7 +10,7 @@
 
 ## 1. 认证
 
-开发期小程序仍默认使用 dev-login；后端已提供微信登录和手机号绑定接口，生产联调时需要配置微信 AppID/AppSecret，并关闭或限制 dev-login。
+小程序通过 `TARO_APP_AUTH_MODE` 切换认证模式：开发联调使用 `dev`，微信真机联调和生产构建使用 `wechat`。生产环境需要配置教师端、家长端各自的 AppID/AppSecret，并关闭 `dev-login`。
 
 ```http
 POST /api/auth/dev-login
@@ -67,6 +67,8 @@ Authorization: Bearer <jwt>
 POST /api/auth/wechat-login
 POST /api/auth/bind-phone
 ```
+
+`POST /api/auth/dev-login` 默认只在非生产环境开放。可通过 `ENABLE_DEV_LOGIN=true|false` 显式控制；生产配置必须为 `false` 或不设置。
 
 ## 2. 家长端 API
 
@@ -673,24 +675,60 @@ POST /api/auth/wechat-login
 Content-Type: application/json
 
 {
-  "code": "<wx.login code>"
+  "code": "<wx.login code>",
+  "role": "teacher"
 }
 ```
 
-后端使用 `WECHAT_APP_ID` 和 `WECHAT_APP_SECRET` 调用 `code2Session`。如果 `openid` 尚未绑定已有用户，会返回 `UNAUTHORIZED`。
+`role` 仅支持 `teacher` 或 `parent`。后端按角色读取以下配置并调用 `code2Session`：
+
+- 教师端：`WECHAT_TEACHER_APP_ID`、`WECHAT_TEACHER_APP_SECRET`
+- 家长端：`WECHAT_PARENT_APP_ID`、`WECHAT_PARENT_APP_SECRET`
+- 兼容回退：`WECHAT_APP_ID`、`WECHAT_APP_SECRET`
+
+已绑定用户返回正式访问令牌：
+
+```json
+{
+  "data": {
+    "status": "authenticated",
+    "token": "<jwt>",
+    "user": {
+      "id": "<user-id>",
+      "role": "teacher",
+      "name": "李老师",
+      "phone": "13800000001"
+    }
+  }
+}
+```
+
+未绑定的微信账号返回 10 分钟有效的短期绑定凭证，不签发业务访问令牌：
+
+```json
+{
+  "data": {
+    "status": "binding_required",
+    "bindingToken": "<short-lived-token>",
+    "expiresIn": 600
+  }
+}
+```
 
 手机号绑定接口：
 
 ```http
 POST /api/auth/bind-phone
-Authorization: Bearer <token>
 Content-Type: application/json
 
 {
-  "phone": "13900000000",
-  "wechatOpenid": "<openid>"
+  "bindingToken": "<short-lived-token>",
+  "phoneCode": "<getPhoneNumber event.detail.code>",
+  "role": "teacher"
 }
 ```
+
+后端使用微信手机号接口换取可信手机号，再匹配管理后台预先创建的同角色用户。绑定成功返回 `authenticated` 响应并记录 `auth.wechat.bind` 审计日志；账号不存在、已停用、角色不符或已绑定其他微信时拒绝绑定。客户端不能直接提交手机号或 `openid`。
 
 ## 9. 审计日志
 

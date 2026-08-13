@@ -173,10 +173,11 @@ CP-21、CP-22 与 UI-01 至 UI-09 均已完成，并通过微信开发者工具�
 
 ### CP-23 微信登录生产闭环
 
-- 小程序端调用 `wx.login`。
-- 后端使用 `WECHAT_APP_ID` / `WECHAT_APP_SECRET` 完成 code2Session。
-- 完成手机号绑定和角色识别。
-- 生产环境禁用或严格限制 `dev-login`。
+- 教师端和家长端通过 `TARO_APP_AUTH_MODE=wechat` 调用 `wx.login`，开发环境继续使用 `TARO_APP_AUTH_MODE=dev`。
+- 后端分别使用 `WECHAT_TEACHER_APP_ID` / `WECHAT_TEACHER_APP_SECRET` 与 `WECHAT_PARENT_APP_ID` / `WECHAT_PARENT_APP_SECRET` 完成 `code2Session`。
+- 未绑定用户只获得 10 分钟短期凭证，必须通过微信 `getPhoneNumber` 授权码匹配后台预建账号后才能获得业务 token。
+- 已补角色校验、重复绑定保护和绑定审计；生产环境设置 `ENABLE_DEV_LOGIN=false`。
+- 仍需在微信公众平台配置 AppSecret 后完成教师端、家长端各一次真机绑定验收。
 
 ### CP-24 教师/家长 API 验证脚本
 

@@ -4,6 +4,8 @@ const DEFAULT_API_BASE_URL = "http://localhost:3000/api";
 export const API_BASE_URL = normalizeApiBaseUrl(
   process.env.TARO_APP_API_BASE_URL,
 );
+export const AUTH_MODE =
+  process.env.TARO_APP_AUTH_MODE === "wechat" ? "wechat" : "dev";
 
 const API_ORIGIN = API_BASE_URL.replace(/\/api$/, "");
 
@@ -13,8 +15,6 @@ export function resolveApiAssetUrl(url) {
 }
 
 function normalizeApiBaseUrl(value) {
-  const normalized = (value || DEFAULT_API_BASE_URL)
-    .trim()
-    .replace(/\/+$/, "");
+  const normalized = (value || DEFAULT_API_BASE_URL).trim().replace(/\/+$/, "");
   return normalized || DEFAULT_API_BASE_URL;
 }

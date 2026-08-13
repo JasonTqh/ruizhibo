@@ -7,6 +7,7 @@ const taroSharedPath = resolve(
 const defaultApiBaseUrl = "http://localhost:3000/api";
 const apiBaseUrl =
   process.env.TARO_APP_API_BASE_URL?.trim() || defaultApiBaseUrl;
+const authMode = process.env.TARO_APP_AUTH_MODE?.trim() || "dev";
 
 export default {
   projectName: "parent-miniapp",
@@ -31,6 +32,7 @@ export default {
   },
   env: {
     TARO_APP_API_BASE_URL: JSON.stringify(apiBaseUrl),
+    TARO_APP_AUTH_MODE: JSON.stringify(authMode),
   },
   mini: {},
   h5: {},

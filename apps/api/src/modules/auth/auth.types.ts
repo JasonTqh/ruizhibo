@@ -13,3 +13,11 @@ export interface JwtPayload {
   iat: number;
   exp: number;
 }
+
+export interface WechatBindingPayload {
+  type: "wechat_binding";
+  openid: string;
+  role: UserRole;
+  iat: number;
+  exp: number;
+}

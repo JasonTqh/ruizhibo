@@ -909,6 +909,8 @@ docs/ui-development-path.md
 
 ### CP-23 微信登录生产闭环
 
+状态：代码实现与生产模式回归已完成，等待教师端、家长端配置正式 AppSecret 后各完成一次真机绑定验收。
+
 目标：让小程序端从开发登录过渡到真实微信登录和手机号绑定。
 
 范围：
@@ -916,6 +918,7 @@ docs/ui-development-path.md
 - 小程序端调用 `wx.login`。
 - 后端 `POST /api/auth/wechat-login` 与 `POST /api/auth/bind-phone` 联调。
 - 生产环境关闭或限制 `POST /api/auth/dev-login`。
+- 未绑定用户使用 10 分钟短期凭证和微信手机号授权完成后台预建账号匹配，不接受客户端明文手机号或 `openid`。
 
 验收：
 

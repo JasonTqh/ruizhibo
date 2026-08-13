@@ -1,11 +1,15 @@
-import { IsOptional, IsString, Matches } from "class-validator";
+import { UserRole } from "@prisma/client";
+import { IsEnum, IsString, MinLength } from "class-validator";
 
 export class BindPhoneDto {
   @IsString()
-  @Matches(/^1\d{10}$/)
-  phone!: string;
+  @MinLength(1)
+  bindingToken!: string;
 
-  @IsOptional()
   @IsString()
-  wechatOpenid?: string;
+  @MinLength(1)
+  phoneCode!: string;
+
+  @IsEnum(UserRole)
+  role!: UserRole;
 }

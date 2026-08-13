@@ -22,9 +22,8 @@ export class AuthController {
   }
 
   @Post("auth/bind-phone")
-  @UseGuards(AuthGuard)
-  bindPhone(@CurrentUser() user: AuthUser, @Body() dto: BindPhoneDto) {
-    return this.authService.bindPhone(user.id, dto);
+  bindPhone(@Body() dto: BindPhoneDto) {
+    return this.authService.bindPhone(dto);
   }
 
   @Get("me")
