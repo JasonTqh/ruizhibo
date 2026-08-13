@@ -573,6 +573,7 @@ Content-Type: application/json
   "fileName": "workflow.jpg",
   "mimeType": "image/jpeg",
   "base64": "<base64>",
+  "size": 12345,
   "scene": "workflow"
 }
 ```
@@ -586,7 +587,9 @@ Content-Type: application/json
     "url": "/uploads/workflow/<file-name>.jpg",
     "mimeType": "image/jpeg",
     "size": 12345,
-    "scene": "workflow"
+    "scene": "workflow",
+    "storageDriver": "local",
+    "storageKey": "workflow/<uuid>.jpg"
   }
 }
 ```
@@ -597,9 +600,9 @@ Content-Type: application/json
 - 流程打卡照片
 - 家校沟通图片
 
-单个文件解码后最大为 10 MB；API 请求体已为 Base64 编码开销预留空间。请求体过大时返回 `413 PAYLOAD_TOO_LARGE`，小程序会显示可读错误信息。
+单个文件解码后最大为 10 MB；支持 JPG、PNG、WebP、GIF 和 PDF，并校验文件内容签名是否与 `mimeType` 一致。API 请求体已为 Base64 编码开销预留空间。请求体过大时返回 `413 PAYLOAD_TOO_LARGE`，小程序会显示可读错误信息。
 
-开发期可以本地存储，生产期接腾讯云 COS 或阿里云 OSS。
+`FILE_STORAGE_DRIVER=local` 时返回 `/uploads/*` 相对地址；设置为 `s3` 时写入 COS、OSS、AWS S3、MinIO 等 S3 兼容对象存储，并返回 `S3_PUBLIC_BASE_URL` 下的绝对地址。配置和验证步骤见 `docs/file-storage.md`。
 
 ## 6. 错误格式
 

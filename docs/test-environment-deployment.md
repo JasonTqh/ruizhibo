@@ -82,6 +82,8 @@ pnpm verify:deployment -- `
 - request 合法域名：`https://test.example.com`
 - downloadFile 合法域名：`https://test.example.com`（用于 `/uploads/*` 图片）
 
+若 `FILE_STORAGE_DRIVER=s3`，还需把 `S3_PUBLIC_BASE_URL` 的 HTTPS 域名加入 downloadFile 合法域名。完整对象存储配置见 `docs/file-storage.md`。
+
 构建体验版时注入同一个 HTTPS API 地址和微信登录模式：
 
 ```powershell

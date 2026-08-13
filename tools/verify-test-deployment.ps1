@@ -3,6 +3,7 @@ param(
   [string]$AdminUrl = "http://localhost:8080",
   [switch]$RequireHttps,
   [switch]$RunApiSuite,
+  [string]$ExpectedStorageDriver = "",
   [string]$AdminPhone = "13800000000",
   [string]$TeacherPhone = "13800000001",
   [string]$ParentPhone = "13800000002"
@@ -31,6 +32,9 @@ if ($healthResponse.StatusCode -ne 200 -or $health.data.status -ne "ok") {
 }
 if ($health.data.database -ne "ok") {
   throw "Database health check failed"
+}
+if ($ExpectedStorageDriver -and $health.data.fileStorage -ne $ExpectedStorageDriver) {
+  throw "Expected file storage driver $ExpectedStorageDriver, got $($health.data.fileStorage)"
 }
 
 Write-Host "[deploy-verify] Checking admin web entry"

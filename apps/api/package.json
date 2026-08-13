@@ -17,9 +17,12 @@
     "verify:admin": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-admin-api.ps1",
     "verify:teacher": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-teacher-api.ps1",
     "verify:parent": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-parent-api.ps1",
+    "verify:storage": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-storage-api.ps1",
+    "verify:storage-drivers": "pnpm build && node scripts/verify-storage-drivers.js",
     "verify:all": "pnpm verify:admin && pnpm verify:teacher && pnpm verify:parent"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.864.0",
     "@nestjs/common": "^10.4.15",
     "@nestjs/config": "^3.3.0",
     "@nestjs/core": "^10.4.15",

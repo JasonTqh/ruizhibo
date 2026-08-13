@@ -996,6 +996,8 @@ pnpm --filter @ruizhibo/api verify:parent
 
 ### CP-26 文件存储生产化
 
+状态：已完成。local 驱动与 S3 兼容驱动均已通过自动验证，MinIO 已完成真实上传、公开访问和元数据集成验收。
+
 目标：把本地上传扩展为可用于测试/生产的存储方案。
 
 范围：
@@ -1003,6 +1005,15 @@ pnpm --filter @ruizhibo/api verify:parent
 - 保留当前 `POST /api/files` 接口协议。
 - 增加 COS/OSS 或等价对象存储驱动。
 - 补充上传失败、大小限制、类型限制的前端提示。
+
+实现结果：
+
+- 保留 `/api/files` 协议，新增 `local` 与 `s3` 可切换存储驱动。
+- S3 兼容配置可用于 COS、OSS、AWS S3 和 MinIO，返回可配置的公开/CDN 地址。
+- `FileAsset` 新增 `storageDriver`、`storageKey`，入库失败会补偿删除已上传对象。
+- 后端校验 MIME 白名单、内容签名、声明大小和 10 MB 上限。
+- 教师流程打卡和家长作业图片增加大小、格式和上传失败提示。
+- 新增 `verify:storage` 及 MinIO Compose 覆盖配置。
 
 验收：
 

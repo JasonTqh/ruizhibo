@@ -3,7 +3,7 @@ import { ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { NestExpressApplication } from "@nestjs/platform-express";
 import { json, urlencoded } from "express";
-import { getLocalUploadDir } from "./config/storage";
+import { getFileStorageDriver, getLocalUploadDir } from "./config/storage";
 import { AppModule } from "./modules/app.module";
 import { ApiExceptionFilter } from "./modules/common/api-exception.filter";
 
@@ -27,9 +27,11 @@ async function bootstrap() {
           : true,
     credentials: true,
   });
-  app.useStaticAssets(getLocalUploadDir(), {
-    prefix: "/uploads/",
-  });
+  if (getFileStorageDriver() === "local") {
+    app.useStaticAssets(getLocalUploadDir(), {
+      prefix: "/uploads/",
+    });
+  }
   app.useGlobalFilters(new ApiExceptionFilter());
   app.useGlobalPipes(
     new ValidationPipe({

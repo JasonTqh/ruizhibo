@@ -8,6 +8,7 @@ import "./index.scss";
 
 const h = React.createElement;
 const MAX_PHOTO_COUNT = 3;
+const MAX_UPLOAD_SIZE = 10 * 1024 * 1024;
 
 export default function WorkflowPage() {
   const [sessions, setSessions] = useState([]);
@@ -50,9 +51,17 @@ export default function WorkflowPage() {
         sourceType: ["album", "camera"],
         sizeType: ["compressed"],
       });
-      const paths = (result.tempFiles || [])
+      const files = result.tempFiles || [];
+      const oversizedCount = files.filter(
+        (file) => Number(file.size || 0) > MAX_UPLOAD_SIZE,
+      ).length;
+      const paths = files
+        .filter((file) => Number(file.size || 0) <= MAX_UPLOAD_SIZE)
         .map((file) => file.tempFilePath)
         .filter(Boolean);
+      if (oversizedCount > 0) {
+        Taro.showToast({ title: "单张照片不能超过 10 MB", icon: "none" });
+      }
       if (!paths.length) return;
       setSelectedPhotos((value) => ({
         ...value,
@@ -623,12 +632,17 @@ function stepKey(sessionId, stepId) {
 
 async function uploadWorkflowImage(path) {
   const base64 = await readFileAsBase64(path);
+  const size = base64ByteLength(base64);
+  if (size > MAX_UPLOAD_SIZE) {
+    throw new Error("单张照片不能超过 10 MB");
+  }
   return teacherRequest("/files", {
     method: "POST",
     data: {
       fileName: fileNameFromPath(path),
-      mimeType: mimeTypeFromPath(path),
+      mimeType: imageMimeType(base64),
       base64,
+      size,
       scene: "workflow",
     },
   });
@@ -649,12 +663,17 @@ function fileNameFromPath(path) {
   return path.split(/[\\/]/).pop() || `workflow-${Date.now()}.jpg`;
 }
 
-function mimeTypeFromPath(path) {
-  const extension = path.split(".").pop()?.toLowerCase();
-  if (extension === "png") return "image/png";
-  if (extension === "webp") return "image/webp";
-  if (extension === "gif") return "image/gif";
-  return "image/jpeg";
+function imageMimeType(base64) {
+  if (base64.startsWith("/9j/")) return "image/jpeg";
+  if (base64.startsWith("iVBORw0KGgo")) return "image/png";
+  if (base64.startsWith("R0lGOD")) return "image/gif";
+  if (base64.startsWith("UklGR")) return "image/webp";
+  throw new Error("仅支持 JPG、PNG、WebP 或 GIF 图片");
+}
+
+function base64ByteLength(base64) {
+  const padding = base64.endsWith("==") ? 2 : base64.endsWith("=") ? 1 : 0;
+  return Math.floor((base64.length * 3) / 4) - padding;
 }
 
 function formatCheckedTime(value) {

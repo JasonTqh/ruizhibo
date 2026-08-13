@@ -445,13 +445,15 @@ model NoticeReceipt {
 }
 
 model FileAsset {
-  id        String   @id @default(cuid())
-  url       String
-  mimeType  String
-  size      Int?
-  ownerId   String?
-  scene     String?
-  createdAt DateTime @default(now())
+  id            String   @id @default(cuid())
+  url           String
+  mimeType      String
+  size          Int?
+  ownerId       String?
+  scene         String?
+  storageDriver String   @default("local")
+  storageKey    String?
+  createdAt     DateTime @default(now())
 }
 
 model AuditLog {
