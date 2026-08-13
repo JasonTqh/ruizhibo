@@ -4,8 +4,9 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { GrowthRecordType, HomeworkStatus, MessageKind } from "@prisma/client";
+import { GrowthRecordType, HomeworkStatus } from "@prisma/client";
 import { AuditService } from "../audit/audit.service";
+import { prepareMessageInput } from "../messages/message-input";
 import { PrismaService } from "../prisma/prisma.service";
 import { SendParentMessageDto } from "./dto/send-parent-message.dto";
 import { SubmitHomeworkDto } from "./dto/submit-homework.dto";
@@ -458,19 +459,14 @@ export class ParentService {
   ) {
     await this.assertParentConversation(parentId, conversationId);
 
-    const content = dto.content.trim();
-    if (!content) {
-      throw new BadRequestException("Message content is required");
-    }
+    const input = await prepareMessageInput(this.prisma, parentId, dto);
 
     const message = await this.prisma.$transaction(async (transaction) => {
       const created = await transaction.message.create({
         data: {
           conversationId,
           senderId: parentId,
-          kind: dto.kind ?? MessageKind.text,
-          content,
-          fileUrls: dto.fileUrls ?? [],
+          ...input,
         },
       });
 

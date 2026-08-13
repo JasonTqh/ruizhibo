@@ -1,11 +1,14 @@
 // @ts-nocheck
 import React, { useEffect, useState } from "react";
-import { Button, ScrollView, Text, Textarea, View } from "@tarojs/components";
+import { Button, Image, ScrollView, Text, Textarea, View } from "@tarojs/components";
 import Taro, { useDidShow, useRouter } from "@tarojs/taro";
 import { teacherRequest } from "../../api";
+import { resolveApiAssetUrl } from "../../config";
 import "./index.scss";
 
 const h = React.createElement;
+const MAX_IMAGE_COUNT = 3;
+const MAX_UPLOAD_SIZE = 10 * 1024 * 1024;
 
 export default function ChatPage() {
   const router = useRouter();
@@ -16,6 +19,7 @@ export default function ChatPage() {
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [scrollTarget, setScrollTarget] = useState("message-list-end");
 
@@ -56,7 +60,7 @@ export default function ChatPage() {
   });
 
   async function send() {
-    if (sending || !conversationId) return;
+    if (sending || uploading || !conversationId) return;
     const nextContent = content.trim();
     if (!nextContent) {
       Taro.showToast({ title: "请输入消息内容", icon: "none" });
@@ -75,6 +79,45 @@ export default function ChatPage() {
       setError(errorMessage(sendError, "发送失败，输入内容已保留。"));
     } finally {
       setSending(false);
+    }
+  }
+
+  async function chooseAndSendImages() {
+    if (sending || uploading || !conversationId) return;
+    try {
+      const result = await Taro.chooseMedia({
+        count: MAX_IMAGE_COUNT,
+        mediaType: ["image"],
+        sourceType: ["album", "camera"],
+        sizeType: ["compressed"],
+      });
+      const files = result.tempFiles || [];
+      const validFiles = files.filter(
+        (file) => Number(file.size || 0) <= MAX_UPLOAD_SIZE,
+      );
+      if (validFiles.length !== files.length) {
+        Taro.showToast({ title: "单张图片不能超过 10 MB", icon: "none" });
+      }
+      if (!validFiles.length) return;
+
+      setUploading(true);
+      setError("");
+      const fileUrls = [];
+      for (const file of validFiles) {
+        const asset = await uploadMessageImage(file.tempFilePath);
+        fileUrls.push(asset.url);
+      }
+      await teacherRequest(`/teacher/conversations/${conversationId}/messages`, {
+        method: "POST",
+        data: { kind: "image", fileUrls },
+      });
+      await load(false);
+    } catch (uploadError) {
+      if (!String(uploadError?.errMsg || uploadError).includes("cancel")) {
+        setError(errorMessage(uploadError, "图片发送失败，请重试。"));
+      }
+    } finally {
+      setUploading(false);
     }
   }
 
@@ -142,6 +185,8 @@ export default function ChatPage() {
           : null,
         messages.map((message) => {
           const isOwn = message.senderId === currentUserId;
+          const imageUrls =
+            message.kind === "image" ? message.fileUrls || [] : [];
           return h(
             View,
             {
@@ -151,8 +196,27 @@ export default function ChatPage() {
             },
             h(
               View,
-              { className: `chat-bubble${isOwn ? " chat-bubble--own" : ""}` },
-              h(Text, { className: "chat-content" }, message.content),
+              {
+                className: `chat-bubble${isOwn ? " chat-bubble--own" : ""}${imageUrls.length ? " chat-bubble--image" : ""}`,
+              },
+              imageUrls.length
+                ? h(
+                    View,
+                    { className: "chat-image-grid" },
+                    imageUrls.map((url) =>
+                      h(Image, {
+                        className: "chat-image",
+                        key: url,
+                        src: resolveApiAssetUrl(url),
+                        mode: "aspectFill",
+                        onClick: () => previewImages(imageUrls, url),
+                      }),
+                    ),
+                  )
+                : null,
+              !imageUrls.length || (message.content && message.content !== "[图片]")
+                ? h(Text, { className: "chat-content" }, message.content)
+                : null,
             ),
             h(
               Text,
@@ -168,6 +232,16 @@ export default function ChatPage() {
       View,
       { className: "chat-composer" },
       h(
+        Button,
+        {
+          className: "chat-image-button",
+          loading: uploading,
+          disabled: sending || uploading || !conversationId,
+          onClick: chooseAndSendImages,
+        },
+        uploading ? "上传" : "图片",
+      ),
+      h(
         View,
         { className: "chat-input-wrap" },
         h(Textarea, {
@@ -179,7 +253,7 @@ export default function ChatPage() {
           cursorSpacing: 18,
           confirmType: "send",
           confirmHold: false,
-          disabled: sending || !conversationId,
+          disabled: sending || uploading || !conversationId,
           placeholder: "输入回复内容",
           onInput: (event) => setContent(event.detail.value),
           onConfirm: send,
@@ -194,13 +268,66 @@ export default function ChatPage() {
         {
           className: "chat-send",
           loading: sending,
-          disabled: sending || !conversationId || !content.trim(),
+          disabled: sending || uploading || !conversationId || !content.trim(),
           onClick: send,
         },
         sending ? "发送中" : "发送",
       ),
     ),
   );
+}
+
+function previewImages(urls, current) {
+  Taro.previewImage({
+    current: resolveApiAssetUrl(current),
+    urls: urls.map(resolveApiAssetUrl),
+  });
+}
+
+async function uploadMessageImage(path) {
+  const base64 = await readFileAsBase64(path);
+  const size = base64ByteLength(base64);
+  if (size > MAX_UPLOAD_SIZE) {
+    throw new Error("单张图片不能超过 10 MB");
+  }
+  return teacherRequest("/files", {
+    method: "POST",
+    data: {
+      fileName: fileNameFromPath(path),
+      mimeType: imageMimeType(base64),
+      base64,
+      size,
+      scene: "message",
+    },
+  });
+}
+
+function readFileAsBase64(path) {
+  return new Promise((resolve, reject) => {
+    Taro.getFileSystemManager().readFile({
+      filePath: path,
+      encoding: "base64",
+      success: (result) => resolve(result.data),
+      fail: reject,
+    });
+  });
+}
+
+function fileNameFromPath(path) {
+  return path.split(/[\\/]/).pop() || `message-${Date.now()}.jpg`;
+}
+
+function imageMimeType(base64) {
+  if (base64.startsWith("/9j/")) return "image/jpeg";
+  if (base64.startsWith("iVBORw0KGgo")) return "image/png";
+  if (base64.startsWith("R0lGOD")) return "image/gif";
+  if (base64.startsWith("UklGR")) return "image/webp";
+  throw new Error("仅支持 JPG、PNG、WebP 或 GIF 图片");
+}
+
+function base64ByteLength(base64) {
+  const padding = base64.endsWith("==") ? 2 : base64.endsWith("=") ? 1 : 0;
+  return Math.floor((base64.length * 3) / 4) - padding;
 }
 
 function formatMessageTime(value) {

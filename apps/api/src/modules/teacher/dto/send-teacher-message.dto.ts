@@ -1,11 +1,11 @@
 import { MessageKind } from "@prisma/client";
 import {
+  ArrayMaxSize,
   IsArray,
   IsEnum,
   IsOptional,
   IsString,
   MaxLength,
-  MinLength,
 } from "class-validator";
 
 export class SendTeacherMessageDto {
@@ -13,13 +13,14 @@ export class SendTeacherMessageDto {
   @IsEnum(MessageKind)
   kind?: MessageKind;
 
+  @IsOptional()
   @IsString()
-  @MinLength(1)
   @MaxLength(2000)
-  content!: string;
+  content?: string;
 
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(3)
   @IsString({ each: true })
   fileUrls?: string[];
 }

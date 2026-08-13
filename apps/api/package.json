@@ -19,6 +19,7 @@
     "verify:parent": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-parent-api.ps1",
     "verify:storage": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-storage-api.ps1",
     "verify:storage-drivers": "pnpm build && node scripts/verify-storage-drivers.js",
+    "verify:message-images": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-message-images.ps1",
     "verify:all": "pnpm verify:admin && pnpm verify:teacher && pnpm verify:parent"
   },
   "dependencies": {

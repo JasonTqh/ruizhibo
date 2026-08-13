@@ -182,6 +182,28 @@ POST /api/teacher/conversations/:conversationId/messages
 
 教师端接口必须登录，且角色必须是 `teacher`。老师只能访问自己负责班级的数据。
 
+### 家校沟通图片消息
+
+教师端与家长端的消息发送接口同时支持文字和图片。图片必须先由当前发送者通过 `POST /api/files` 上传，且上传场景必须为 `scene: "message"`。
+
+```http
+POST /api/teacher/conversations/:conversationId/messages
+POST /api/parent/conversations/:conversationId/messages
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "kind": "image",
+  "fileUrls": ["/uploads/message/example.png"]
+}
+```
+
+- 每条图片消息最多包含 3 张图片。
+- 图片资源必须属于当前发送者，不能引用另一位用户或其他上传场景的文件。
+- 用户只能发送 `text` 或 `image`；`system` 消息不能由客户端伪造。
+- 图片消息可选填 `content` 作为说明；未填写时服务端保存为 `[图片]`，便于会话列表展示摘要。
+- 对方读取会话详情后，图片消息与文字消息一样更新 `readAt`。
+
 教研活动按教师任教班级所属校区隔离。查询支持 `type=all|discussion|observation|training` 和 `scope=upcoming|mine|all`；草稿仅组织者可见。活动只有组织者可以编辑、发布、结束或取消，同校区其他教师可以报名和取消报名，出席状态由后续管理能力确认。
 
 教师成长反馈列表：

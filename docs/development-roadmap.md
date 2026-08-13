@@ -1021,6 +1021,34 @@ pnpm --filter @ruizhibo/api verify:parent
 - 上传文件元数据写入 `FileAsset`。
 - 非法类型和超大文件被拒绝。
 
+### CP-27 家校沟通图片消息
+
+状态：代码与自动业务闭环验证已完成，等待微信开发者工具人工验收。
+
+目标：在现有文字会话中补齐真实图片沟通能力，并复用 CP-26 文件存储。
+
+范围：
+
+- 教师端和家长端聊天页选择、拍摄、上传与预览图片。
+- 消息接口支持 `kind = image` 和最多 3 个 `fileUrls`。
+- 校验图片资源的上传场景、文件类型与发送者归属。
+- 图片消息沿用会话未读数和 `readAt` 已读状态。
+
+验收：
+
+- 教师发送图片后，家长端刷新会话可以查看并预览。
+- 家长发送图片后，教师端刷新会话可以查看并预览。
+- 单张图片超过 10 MB 或格式不支持时显示明确提示。
+- 其他用户上传的图片 URL 和伪造的系统消息被 API 拒绝。
+
+验证命令：
+
+```powershell
+pnpm --filter @ruizhibo/api verify:message-images
+pnpm --filter @ruizhibo/teacher-miniapp build
+pnpm --filter @ruizhibo/parent-miniapp build
+```
+
 ## 推荐执行顺序
 
 严格建议按以下顺序推进：
@@ -1034,14 +1062,13 @@ CP-13 -> CP-14 -> CP-15 -> CP-16
 CP-17 -> CP-18 -> CP-19 -> CP-20
 CP-21 -> CP-22
 UI-01 -> UI-02 -> UI-03 -> UI-04 -> UI-05 -> UI-06 -> UI-07 -> UI-08 -> UI-09
-CP-23 -> CP-24 -> CP-25 -> CP-26
+CP-23 -> CP-24 -> CP-25 -> CP-26 -> CP-27
 ```
 
 当前建议优先执行：
 
 ```text
-CP-23 微信登录生产闭环
-CP-24 教师/家长自动验证脚本
+CP-27 家校沟通图片消息人工验收
 ```
 
 ## 每个提案的完成定义

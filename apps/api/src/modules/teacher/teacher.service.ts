@@ -9,7 +9,6 @@ import {
   GrowthRecordType,
   HomeworkStatus,
   LessonPlanStatus,
-  MessageKind,
   Prisma,
   ResearchActivityStatus,
   ResearchActivityType,
@@ -18,6 +17,7 @@ import {
   UserStatus,
 } from "@prisma/client";
 import { AuditService } from "../audit/audit.service";
+import { prepareMessageInput } from "../messages/message-input";
 import { PrismaService } from "../prisma/prisma.service";
 import { CheckWorkflowStepDto } from "./dto/check-workflow-step.dto";
 import { CreateGrowthFeedbackDto } from "./dto/create-growth-feedback.dto";
@@ -1206,19 +1206,14 @@ export class TeacherService {
   ) {
     await this.assertTeacherConversation(teacherId, conversationId);
 
-    const content = dto.content.trim();
-    if (!content) {
-      throw new BadRequestException("Message content is required");
-    }
+    const input = await prepareMessageInput(this.prisma, teacherId, dto);
 
     const message = await this.prisma.$transaction(async (transaction) => {
       const created = await transaction.message.create({
         data: {
           conversationId,
           senderId: teacherId,
-          kind: dto.kind ?? MessageKind.text,
-          content,
-          fileUrls: dto.fileUrls ?? [],
+          ...input,
         },
       });
 
