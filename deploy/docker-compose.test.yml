@@ -1,0 +1,78 @@
+name: ruizhibo-test
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ruizhibo}
+      POSTGRES_USER: ${POSTGRES_USER:-ruizhibo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in deploy/.env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in deploy/.env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in deploy/.env}
+      ENABLE_DEV_LOGIN: ${ENABLE_DEV_LOGIN:-false}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      WECHAT_TEACHER_APP_ID: ${WECHAT_TEACHER_APP_ID:-}
+      WECHAT_TEACHER_APP_SECRET: ${WECHAT_TEACHER_APP_SECRET:-}
+      WECHAT_PARENT_APP_ID: ${WECHAT_PARENT_APP_ID:-}
+      WECHAT_PARENT_APP_SECRET: ${WECHAT_PARENT_APP_SECRET:-}
+      FILE_STORAGE_DRIVER: local
+      LOCAL_UPLOAD_DIR: /data/uploads
+    volumes:
+      - uploads_data:/data/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.web
+      args:
+        VITE_API_BASE_URL: /api
+    restart: unless-stopped
+    environment:
+      DEPLOY_SITE_ADDRESS: ${DEPLOY_SITE_ADDRESS:-http://localhost}
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+      - "${HTTPS_PORT:-8443}:443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  uploads_data:
+  caddy_data:
+  caddy_config:

@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { mkdir, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
+import { getLocalUploadDir } from "../../config/storage";
 import { PrismaService } from "../prisma/prisma.service";
 import { UploadFileDto } from "./dto/upload-file.dto";
 
@@ -32,7 +33,7 @@ export class FilesService {
     const scene = this.safeSegment(dto.scene ?? "general");
     const extension = this.resolveExtension(dto.fileName, dto.mimeType);
     const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}${extension}`;
-    const uploadRoot = join(process.cwd(), "uploads");
+    const uploadRoot = getLocalUploadDir();
     const dir = join(uploadRoot, scene);
     await mkdir(dir, { recursive: true });
     await writeFile(join(dir, fileName), buffer);

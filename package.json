@@ -8,6 +8,7 @@
     "dev:admin": "pnpm --filter @ruizhibo/admin-web dev",
     "dev:parent": "pnpm --filter @ruizhibo/parent-miniapp dev:weapp",
     "dev:teacher": "pnpm --filter @ruizhibo/teacher-miniapp dev:weapp",
+    "verify:deployment": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/verify-test-deployment.ps1",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",

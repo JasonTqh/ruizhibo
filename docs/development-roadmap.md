@@ -936,6 +936,8 @@ pnpm --filter @ruizhibo/parent-miniapp build
 
 ### CP-24 教师/家长自动验证脚本
 
+状态：已完成。
+
 目标：把人工联调中的关键 API 链路沉淀成脚本，降低回归成本。
 
 范围：
@@ -943,6 +945,12 @@ pnpm --filter @ruizhibo/parent-miniapp build
 - 新增教师端验证脚本：工作台、流程、作业批改、通知/任务、消息和聊天详情。
 - 新增家长端验证脚本：孩子、时间线、出勤、作业提交、通知查看确认、消息和聊天详情。
 - 在 `apps/api/package.json` 增加对应脚本。
+
+实现结果：
+
+- 默认只读验证接口结构、身份、角色权限和家长数据隔离。
+- `-IncludeWrites` 使用带时间戳数据验证教师发布、家长提交/确认及双向消息闭环。
+- `verify:all` 串行执行管理员、教师和家长三套只读检查，供测试环境部署后运行。
 
 验收：
 
@@ -959,6 +967,8 @@ pnpm --filter @ruizhibo/api verify:parent
 
 ### CP-25 测试环境部署
 
+状态：部署基础设施已完成，待真实服务器、域名和微信公众平台配置后上线验收。
+
 目标：准备一个可供内部试用的测试环境。
 
 范围：
@@ -968,6 +978,14 @@ pnpm --filter @ruizhibo/api verify:parent
 - 管理后台访问地址。
 - 微信小程序体验版合法域名。
 - 上传目录或对象存储。
+
+实现结果：
+
+- 新增 PostgreSQL、API、管理后台/Caddy 的 Docker Compose 测试环境。
+- API 容器启动时执行 Prisma migrations，数据库与上传目录使用持久化卷。
+- Caddy 统一提供管理后台、API 和上传文件入口，真实域名下自动启用 HTTPS。
+- `/api/health` 增加数据库连通性检查，并新增部署后验证脚本。
+- 部署参数、微信合法域名、体验版构建、备份和回滚步骤见 `docs/test-environment-deployment.md`。
 
 验收：
 

@@ -3,7 +3,7 @@ import { ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { NestExpressApplication } from "@nestjs/platform-express";
 import { json, urlencoded } from "express";
-import { join } from "node:path";
+import { getLocalUploadDir } from "./config/storage";
 import { AppModule } from "./modules/app.module";
 import { ApiExceptionFilter } from "./modules/common/api-exception.filter";
 
@@ -14,11 +14,20 @@ async function bootstrap() {
   app.use(json({ limit: "15mb" }));
   app.use(urlencoded({ extended: true, limit: "15mb" }));
   app.setGlobalPrefix("api");
+  const corsOrigins = (process.env.CORS_ORIGINS ?? "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
   app.enableCors({
-    origin: true,
+    origin:
+      corsOrigins.length > 0
+        ? corsOrigins
+        : process.env.NODE_ENV === "production"
+          ? false
+          : true,
     credentials: true,
   });
-  app.useStaticAssets(join(process.cwd(), "uploads"), {
+  app.useStaticAssets(getLocalUploadDir(), {
     prefix: "/uploads/",
   });
   app.useGlobalFilters(new ApiExceptionFilter());

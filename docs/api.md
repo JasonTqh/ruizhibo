@@ -666,6 +666,41 @@ pnpm --filter @ruizhibo/api verify:admin -- -IncludeWrites
 
 该模式会创建一组本地验证老师、班级、学生和家长用户，测试家长绑定/解绑，并覆盖老师无引用删除、引用保护、启用状态强制删除保护以及停用后关联清理。它适合本地开发库，不建议对生产数据库运行。
 
+### 教师端与家长端自动验证
+
+API 启动且开发登录开启后，运行只读验证：
+
+```powershell
+pnpm --filter @ruizhibo/api verify:teacher
+pnpm --filter @ruizhibo/api verify:parent
+```
+
+教师端覆盖身份、工作台、班级与学生、今日流程、教学记录、成长反馈、备课、教研、作业、通知回执、会话消息，以及未登录、跨角色和错误参数响应。家长端覆盖身份、孩子绑定、成长时间线、出勤、作业、通知、会话消息，以及未登录、跨角色和非本人孩子数据隔离。
+
+需要验证完整写入闭环时显式追加 `-IncludeWrites`：
+
+```powershell
+pnpm --filter @ruizhibo/api verify:teacher -- -IncludeWrites
+pnpm --filter @ruizhibo/api verify:parent -- -IncludeWrites
+```
+
+写入模式会创建带 `verify-*` 时间戳的教学记录、成长反馈、作业、通知和消息；家长脚本还会完成作业提交、通知查看/确认，并验证教师收到家长消息。该模式只用于本地或专用测试数据库。
+
+默认使用 seed 教师 `13800000001`、家长 `13800000002`。账号手机号调整后可显式传参；家长写入验证的教师必须是所选孩子班级的任课教师：
+
+```powershell
+pnpm --filter @ruizhibo/api verify:teacher -- -TeacherPhone <teacher-phone> -ParentPhone <parent-phone>
+pnpm --filter @ruizhibo/api verify:parent -- -ParentPhone <parent-phone> -TeacherPhone <class-teacher-phone> -IncludeWrites
+```
+
+统一验证也支持环境变量 `VERIFY_API_BASE_URL`、`VERIFY_ADMIN_PHONE`、`VERIFY_TEACHER_PHONE`、`VERIFY_PARENT_PHONE`。这适合联调库已修改测试手机号，但仍希望一次运行全部只读检查的场景。
+
+部署到使用 seed 数据的测试环境后，可一次运行三套只读检查：
+
+```powershell
+pnpm --filter @ruizhibo/api verify:all
+```
+
 ## 8. 微信登录
 
 微信登录接口：

@@ -181,15 +181,17 @@ CP-21、CP-22 与 UI-01 至 UI-09 均已完成，并通过微信开发者工具�
 
 ### CP-24 教师/家长 API 验证脚本
 
-- 新增 `verify:teacher`，覆盖工作台、流程、作业、通知/任务、消息。
-- 新增 `verify:parent`，覆盖孩子、时间线、出勤、作业、通知确认、消息。
-- 将验证脚本纳入部署前检查。
+- 已新增 `verify:teacher`，覆盖工作台、班级、流程、教学、成长反馈、作业、通知回执和消息。
+- 已新增 `verify:parent`，覆盖孩子、时间线、出勤、作业、通知确认、消息与数据隔离。
+- 默认模式只读；`-IncludeWrites` 验证教师发布到家长提交/确认的完整写入闭环。
+- 测试环境部署后运行 `pnpm --filter @ruizhibo/api verify:all` 作为部署前 API 检查。
 
 ### CP-25 测试环境部署
 
-- 准备测试数据库、后端服务、管理后台访问地址。
-- 配置 HTTPS 域名和微信小程序 request 合法域名。
-- 跑通 `docs/deployment-checklist.md`。
+- 已准备 PostgreSQL、API、管理后台/Caddy 的 Docker Compose 部署配置。
+- 已实现数据库和上传目录持久化、启动迁移、HTTPS 入口与部署后健康检查。
+- 真实服务器、域名和微信公众平台合法域名仍需按 `docs/test-environment-deployment.md` 完成外部配置和验收。
+- 上线时继续逐项执行 `docs/deployment-checklist.md`。
 
 ### CP-26 文件存储生产化
 

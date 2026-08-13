@@ -7,6 +7,16 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+if (-not $PSBoundParameters.ContainsKey("BaseUrl") -and $env:VERIFY_API_BASE_URL) {
+  $BaseUrl = $env:VERIFY_API_BASE_URL
+}
+if (-not $PSBoundParameters.ContainsKey("AdminPhone") -and $env:VERIFY_ADMIN_PHONE) {
+  $AdminPhone = $env:VERIFY_ADMIN_PHONE
+}
+if (-not $PSBoundParameters.ContainsKey("TeacherPhone") -and $env:VERIFY_TEACHER_PHONE) {
+  $TeacherPhone = $env:VERIFY_TEACHER_PHONE
+}
+
 function Write-Step {
   param([string]$Message)
   Write-Host "[verify] $Message"
