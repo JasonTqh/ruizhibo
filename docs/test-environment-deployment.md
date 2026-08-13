@@ -97,12 +97,13 @@ pnpm --filter @ruizhibo/parent-miniapp build
 
 ## 6. 数据与回滚
 
-容器卷 `postgres_data` 保存数据库，`uploads_data` 保存当前本地文件，Caddy 证书位于 `caddy_data`。升级前应备份数据库与上传卷：
+容器卷 `postgres_data` 保存数据库，`uploads_data` 保存当前本地文件，Caddy 证书位于 `caddy_data`。升级前应同时备份数据库与上传卷：
 
 ```powershell
-docker compose --env-file deploy/.env -f deploy/docker-compose.test.yml exec -T db `
-  pg_dump -U ruizhibo -d ruizhibo > ruizhibo-test.sql
+pnpm backup:deployment
 ```
+
+该命令会创建带 SHA-256 清单的 PostgreSQL 转储和 local 上传文件归档。恢复默认只校验，必须显式追加 `-ConfirmRestore` 才会覆盖当前数据，完整操作见 `docs/backup-and-restore.md`。
 
 更新代码后重新执行 `up -d --build`。回滚时切回上一 Git 版本重新构建；数据库 schema 变化必须先准备兼容或反向迁移方案。
 

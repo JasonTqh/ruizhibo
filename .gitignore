@@ -10,6 +10,7 @@ build/
 *.tsbuildinfo
 uploads/
 apps/api/uploads/
+backups/
 
 # Local/editor noise
 .DS_Store

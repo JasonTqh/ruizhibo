@@ -1023,7 +1023,7 @@ pnpm --filter @ruizhibo/api verify:parent
 
 ### CP-27 家校沟通图片消息
 
-状态：代码与自动业务闭环验证已完成，等待微信开发者工具人工验收。
+状态：已完成，已通过自动业务闭环和微信开发者工具人工验收。
 
 目标：在现有文字会话中补齐真实图片沟通能力，并复用 CP-26 文件存储。
 
@@ -1049,6 +1049,36 @@ pnpm --filter @ruizhibo/teacher-miniapp build
 pnpm --filter @ruizhibo/parent-miniapp build
 ```
 
+### CP-28 数据库与上传文件备份/恢复
+
+状态：已完成实现和本地 Docker 备份/恢复回归，等待人工验收。
+
+目标：降低 Docker 卷被误删、服务器故障或发布回滚时的业务数据丢失风险。
+
+范围：
+
+- 备份 PostgreSQL custom format 转储。
+- local 存储模式同时备份 `uploads_data`。
+- 生成包含时间、Git 版本、文件大小和 SHA-256 的清单。
+- 恢复前强制校验，必须显式确认，并默认创建安全备份。
+- S3/COS/OSS 模式明确使用桶版本控制或云平台快照。
+
+验收：
+
+- 运行备份后产生 `backup.json`、`database.dump` 和 local 模式的 `uploads.tar.gz`。
+- `-ValidateOnly` 可校验正常备份，并拒绝损坏或与清单不一致的文件。
+- 不传 `-ConfirmRestore` 时绝不写入数据库。
+- 恢复前自动备份当前数据，恢复后 API 可重新启动。
+
+验证命令：
+
+```powershell
+pnpm backup:deployment -- -ValidateOnly
+pnpm backup:deployment
+pnpm restore:deployment -- -BackupDirectory <backup-path> -ValidateOnly
+pnpm restore:deployment -- -BackupDirectory <backup-path> -ConfirmRestore
+```
+
 ## 推荐执行顺序
 
 严格建议按以下顺序推进：
@@ -1062,13 +1092,13 @@ CP-13 -> CP-14 -> CP-15 -> CP-16
 CP-17 -> CP-18 -> CP-19 -> CP-20
 CP-21 -> CP-22
 UI-01 -> UI-02 -> UI-03 -> UI-04 -> UI-05 -> UI-06 -> UI-07 -> UI-08 -> UI-09
-CP-23 -> CP-24 -> CP-25 -> CP-26 -> CP-27
+CP-23 -> CP-24 -> CP-25 -> CP-26 -> CP-27 -> CP-28
 ```
 
 当前建议优先执行：
 
 ```text
-CP-27 家校沟通图片消息人工验收
+CP-28 数据库与上传文件备份/恢复人工验收
 ```
 
 ## 每个提案的完成定义

@@ -207,7 +207,14 @@ CP-21、CP-22 与 UI-01 至 UI-09 均已完成，并通过微信开发者工具�
 - 图片复用 `scene = message` 文件上传，支持 10 MB、格式和内容签名校验。
 - 后端校验文件必须属于发送者，禁止引用他人文件或客户端伪造系统消息。
 - 图片消息支持点击预览，并沿用未读数和 `readAt` 已读状态。
-- `verify:message-images` 已通过双向图片与数据隔离自动验证，等待微信开发者工具人工验收。
+- `verify:message-images` 已通过双向图片与数据隔离自动验证，并完成微信开发者工具人工验收。
+
+### CP-28 数据库与上传文件备份/恢复
+
+- 新增 `backup:deployment`，备份 PostgreSQL 与 local 上传文件，并生成 SHA-256 清单。
+- 新增 `restore:deployment`，支持非写入校验、显式恢复确认和恢复前安全备份。
+- 已在本地 Docker 环境通过备份、校验、安全备份和恢复回归。
+- S3/COS/OSS 文件依赖桶版本控制或云平台快照，操作说明见 `docs/backup-and-restore.md`。
 
 ## 7. 给 Codex 的任务模板
 
