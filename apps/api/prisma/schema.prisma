@@ -88,6 +88,7 @@ model User {
   role         UserRole
   name         String
   phone        String?    @unique
+  passwordHash String?
   wechatOpenid String?    @unique
   avatarUrl    String?
   status       UserStatus @default(active)

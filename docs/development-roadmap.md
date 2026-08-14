@@ -1081,7 +1081,7 @@ pnpm restore:deployment -- -BackupDirectory <backup-path> -ConfirmRestore
 
 ### CP-29 请求追踪与结构化运行日志
 
-状态：已完成实现和本地运行回归，等待人工验收。
+状态：已完成实现、本地运行回归和人工验收。
 
 目标：让小程序报障可以通过请求 ID 关联服务端日志，并防止容器日志无限增长。
 
@@ -1110,6 +1110,39 @@ pnpm --filter @ruizhibo/api verify:observability
 docker compose --env-file deploy/.env -f deploy/docker-compose.test.yml config --quiet
 ```
 
+### CP-30 管理后台正式登录
+
+状态：已完成实现和自动回归，等待人工验收。
+
+目标：关闭开发登录后，管理后台仍可通过独立、安全且可运维的管理员认证进入。
+
+范围：
+
+- `POST /api/auth/admin-login` 手机号/密码认证。
+- 管理员密码初始化与重置 CLI，不把明文密码写入仓库或长期环境配置。
+- 带随机盐的 scrypt 密码哈希、统一失败提示和登录限流。
+- 8 小时管理员令牌、浏览器会话级存储和主动退出。
+- 生产构建隐藏开发登录入口。
+
+验收：
+
+- 错误密码返回 401，正确密码可访问 `/api/me` 与管理员接口。
+- 密码哈希不以明文存储，设置密码和登录成功均有审计记录。
+- 连续失败达到阈值后返回 429，手机号与来源 IP 分别计数。
+- 刷新当前标签页后会话保留，退出或关闭标签页后需要重新登录。
+- `ENABLE_DEV_LOGIN=false` 时管理后台完整可用，生产包不包含开发登录按钮。
+
+验证命令：
+
+```powershell
+pnpm --filter @ruizhibo/api typecheck
+pnpm --filter @ruizhibo/api build
+pnpm --filter @ruizhibo/admin-web typecheck
+pnpm --filter @ruizhibo/admin-web build
+$env:VERIFY_ADMIN_PASSWORD="<管理员密码>"
+pnpm --filter @ruizhibo/api verify:admin-auth
+```
+
 ## 推荐执行顺序
 
 严格建议按以下顺序推进：
@@ -1123,13 +1156,13 @@ CP-13 -> CP-14 -> CP-15 -> CP-16
 CP-17 -> CP-18 -> CP-19 -> CP-20
 CP-21 -> CP-22
 UI-01 -> UI-02 -> UI-03 -> UI-04 -> UI-05 -> UI-06 -> UI-07 -> UI-08 -> UI-09
-CP-23 -> CP-24 -> CP-25 -> CP-26 -> CP-27 -> CP-28 -> CP-29
+CP-23 -> CP-24 -> CP-25 -> CP-26 -> CP-27 -> CP-28 -> CP-29 -> CP-30
 ```
 
 当前建议优先执行：
 
 ```text
-CP-29 请求追踪与结构化运行日志人工验收
+CP-30 管理后台正式登录人工验收
 ```
 
 ## 每个提案的完成定义

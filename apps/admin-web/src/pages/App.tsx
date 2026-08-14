@@ -28,6 +28,21 @@ import { API_BASE_URL } from "../config";
 import { BusinessPanel } from "./BusinessPanel";
 
 type ApiResult<T> = { data: T };
+type ApiErrorResult = {
+  error: { message: string; requestId?: string };
+};
+
+interface AdminLoginResult {
+  token: string;
+  user: UserSummary;
+}
+
+function apiErrorMessage(body: ApiErrorResult, fallback = "请求失败") {
+  const message = body.error?.message || fallback;
+  return body.error?.requestId
+    ? `${message}（请求 ID：${body.error.requestId}）`
+    : message;
+}
 
 async function submitChange(action: () => Promise<void>) {
   try {
@@ -248,10 +263,13 @@ const modules = [
 
 export function App() {
   const [activeKey, setActiveKey] = useState("dashboard");
-  const [token, setToken] = useState(
-    () => localStorage.getItem("adminToken") ?? "",
-  );
+  const [token, setToken] = useState(() => {
+    localStorage.removeItem("adminToken");
+    return sessionStorage.getItem("adminToken") ?? "";
+  });
   const [message, setMessage] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [loginLoading, setLoginLoading] = useState(false);
   const [teachers, setTeachers] = useState<UserSummary[]>([]);
   const [parents, setParents] = useState<ParentSummary[]>([]);
   const [classes, setClasses] = useState<ClassSummary[]>([]);
@@ -285,10 +303,15 @@ export function App() {
         ...options.headers,
       },
     });
-    const body = (await response.json()) as
-      ApiResult<T> | { error: { message: string } };
+    const body = (await response.json()) as ApiResult<T> | ApiErrorResult;
     if (!response.ok) {
-      throw new Error("error" in body ? body.error.message : "Request failed");
+      if (response.status === 401) {
+        sessionStorage.removeItem("adminToken");
+        setToken("");
+      }
+      throw new Error(
+        "error" in body ? apiErrorMessage(body) : "Request failed",
+      );
     }
     return (body as ApiResult<T>).data;
   }
@@ -318,23 +341,147 @@ export function App() {
     setAuditLogs(nextAuditLogs);
   }
 
-  async function login() {
+  function saveLogin(result: AdminLoginResult) {
+    sessionStorage.setItem("adminToken", result.token);
+    setToken(result.token);
+    setLoginError("");
+    setMessage(`欢迎，${result.user.name}`);
+  }
+
+  async function adminLogin(values: { phone: string; password: string }) {
+    setLoginLoading(true);
+    setLoginError("");
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/admin-login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+      });
+      const body = (await response.json()) as
+        ApiResult<AdminLoginResult> | ApiErrorResult;
+      if (!response.ok || !("data" in body)) {
+        throw new Error(
+          "error" in body ? apiErrorMessage(body, "登录失败") : "登录失败",
+        );
+      }
+      saveLogin(body.data);
+    } catch (error) {
+      setLoginError(error instanceof Error ? error.message : "登录失败");
+    } finally {
+      setLoginLoading(false);
+    }
+  }
+
+  async function devLogin() {
+    setLoginLoading(true);
+    setLoginError("");
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/dev-login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: "admin", phone: "13800000000" }),
+      });
+      const body = (await response.json()) as
+        ApiResult<AdminLoginResult> | ApiErrorResult;
+      if (!response.ok || !("data" in body)) {
+        throw new Error(
+          "error" in body
+            ? apiErrorMessage(body, "开发登录失败")
+            : "开发登录失败",
+        );
+      }
+      saveLogin(body.data);
+    } catch (error) {
+      setLoginError(error instanceof Error ? error.message : "开发登录失败");
+    } finally {
+      setLoginLoading(false);
+    }
+  }
+
+  function logout() {
+    sessionStorage.removeItem("adminToken");
+    setToken("");
     setMessage("");
-    const data = await fetch(`${API_BASE_URL}/auth/dev-login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ role: "admin", phone: "13800000000" }),
-    }).then(
-      (response) => response.json() as Promise<ApiResult<{ token: string }>>,
-    );
-    localStorage.setItem("adminToken", data.data.token);
-    setToken(data.data.token);
-    setMessage("管理员已登录");
   }
 
   useEffect(() => {
     refreshAll().catch((error: Error) => setMessage(error.message));
   }, [token]);
+
+  if (!token) {
+    return (
+      <div className="admin-login-page">
+        <Card className="admin-login-card" bordered={false}>
+          <div className="admin-login-brand">锐之博托管中心</div>
+          <Typography.Title level={2}>运营管理后台</Typography.Title>
+          <Typography.Paragraph type="secondary">
+            请使用管理员手机号和密码登录
+          </Typography.Paragraph>
+          {loginError ? (
+            <Alert
+              className="admin-alert"
+              message={loginError}
+              type="error"
+              showIcon
+            />
+          ) : null}
+          <Form layout="vertical" onFinish={adminLogin} requiredMark={false}>
+            <Form.Item
+              name="phone"
+              label="管理员手机号"
+              rules={[
+                { required: true, message: "请输入管理员手机号" },
+                { pattern: /^1\d{10}$/, message: "请输入 11 位手机号" },
+              ]}
+            >
+              <Input
+                size="large"
+                inputMode="tel"
+                maxLength={11}
+                autoComplete="username"
+                placeholder="请输入管理员手机号"
+              />
+            </Form.Item>
+            <Form.Item
+              name="password"
+              label="密码"
+              rules={[
+                { required: true, message: "请输入密码" },
+                { min: 12, message: "密码至少需要 12 位" },
+              ]}
+            >
+              <Input.Password
+                size="large"
+                maxLength={128}
+                autoComplete="current-password"
+                placeholder="请输入管理员密码"
+              />
+            </Form.Item>
+            <Button
+              type="primary"
+              htmlType="submit"
+              size="large"
+              block
+              loading={loginLoading}
+            >
+              登录
+            </Button>
+          </Form>
+          {import.meta.env.DEV ? (
+            <Button
+              className="admin-dev-login"
+              type="link"
+              block
+              disabled={loginLoading}
+              onClick={devLogin}
+            >
+              使用本地开发账号登录
+            </Button>
+          ) : null}
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <Layout className="admin-shell">
@@ -352,10 +499,8 @@ export function App() {
         <Layout.Header className="admin-header">
           <Typography.Title level={3}>运营管理工作台</Typography.Title>
           <Space>
-            <Button onClick={login}>开发登录</Button>
-            <Button onClick={refreshAll} disabled={!token}>
-              刷新
-            </Button>
+            <Button onClick={refreshAll}>刷新</Button>
+            <Button onClick={logout}>退出登录</Button>
           </Space>
         </Layout.Header>
         <Layout.Content className="admin-content">

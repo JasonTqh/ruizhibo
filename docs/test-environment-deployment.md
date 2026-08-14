@@ -11,7 +11,7 @@
 - PostgreSQL 强密码；若密码含特殊字符，`DATABASE_URL` 中需要 URL 编码。
 - 测试环境备份与访问人员范围。
 
-管理后台当前仍使用开发登录接口。封闭内网测试可临时设置 `ENABLE_DEV_LOGIN=true`；面向公网或生产环境必须设置为 `false`。在正式公网管理后台上线前，需要补充独立的管理员认证方案。
+管理后台已使用独立的手机号与密码认证。面向公网或生产环境必须设置 `ENABLE_DEV_LOGIN=false`，并在首次开放访问前为管理员初始化强密码，具体操作见 `docs/admin-authentication.md`。
 
 ## 2. 创建部署环境文件
 
@@ -34,6 +34,7 @@ CORS_ORIGINS=https://test.example.com
 LOG_LEVEL=info
 LOG_MAX_SIZE=10m
 LOG_MAX_FILES=5
+TRUST_PROXY_HOPS=1
 ENABLE_DEV_LOGIN=false
 WECHAT_TEACHER_APP_ID=<teacher-app-id>
 WECHAT_TEACHER_APP_SECRET=<teacher-app-secret>
@@ -58,6 +59,16 @@ docker compose --env-file deploy/.env -f deploy/docker-compose.test.yml run --rm
 ```
 
 不要在生产数据库执行演示 seed。
+
+数据库迁移并创建管理员账号后，在开放管理后台前设置独立密码：
+
+```powershell
+$env:ADMIN_PHONE="<管理员手机号>"
+$env:ADMIN_PASSWORD="<管理员强密码>"
+docker compose --env-file deploy/.env -f deploy/docker-compose.test.yml run --rm `
+  -e ADMIN_PHONE -e ADMIN_PASSWORD api pnpm admin:set-password
+Remove-Item Env:ADMIN_PHONE, Env:ADMIN_PASSWORD
+```
 
 ## 4. 部署后验证
 

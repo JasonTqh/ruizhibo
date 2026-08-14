@@ -18,6 +18,14 @@ async function bootstrap() {
     logger: false,
   });
   app.getHttpAdapter().getInstance().disable("x-powered-by");
+  const trustProxyHops = Number(process.env.TRUST_PROXY_HOPS ?? 0);
+  if (
+    Number.isInteger(trustProxyHops) &&
+    trustProxyHops > 0 &&
+    trustProxyHops <= 5
+  ) {
+    app.set("trust proxy", trustProxyHops);
+  }
   app.use(requestContextMiddleware);
   app.use(json({ limit: "15mb" }));
   app.use(urlencoded({ extended: true, limit: "15mb" }));

@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { UserRole } from "@prisma/client";
 import { JwtPayload, WechatBindingPayload } from "./auth.types";
 
 @Injectable()
@@ -11,6 +12,13 @@ export class JwtService {
 
   sign(payload: Omit<JwtPayload, "iat" | "exp">): string {
     return this.signPayload(payload, this.expiresInSeconds);
+  }
+
+  signAdmin(payload: Omit<JwtPayload, "iat" | "exp">): string {
+    if (payload.role !== UserRole.admin) {
+      throw new UnauthorizedException("Invalid admin token role");
+    }
+    return this.signPayload(payload, 8 * 60 * 60);
   }
 
   signWechatBinding(

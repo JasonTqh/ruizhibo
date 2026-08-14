@@ -14,6 +14,7 @@
 
 ```http
 POST /api/auth/dev-login
+POST /api/auth/admin-login
 GET  /api/me
 ```
 
@@ -69,6 +70,22 @@ POST /api/auth/bind-phone
 ```
 
 `POST /api/auth/dev-login` 默认只在非生产环境开放。可通过 `ENABLE_DEV_LOGIN=true|false` 显式控制；生产配置必须为 `false` 或不设置。
+
+### 管理员正式登录
+
+管理后台使用独立的手机号与密码登录：
+
+```http
+POST /api/auth/admin-login
+Content-Type: application/json
+
+{
+  "phone": "13800000000",
+  "password": "<管理员密码>"
+}
+```
+
+成功响应结构与开发登录一致，管理员令牌有效期为 8 小时。错误手机号、错误密码、停用账号和未初始化密码统一返回 `UNAUTHORIZED`；失败次数超限返回 HTTP 429。密码初始化、重置、限流和验证命令见 `docs/admin-authentication.md`。
 
 ## 2. 家长端 API
 

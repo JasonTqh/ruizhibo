@@ -51,6 +51,7 @@
 - `docs/deployment-checklist.md`：测试环境/生产环境部署检查清单。
 - `docs/backup-and-restore.md`：Docker 数据库与 local 上传文件的备份、校验和恢复流程。
 - `docs/observability.md`：API 结构化日志、请求 ID、Docker 日志轮转和故障定位。
+- `docs/admin-authentication.md`：管理后台密码初始化、正式登录、限流和验证流程。
 - `docs/锐之博高端托管班级一日流程.xls`：原始班级一日流程资料。
 
 ## 开发准备

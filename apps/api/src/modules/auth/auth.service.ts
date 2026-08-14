@@ -8,11 +8,14 @@ import {
 import { UserRole, UserStatus } from "@prisma/client";
 import { AuditService } from "../audit/audit.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { AdminLoginThrottleService } from "./admin-login-throttle.service";
 import { AuthUser } from "./auth.types";
+import { AdminLoginDto } from "./dto/admin-login.dto";
 import { BindPhoneDto } from "./dto/bind-phone.dto";
 import { DevLoginDto } from "./dto/dev-login.dto";
 import { WechatLoginDto } from "./dto/wechat-login.dto";
 import { JwtService } from "./jwt.service";
+import { hashPassword, verifyPassword } from "./password";
 
 @Injectable()
 export class AuthService {
@@ -20,12 +23,66 @@ export class AuthService {
     string,
     { value: string; expiresAt: number }
   >();
+  private readonly dummyAdminPasswordHash = hashPassword(
+    "Invalid-Admin-Password-Only-For-Timing!1",
+  );
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly audit: AuditService,
+    private readonly adminLoginThrottle: AdminLoginThrottleService,
   ) {}
+
+  async adminLogin(dto: AdminLoginDto, ipAddress: string) {
+    this.adminLoginThrottle.assertAllowed(dto.phone, ipAddress);
+    const user = await this.prisma.user.findFirst({
+      where: {
+        phone: dto.phone,
+        role: UserRole.admin,
+      },
+      select: {
+        id: true,
+        role: true,
+        name: true,
+        phone: true,
+        passwordHash: true,
+        status: true,
+      },
+    });
+
+    const passwordHash =
+      user?.passwordHash ?? (await this.dummyAdminPasswordHash);
+    const passwordMatches = await verifyPassword(dto.password, passwordHash);
+    if (
+      !user ||
+      !user.passwordHash ||
+      !passwordMatches ||
+      user.status !== UserStatus.active
+    ) {
+      this.adminLoginThrottle.recordFailure(dto.phone, ipAddress);
+      throw new UnauthorizedException("手机号或密码错误");
+    }
+
+    this.adminLoginThrottle.recordSuccess(dto.phone);
+    const profile: AuthUser = {
+      id: user.id,
+      role: user.role,
+      name: user.name,
+      phone: user.phone,
+    };
+    await this.audit.log({
+      userId: user.id,
+      action: "auth.admin.login",
+      targetType: "User",
+      targetId: user.id,
+      detail: { role: user.role },
+    });
+
+    return {
+      data: this.issueTokenData(profile),
+    };
+  }
 
   async devLogin(dto: DevLoginDto) {
     if (!this.isDevLoginEnabled()) {
@@ -55,13 +112,8 @@ export class AuthService {
       name: user.name,
       phone: user.phone,
     };
-    const token = this.jwtService.sign({ sub: user.id, role: user.role });
-
     return {
-      data: {
-        token,
-        user: profile,
-      },
+      data: this.issueTokenData(profile),
     };
   }
 
@@ -192,12 +244,12 @@ export class AuthService {
     };
   }
 
-  private issueToken(profile: AuthUser) {
-    return { data: this.issueTokenData(profile) };
-  }
-
   private issueTokenData(profile: AuthUser) {
-    const token = this.jwtService.sign({ sub: profile.id, role: profile.role });
+    const payload = { sub: profile.id, role: profile.role };
+    const token =
+      profile.role === UserRole.admin
+        ? this.jwtService.signAdmin(payload)
+        : this.jwtService.sign(payload);
 
     return {
       token,
