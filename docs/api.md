@@ -8,6 +8,29 @@
 /api
 ```
 
+### 健康状态与部署版本
+
+```http
+GET /api/health
+```
+
+响应包含数据库、文件存储驱动和部署版本：
+
+```json
+{
+  "data": {
+    "status": "ok",
+    "service": "ruizhibo-api",
+    "version": "<APP_VERSION>",
+    "database": "ok",
+    "fileStorage": "local",
+    "checkedAt": "2026-08-14T00:00:00.000Z"
+  }
+}
+```
+
+Docker 测试/正式环境应把 `APP_VERSION` 设置为当前 Git 提交 SHA，并通过 `pnpm verify:release` 防止验证到旧版本。
+
 ## 1. 认证
 
 小程序通过 `TARO_APP_AUTH_MODE` 切换认证模式：开发联调使用 `dev`，微信真机联调和生产构建使用 `wechat`。生产环境需要配置教师端、家长端各自的 AppID/AppSecret，并关闭 `dev-login`。
@@ -392,20 +415,43 @@ PATCH  /api/admin/teachers/:id
 GET    /api/admin/teachers/:id/references
 DELETE /api/admin/teachers/:id
 
+GET    /api/admin/parents
+POST   /api/admin/parents
+PATCH  /api/admin/parents/:id
+GET    /api/admin/parents/:id/references
+DELETE /api/admin/parents/:id
+
 GET    /api/admin/classes
 POST   /api/admin/classes
 PATCH  /api/admin/classes/:id
+GET    /api/admin/classes/:id/references
+DELETE /api/admin/classes/:id
 
 GET    /api/admin/students
 POST   /api/admin/students
 PATCH  /api/admin/students/:id
+GET    /api/admin/students/:id/references
+DELETE /api/admin/students/:id
 
 POST   /api/admin/students/:studentId/guardians
+PATCH  /api/admin/students/:studentId/guardians/:guardianId
 DELETE /api/admin/students/:studentId/guardians/:guardianId
 
 GET    /api/admin/workflow-templates
 POST   /api/admin/workflow-templates
 PATCH  /api/admin/workflow-templates/:id
+GET    /api/admin/workflow-templates/:id/references
+DELETE /api/admin/workflow-templates/:id
+
+GET    /api/admin/business/homework
+GET    /api/admin/business/teaching-records
+GET    /api/admin/business/growth-records
+GET    /api/admin/business/attendance
+GET    /api/admin/business/workflows
+GET    /api/admin/business/lesson-plans
+PATCH  /api/admin/business/lesson-plans/:id/status
+GET    /api/admin/business/research-activities
+PATCH  /api/admin/business/research-activities/:id/status
 
 GET    /api/admin/audit-logs
 ```

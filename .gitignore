@@ -25,3 +25,6 @@ Thumbs.db
 .cache/
 tmp/
 temp/
+
+# Session memory
+.workbuddy/

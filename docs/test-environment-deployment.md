@@ -25,6 +25,7 @@ Copy-Item deploy/.env.example deploy/.env
 
 ```text
 DEPLOY_SITE_ADDRESS=test.example.com
+APP_VERSION=<git-commit-sha>
 HTTP_PORT=80
 HTTPS_PORT=443
 POSTGRES_PASSWORD=<strong-password>
@@ -80,14 +81,21 @@ docker compose --env-file deploy/.env -f deploy/docker-compose.test.yml logs --t
 
 API 日志为单行 JSON，可通过 `requestId` 关联小程序错误与服务端请求。Docker 默认对数据库、API 和 Web 日志执行 10 MB × 5 文件轮转，详见 `docs/observability.md`。
 
-从开发电脑执行 HTTPS、API、数据库和管理后台入口检查：
+从开发电脑执行生产模式发布门禁。管理员密码仅放在当前终端临时环境变量中：
 
 ```powershell
-pnpm verify:deployment -- `
+$env:VERIFY_APP_VERSION="<git-commit-sha>"
+$env:VERIFY_ADMIN_PASSWORD="<管理员密码>"
+pnpm verify:release -- `
   -BaseUrl https://test.example.com/api `
   -AdminUrl https://test.example.com `
+  -ExpectedCorsOrigin https://test.example.com `
+  -ExpectedStorageDriver local `
   -RequireHttps
+Remove-Item Env:VERIFY_APP_VERSION, Env:VERIFY_ADMIN_PASSWORD
 ```
+
+该命令检查部署版本、正式管理员登录、开发登录禁用、CORS、安全响应头、生产后台包和真实文件上传。完整说明见 `docs/release-verification.md`。
 
 验证请求 ID 和错误关联：
 
@@ -96,7 +104,7 @@ pnpm --filter @ruizhibo/api verify:observability -- `
   -BaseUrl https://test.example.com/api
 ```
 
-封闭测试环境临时开启 `ENABLE_DEV_LOGIN=true` 时，可追加 `-RunApiSuite`，串行执行管理员、教师和家长三套只读 API 验证。公网环境不要为了运行脚本而开启开发登录。
+`verify:deployment -RunApiSuite` 只保留给封闭开发环境；它依赖 `dev-login`，不能与 `verify:release` 混用。公网环境不要为了运行开发 API 套件而开启开发登录。
 
 ## 5. 小程序体验版配置
 

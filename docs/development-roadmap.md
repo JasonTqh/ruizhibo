@@ -14,10 +14,9 @@
 - 后端：NestJS + Prisma + PostgreSQL
 - 管理后台：React + Vite + Ant Design
 - 小程序：Taro React 教师端、家长端
-- CP-01 到 CP-20 的核心代码主线已落地并进入联调阶段。
-- 其中 CP-17 目前是后端微信登录/手机号绑定占位实现，小程序端仍默认使用 dev-login；生产微信登录闭环放入 CP-23 继续完成。
-- CP-18 目前是本地文件存储实现；生产对象存储放入 CP-26 继续完成。
-- CP-21 小程序体验回归和 CP-22 环境配置抽离已完成第一轮实现。
+- CP-01 到 CP-20 的核心业务代码主线已落地。
+- CP-21、CP-22 与 UI-01 至 UI-09 已完成，并通过微信开发者工具与真机主链路验收。
+- CP-23 至 CP-31 的生产化能力已完成代码实现和本地/隔离环境验证，覆盖微信登录、自动验证脚本、测试环境部署配置、local/S3 文件存储、图片消息、备份恢复、观测性、管理后台正式登录和发布门禁。
 - 额外已完成家长提交作业与独立聊天页：
   - 家长端 `POST /api/parent/homework-submissions/:submissionId/submit`
   - 家长小程序 `homework` 页面提交作业
@@ -28,7 +27,7 @@
   - 家长端 `GET /api/parent/notices`
   - 家长端 `POST /api/parent/notice-receipts/:receiptId/view`
   - 家长端 `POST /api/parent/notice-receipts/:receiptId/confirm`
-- UI-01 至 UI-09 已完成，并通过微信开发者工具与真机人工验收；当前优先执行 CP-23 微信登录生产闭环。
+- 当前优先事项是接入真实 HTTPS 测试域名、微信公众平台合法域名和正式 AppSecret，执行 `verify:release`、备份恢复演练、体验版真机绑定和小范围业务试运行。
 
 ## 阶段 1：后端基础能力补齐
 
@@ -878,7 +877,7 @@ pnpm build
 
 ### 页面与功能完善支线（当前主线）
 
-目标：解决历史静态原型与正式 Taro 小程序画面差异较大、部分底部导航页仍为占位页、已有 API 未完整接入前端的问题。
+目标：解决历史静态原型与正式 Taro 小程序画面差异较大、底部导航页占位和已有 API 未完整接入前端的问题。该目标已在 UI-01 至 UI-09 中完成，后续 UI 工作应来自测试环境或试运行反馈。
 
 详细开发范围、状态、验收标准和验证要求统一记录在：
 
@@ -905,7 +904,7 @@ docs/ui-development-path.md
 - `archive/apps/teacher-app` 和 `archive/apps/parent-app` 只作为视觉与信息架构参考。
 - 不把原型中的静态数量、假活动和仅弹提示的按钮复制到正式工程。
 - UI-02 至 UI-05 优先复用现有 API；UI-06 至 UI-08 涉及新模型和接口时必须独立设计、迁移和验证。
-- UI-09 通过后再继续 CP-23。
+- UI-01 至 UI-09 已通过后，项目已继续完成 CP-23 至 CP-31。后续不应再按旧 UI 阶段重复实现，除非试运行反馈明确要求微调。
 
 ### CP-23 微信登录生产闭环
 
@@ -1112,7 +1111,7 @@ docker compose --env-file deploy/.env -f deploy/docker-compose.test.yml config -
 
 ### CP-30 管理后台正式登录
 
-状态：已完成实现和自动回归，等待人工验收。
+状态：已完成实现、自动回归和人工验收。
 
 目标：关闭开发登录后，管理后台仍可通过独立、安全且可运维的管理员认证进入。
 
@@ -1143,6 +1142,42 @@ $env:VERIFY_ADMIN_PASSWORD="<管理员密码>"
 pnpm --filter @ruizhibo/api verify:admin-auth
 ```
 
+### CP-31 测试环境正式发布闭环
+
+状态：已完成实现和隔离 Docker 自动回归，等待真实 HTTPS 域名人工验收。
+
+目标：在关闭开发登录后，用一条命令确认部署版本、认证、代理、安全配置和文件存储可以正式对外提供服务。
+
+范围：
+
+- 新增 `verify:release`，与保留给封闭开发环境的 `verify:deployment -RunApiSuite` 分离。
+- `/api/health` 返回 `APP_VERSION`，验收时与预期 Git 提交比对。
+- 检查 HTTPS、HSTS、常用安全响应头、CORS 允许/拒绝行为和请求 ID。
+- 检查管理员正式登录、开发登录禁用和生产前端包不含开发入口。
+- 使用管理员身份上传极小验证图片，并检查存储驱动和公开读取。
+- 发布前创建并校验数据库/上传文件备份；恢复演练只在隔离环境执行。
+
+验收：
+
+- 预期版本不一致、缺少管理员密码或开发登录仍开启时门禁失败。
+- 后台域名获得正确 CORS 响应，随机非法域名不获得授权。
+- 正式管理员登录可访问受保护接口，生产包不包含 `/auth/dev-login`。
+- local 或 s3 存储上传后可通过 HTTPS 公开读取。
+- 教师端和家长端体验版各完成一次微信登录与数据隔离检查。
+
+验证命令：
+
+```powershell
+$env:VERIFY_APP_VERSION="<git-commit-sha>"
+$env:VERIFY_ADMIN_PASSWORD="<管理员密码>"
+pnpm verify:release -- `
+  -BaseUrl https://test.example.com/api `
+  -AdminUrl https://test.example.com `
+  -ExpectedCorsOrigin https://test.example.com `
+  -ExpectedStorageDriver local `
+  -RequireHttps
+```
+
 ## 推荐执行顺序
 
 严格建议按以下顺序推进：
@@ -1156,13 +1191,13 @@ CP-13 -> CP-14 -> CP-15 -> CP-16
 CP-17 -> CP-18 -> CP-19 -> CP-20
 CP-21 -> CP-22
 UI-01 -> UI-02 -> UI-03 -> UI-04 -> UI-05 -> UI-06 -> UI-07 -> UI-08 -> UI-09
-CP-23 -> CP-24 -> CP-25 -> CP-26 -> CP-27 -> CP-28 -> CP-29 -> CP-30
+CP-23 -> CP-24 -> CP-25 -> CP-26 -> CP-27 -> CP-28 -> CP-29 -> CP-30 -> CP-31
 ```
 
 当前建议优先执行：
 
 ```text
-CP-30 管理后台正式登录人工验收
+CP-31 真实 HTTPS 域名与微信体验版人工验收
 ```
 
 ## 每个提案的完成定义

@@ -14,6 +14,7 @@ export class HealthController {
       data: {
         status: "ok",
         service: "ruizhibo-api",
+        version: process.env.APP_VERSION ?? "development",
         database: "ok",
         fileStorage: getFileStorageDriver(),
         checkedAt: new Date().toISOString(),

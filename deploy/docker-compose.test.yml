@@ -30,6 +30,7 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
+      APP_VERSION: ${APP_VERSION:-unknown}
       PORT: 3000
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in deploy/.env}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in deploy/.env}

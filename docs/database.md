@@ -1,6 +1,6 @@
 # 数据库设计
 
-后端使用 PostgreSQL + Prisma。Schema 初稿位于：
+后端使用 PostgreSQL + Prisma。当前 schema 位于：
 
 ```text
 apps/api/prisma/schema.prisma
@@ -43,6 +43,7 @@ erDiagram
 - `role`: `admin`、`teacher`、`parent`
 - `phone`: 手机号，可用于绑定和登录
 - `wechatOpenid`: 微信登录身份
+- `passwordHash`: 管理员正式登录密码哈希，使用带随机盐的 scrypt 格式保存
 - `status`: 启用/禁用
 
 权限原则：
@@ -79,9 +80,9 @@ erDiagram
 作业分两层：
 
 - `HomeworkAssignment`: 老师发布给班级的作业。
-- `HomeworkSubmission`: 每个学生对应的提交和批改状态。
+- `HomeworkSubmission`: 每个学生对应的提交、图片附件和批改状态。
 
-第一版可以由老师代录提交状态，后续再开放家长上传。
+当前已支持家长提交文字或最多 6 个作业图片 URL。作业图片必须先通过 `POST /api/files` 以 `scene = homework` 上传，并属于当前家长。老师可将提交状态更新为 `reviewed` 并写入批改备注。
 
 ## 6. 成长记录
 
@@ -120,13 +121,43 @@ erDiagram
 
 家长访问回执时仍会检查当前 `StudentGuardian` 绑定，解绑后的历史家长不能继续读取或确认。
 
-## 9. 审计日志
+## 9. 备课与教研
+
+`LessonPlan` 保存教师教案，按教师和班级隔离，支持草稿、发布和归档状态。
+
+`ResearchActivity` 保存校区范围内的教研活动，类型包括教学研讨、听课评课和教师培训，状态包括草稿、开放报名、已结束和已取消。`ResearchParticipant` 记录教师报名、参加或取消状态；活动草稿只对组织者可见，同校区教师只能维护自己的参与状态。
+
+## 10. 文件资源
+
+`FileAsset` 记录上传文件元数据：
+
+- `url`: 静态访问地址或未来对象存储 URL。
+- `mimeType`: 文件类型。
+- `size`: 文件大小。
+- `ownerId`: 上传用户。
+- `scene`: 使用场景，例如 `workflow`、`homework`、`message`。
+- `storageDriver`: 当前文件使用的存储驱动，例如 `local` 或 `s3`。
+- `storageKey`: 本地相对路径或对象存储 key。
+
+后端已支持 local 与 S3 兼容双驱动。开发和封闭测试环境可使用本地上传目录；生产或需要独立静态域名时可通过 S3 协议接入 COS、OSS、AWS S3 或 MinIO。配置和验证流程见 `docs/file-storage.md`。
+
+## 11. 审计日志
 
 `AuditLog` 记录关键操作：
 
-- 删除或修改学生资料
-- 修改家长绑定
-- 补打卡
-- 删除消息或记录
+- 管理员创建/更新老师、班级、学生
+- 管理员绑定/解绑家长
+- 管理员创建/更新流程模板
+- 管理员正式登录
+- 管理员调整教案和教研活动状态
+- 教师流程打卡
+- 教师创建教学记录、备课计划、教研活动、成长反馈、作业
+- 教师更新教案状态
+- 家长提交或重新提交作业
+- 教师更新作业提交状态
+- 教师发布通知/任务
+- 家长确认通知/任务
+- 教师创建、编辑和变更教研活动状态
+- 教师报名或取消报名教研活动
 
 这对托管机构运营很重要。

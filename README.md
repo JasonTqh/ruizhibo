@@ -47,11 +47,15 @@
 - `docs/api.md`：当前后端 API、请求示例、错误格式和本地验证说明。
 - `docs/development.md`：当前开发状态、人工联调路径和下一阶段建议。
 - `docs/development-roadmap.md`：分阶段变更提案和后续提案池。
-- `docs/ui-development-path.md`：小程序页面、视觉和未完成功能的分批完善路径。
+- `docs/ui-development-path.md`：小程序页面迁移、验收记录和后续微调路径。
+- `docs/environment.md`：管理后台、小程序 API 地址和认证模式的环境配置。
 - `docs/deployment-checklist.md`：测试环境/生产环境部署检查清单。
+- `docs/test-environment-deployment.md`：Docker 测试环境、HTTPS 入口、微信合法域名和发布验收步骤。
+- `docs/file-storage.md`：local/S3 文件存储配置、校验和小程序域名要求。
 - `docs/backup-and-restore.md`：Docker 数据库与 local 上传文件的备份、校验和恢复流程。
 - `docs/observability.md`：API 结构化日志、请求 ID、Docker 日志轮转和故障定位。
 - `docs/admin-authentication.md`：管理后台密码初始化、正式登录、限流和验证流程。
+- `docs/release-verification.md`：生产模式发布门禁、版本校验和上线前验收流程。
 - `docs/锐之博高端托管班级一日流程.xls`：原始班级一日流程资料。
 
 ## 开发准备
@@ -99,9 +103,9 @@ JWT_SECRET="replace-with-a-local-secret"
 
 ## 当前工程状态
 
-- `api` 已实现认证、角色权限、统一错误、管理基础数据、流程模板、教师工作台、一日流程打卡、教学记录、成长反馈、作业发布/提交/批改、家校消息、通知/任务回执、文件上传和审计日志。
-- `admin-web` 已接入真实 API，可维护老师、班级、学生、家长绑定、流程模板并查看审计日志。
-- `teacher-miniapp` 已接入真实 API，首页视觉重构中；流程打卡、作业、通知/任务、消息和聊天闭环可用，教学记录前端、备课和教研仍需补齐。
-- `parent-miniapp` 已接入真实 API，首页视觉重构中；作业提交、成长时间线、通知/任务、消息和聊天闭环可用，“我的”页面仍需补齐。
+- `api` 已实现开发登录、管理员密码登录、分角色微信登录与手机号绑定、角色权限、统一错误、管理基础数据、流程模板、教师工作台、一日流程打卡、教学记录、备课、教研、成长反馈、作业发布/提交/批改、家校消息、通知/任务回执、local/S3 文件上传、请求追踪和审计日志。
+- `admin-web` 已接入真实 API，支持正式管理员登录、基础数据维护、家长绑定权限、引用检查与安全删除、业务记录查询、教案/教研状态管理和审计日志查看。
+- `teacher-miniapp` 已接入真实 API，工作台、备课、教研、教学记录、流程打卡、作业、通知/任务、消息和图片聊天闭环均已完成，并通过微信开发者工具与真机主链路验收。
+- `parent-miniapp` 已接入真实 API，首页、成长、作业、“我的”、通知/任务、消息和图片聊天闭环均已完成，并通过微信开发者工具与真机主链路验收。
 - `parent-app`、`teacher-app`、`website` 已移动到 `archive/apps/`，仅作为历史视觉参考。
-- 环境配置抽离及 UI-01 至 UI-09 已完成，并通过微信开发者工具与真机验收。当前进入 CP-23 微信登录生产闭环，随后继续自动验证脚本和测试环境部署。
+- UI-01 至 UI-09 与 CP-23 至 CP-31 的代码实现和本地/隔离环境验证已完成。当前剩余重点是接入真实 HTTPS 测试域名、微信公众平台合法域名和正式 AppSecret，完成体验版真机绑定、备份恢复演练和小范围业务试运行。
