@@ -6,6 +6,8 @@ import {
   HttpStatus,
 } from "@nestjs/common";
 import { Response } from "express";
+import { writeOperationalLog } from "./operational-logger";
+import { RequestWithContext } from "./request-context";
 
 type ExceptionResponseBody =
   | string
@@ -22,13 +24,31 @@ type StatusError = Error & {
 @Catch()
 export class ApiExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost) {
-    const response = host.switchToHttp().getResponse<Response>();
+    const http = host.switchToHttp();
+    const request = http.getRequest<RequestWithContext>();
+    const response = http.getResponse<Response>();
     const status = this.resolveStatus(exception);
+    const code = this.resolveCode(status, exception);
+
+    if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
+      writeOperationalLog("error", "http_exception", {
+        requestId: request.requestId,
+        method: request.method,
+        path: request.path,
+        statusCode: status,
+        code,
+        errorType:
+          exception instanceof Error
+            ? exception.constructor.name
+            : typeof exception,
+      });
+    }
 
     response.status(status).json({
       error: {
-        code: this.resolveCode(status, exception),
+        code,
         message: this.resolveMessage(exception, status),
+        requestId: request.requestId,
       },
     });
   }

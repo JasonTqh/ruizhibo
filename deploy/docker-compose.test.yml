@@ -1,5 +1,11 @@
 name: ruizhibo-test
 
+x-default-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: ${LOG_MAX_SIZE:-10m}
+    max-file: "${LOG_MAX_FILES:-5}"
+
 services:
   db:
     image: postgres:16-alpine
@@ -10,6 +16,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in deploy/.env}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    logging: *default-logging
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
@@ -26,6 +33,7 @@ services:
       PORT: 3000
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in deploy/.env}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in deploy/.env}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
       ENABLE_DEV_LOGIN: ${ENABLE_DEV_LOGIN:-false}
       CORS_ORIGINS: ${CORS_ORIGINS:-}
       WECHAT_TEACHER_APP_ID: ${WECHAT_TEACHER_APP_ID:-}
@@ -43,6 +51,7 @@ services:
       S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-false}
     volumes:
       - uploads_data:/data/uploads
+    logging: *default-logging
     depends_on:
       db:
         condition: service_healthy
@@ -74,6 +83,7 @@ services:
     volumes:
       - caddy_data:/data
       - caddy_config:/config
+    logging: *default-logging
     depends_on:
       api:
         condition: service_healthy

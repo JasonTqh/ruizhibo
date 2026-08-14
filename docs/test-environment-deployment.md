@@ -31,6 +31,9 @@ POSTGRES_PASSWORD=<strong-password>
 DATABASE_URL=postgresql://ruizhibo:<url-encoded-password>@db:5432/ruizhibo?schema=public
 JWT_SECRET=<random-secret>
 CORS_ORIGINS=https://test.example.com
+LOG_LEVEL=info
+LOG_MAX_SIZE=10m
+LOG_MAX_FILES=5
 ENABLE_DEV_LOGIN=false
 WECHAT_TEACHER_APP_ID=<teacher-app-id>
 WECHAT_TEACHER_APP_SECRET=<teacher-app-secret>
@@ -64,6 +67,8 @@ docker compose --env-file deploy/.env -f deploy/docker-compose.test.yml run --rm
 docker compose --env-file deploy/.env -f deploy/docker-compose.test.yml logs --tail 100 api web
 ```
 
+API 日志为单行 JSON，可通过 `requestId` 关联小程序错误与服务端请求。Docker 默认对数据库、API 和 Web 日志执行 10 MB × 5 文件轮转，详见 `docs/observability.md`。
+
 从开发电脑执行 HTTPS、API、数据库和管理后台入口检查：
 
 ```powershell
@@ -71,6 +76,13 @@ pnpm verify:deployment -- `
   -BaseUrl https://test.example.com/api `
   -AdminUrl https://test.example.com `
   -RequireHttps
+```
+
+验证请求 ID 和错误关联：
+
+```powershell
+pnpm --filter @ruizhibo/api verify:observability -- `
+  -BaseUrl https://test.example.com/api
 ```
 
 封闭测试环境临时开启 `ENABLE_DEV_LOGIN=true` 时，可追加 `-RunApiSuite`，串行执行管理员、教师和家长三套只读 API 验证。公网环境不要为了运行脚本而开启开发登录。

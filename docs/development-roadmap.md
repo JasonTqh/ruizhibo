@@ -1051,7 +1051,7 @@ pnpm --filter @ruizhibo/parent-miniapp build
 
 ### CP-28 数据库与上传文件备份/恢复
 
-状态：已完成实现和本地 Docker 备份/恢复回归，等待人工验收。
+状态：已完成实现、本地 Docker 备份/恢复回归和人工验收。
 
 目标：降低 Docker 卷被误删、服务器故障或发布回滚时的业务数据丢失风险。
 
@@ -1079,6 +1079,37 @@ pnpm restore:deployment -- -BackupDirectory <backup-path> -ValidateOnly
 pnpm restore:deployment -- -BackupDirectory <backup-path> -ConfirmRestore
 ```
 
+### CP-29 请求追踪与结构化运行日志
+
+状态：已完成实现和本地运行回归，等待人工验收。
+
+目标：让小程序报障可以通过请求 ID 关联服务端日志，并防止容器日志无限增长。
+
+范围：
+
+- 为每个 HTTP 请求生成或透传受限格式的 `X-Request-Id`。
+- 错误 JSON 返回同一 `requestId`，方便用户报障。
+- 单行 JSON 访问日志记录方法、路径、状态码、耗时和可选用户标识。
+- 日志不记录查询串、请求体、Authorization、微信 code 或密钥。
+- Docker `json-file` 日志轮转同时覆盖 db、api 和 web。
+
+验收：
+
+- 安全客户端 ID 原样透传，过长或非法 ID 被 UUID 替换。
+- 正常和错误响应都包含 `X-Request-Id`。
+- 错误体 `requestId` 与响应头一致。
+- API 日志可按 `requestId` 检索，且不包含请求体或 Token。
+- Compose 配置校验通过，日志轮转大小和数量可配置。
+
+验证命令：
+
+```powershell
+pnpm --filter @ruizhibo/api typecheck
+pnpm --filter @ruizhibo/api build
+pnpm --filter @ruizhibo/api verify:observability
+docker compose --env-file deploy/.env -f deploy/docker-compose.test.yml config --quiet
+```
+
 ## 推荐执行顺序
 
 严格建议按以下顺序推进：
@@ -1092,13 +1123,13 @@ CP-13 -> CP-14 -> CP-15 -> CP-16
 CP-17 -> CP-18 -> CP-19 -> CP-20
 CP-21 -> CP-22
 UI-01 -> UI-02 -> UI-03 -> UI-04 -> UI-05 -> UI-06 -> UI-07 -> UI-08 -> UI-09
-CP-23 -> CP-24 -> CP-25 -> CP-26 -> CP-27 -> CP-28
+CP-23 -> CP-24 -> CP-25 -> CP-26 -> CP-27 -> CP-28 -> CP-29
 ```
 
 当前建议优先执行：
 
 ```text
-CP-28 数据库与上传文件备份/恢复人工验收
+CP-29 请求追踪与结构化运行日志人工验收
 ```
 
 ## 每个提案的完成定义

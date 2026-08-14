@@ -216,6 +216,14 @@ CP-21、CP-22 与 UI-01 至 UI-09 均已完成，并通过微信开发者工具�
 - 已在本地 Docker 环境通过备份、校验、安全备份和恢复回归。
 - S3/COS/OSS 文件依赖桶版本控制或云平台快照，操作说明见 `docs/backup-and-restore.md`。
 
+### CP-29 请求追踪与结构化运行日志
+
+- 所有 API 响应返回 `X-Request-Id`，错误 JSON 同时返回相同 `requestId`。
+- 访问日志改为单行 JSON，记录请求方法、路径、状态码、耗时和可选用户标识。
+- 日志不记录查询串、请求体、Token、微信 code 或密钥。
+- Docker 为 db、api 和 web 配置可调整的 `json-file` 日志轮转。
+- `verify:observability` 已通过请求 ID 透传、替换和错误关联验证，等待人工验收。
+
 ## 7. 给 Codex 的任务模板
 
 ```text

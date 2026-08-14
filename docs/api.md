@@ -634,10 +634,13 @@ Content-Type: application/json
 {
   "error": {
     "code": "FORBIDDEN",
-    "message": "无权访问该学生信息"
+    "message": "无权访问该学生信息",
+    "requestId": "18c0538f-5c2e-4ca1-83c6-4f982e32d95e"
   }
 }
 ```
+
+所有响应同时返回 `X-Request-Id` 响应头，错误体内的 `requestId` 与响应头一致。用户报障时可以提供该 ID 查询服务端日志，详见 `docs/observability.md`。
 
 常见错误码：
 
@@ -671,6 +674,12 @@ pnpm dev:api
 
 ```powershell
 pnpm --filter @ruizhibo/api verify:admin
+```
+
+验证请求 ID 和错误关联：
+
+```powershell
+pnpm --filter @ruizhibo/api verify:observability
 ```
 
 默认验证内容：

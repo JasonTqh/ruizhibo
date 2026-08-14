@@ -4,13 +4,14 @@ import {
   Injectable,
   UnauthorizedException,
 } from "@nestjs/common";
-import { Request } from "express";
 import { UserStatus } from "@prisma/client";
+import type { Request } from "express";
 import { PrismaService } from "../prisma/prisma.service";
+import type { RequestWithContext } from "../common/request-context";
 import { AuthUser } from "./auth.types";
 import { JwtService } from "./jwt.service";
 
-export interface AuthenticatedRequest extends Request {
+export interface AuthenticatedRequest extends RequestWithContext {
   user?: AuthUser;
 }
 
@@ -37,8 +38,14 @@ export class AuthGuard implements CanActivate {
       },
     });
 
-    if (!user || user.status !== UserStatus.active || user.role !== payload.role) {
-      throw new UnauthorizedException("User is not allowed to access this resource");
+    if (
+      !user ||
+      user.status !== UserStatus.active ||
+      user.role !== payload.role
+    ) {
+      throw new UnauthorizedException(
+        "User is not allowed to access this resource",
+      );
     }
 
     request.user = {
