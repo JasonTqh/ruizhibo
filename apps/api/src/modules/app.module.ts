@@ -6,6 +6,7 @@ import { AuthModule } from "./auth/auth.module";
 import { FilesModule } from "./files/files.module";
 import { HealthModule } from "./health/health.module";
 import { ParentModule } from "./parent/parent.module";
+import { PickupModule } from "./pickup/pickup.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { TeacherModule } from "./teacher/teacher.module";
 
@@ -21,6 +22,7 @@ import { TeacherModule } from "./teacher/teacher.module";
     AdminModule,
     TeacherModule,
     ParentModule,
+    PickupModule,
     FilesModule,
     HealthModule,
   ],

@@ -1,0 +1,499 @@
+.pickup-page {
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: 24px 24px calc(48px + env(safe-area-inset-bottom));
+  background: #f5f0eb;
+}
+
+.pickup-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 28px 26px 22px;
+  color: #fff;
+  background: linear-gradient(135deg, #236b52, #3c9473);
+  border-radius: 24px;
+  box-shadow: 0 12px 28px rgba(47, 128, 100, 0.2);
+}
+
+.pickup-hero__eyebrow,
+.pickup-hero__title,
+.pickup-hero__hint,
+.pickup-summary__value,
+.pickup-summary__label,
+.pickup-list-heading__title,
+.pickup-list-heading__hint,
+.pickup-student__name,
+.pickup-student__time,
+.pickup-status,
+.pickup-student__done,
+.checkout-panel__eyebrow,
+.checkout-panel__title,
+.checkout-person__name,
+.checkout-person__phone,
+.checkout-field__label,
+.checkout-warning {
+  display: block;
+}
+
+.pickup-hero__eyebrow {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 19px;
+}
+.pickup-hero__title {
+  margin-top: 5px;
+  font-size: 34px;
+  font-weight: 850;
+}
+.pickup-hero__hint {
+  margin-top: 6px;
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 18px;
+}
+
+.pickup-hero__refresh {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  width: 62px;
+  height: 62px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 50%;
+  font-size: 29px;
+  line-height: 62px;
+  text-align: center;
+}
+
+.pickup-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.pickup-summary__item {
+  text-align: center;
+  border-left: 1px solid rgba(255, 255, 255, 0.17);
+}
+.pickup-summary__item:first-child {
+  border-left: 0;
+}
+.pickup-summary__value {
+  font-size: 29px;
+  font-weight: 850;
+}
+.pickup-summary__label {
+  margin-top: 2px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 16px;
+}
+
+.pickup-error {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 16px;
+  padding: 17px 19px;
+  color: #984238;
+  background: #fff0ed;
+  border: 1px solid #f1cbc5;
+  border-radius: 13px;
+  font-size: 19px;
+}
+.pickup-error__retry {
+  color: #2f8064;
+  font-weight: 750;
+}
+
+.pickup-class-tabs {
+  display: flex;
+  gap: 10px;
+  margin-top: 22px;
+  overflow-x: auto;
+}
+.pickup-class-tab {
+  flex-shrink: 0;
+  padding: 10px 18px;
+  color: #68746f;
+  background: #fff;
+  border: 1px solid #e2ddd6;
+  border-radius: 999px;
+  font-size: 19px;
+}
+.pickup-class-tab--active {
+  color: #fff;
+  background: #2f8064;
+  border-color: #2f8064;
+}
+
+.pickup-list-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 28px 4px 14px;
+}
+.pickup-list-heading__title {
+  font-size: 27px;
+  font-weight: 850;
+}
+.pickup-list-heading__hint {
+  color: #818b86;
+  font-size: 18px;
+}
+
+.pickup-status-tabs {
+  display: flex;
+  gap: 9px;
+  margin: 0 0 15px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+.pickup-status-tab {
+  flex-shrink: 0;
+  padding: 9px 15px;
+  color: #68746f;
+  background: #fff;
+  border: 1px solid #e2ddd6;
+  border-radius: 999px;
+  font-size: 17px;
+}
+.pickup-status-tab--active {
+  color: #fff;
+  background: #2f8064;
+  border-color: #2f8064;
+  font-weight: 750;
+}
+
+.pickup-batch {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 14px 15px;
+  background: #e8f3ee;
+  border: 1px solid #c9e1d6;
+  border-radius: 15px;
+}
+.pickup-batch__select {
+  flex-shrink: 0;
+  color: #2f8064;
+  font-size: 18px;
+  font-weight: 750;
+}
+.pickup-batch__count {
+  flex: 1;
+  color: #65736d;
+  font-size: 17px;
+}
+.pickup-batch__submit {
+  flex-shrink: 0;
+  padding: 12px 15px;
+  color: #fff;
+  background: #2f8064;
+  border-radius: 11px;
+  font-size: 18px;
+  font-weight: 800;
+}
+.pickup-batch__submit--disabled {
+  opacity: 0.42;
+}
+
+.pickup-student-list {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+.pickup-student {
+  padding: 20px;
+  background: #fff;
+  border: 1px solid #ebe6df;
+  border-radius: 18px;
+  box-shadow: 0 5px 16px rgba(26, 46, 40, 0.05);
+}
+.pickup-student--picked_up {
+  border-color: #e8c979;
+  background: #fffaf0;
+}
+.pickup-student--in_care {
+  border-color: #aed8c8;
+  background: #f4fbf8;
+}
+.pickup-student--exception {
+  border-color: #df8274;
+}
+.pickup-student--selected {
+  border-color: #2f8064;
+  box-shadow: 0 0 0 2px rgba(47, 128, 100, 0.12);
+}
+.pickup-student__select {
+  margin: -4px 0 12px;
+  color: #718079;
+  font-size: 18px;
+  text-align: right;
+}
+.pickup-student__select--active {
+  color: #2f8064;
+  font-weight: 800;
+}
+.pickup-student__identity {
+  display: flex;
+  align-items: center;
+}
+.pickup-student__avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 62px;
+  height: 62px;
+  margin-right: 15px;
+  color: #fff;
+  background: #2f8064;
+  border-radius: 18px;
+  font-size: 26px;
+  font-weight: 850;
+}
+.pickup-student__copy {
+  flex: 1;
+  min-width: 0;
+}
+.pickup-student__name {
+  font-size: 24px;
+  font-weight: 800;
+}
+.pickup-status {
+  margin-top: 4px;
+  color: #7a8580;
+  font-size: 18px;
+}
+.pickup-status--picked_up {
+  color: #9b6813;
+}
+.pickup-status--in_care {
+  color: #2f8064;
+}
+.pickup-status--left {
+  color: #4d7489;
+}
+.pickup-status--absent {
+  color: #9a4c42;
+}
+.pickup-student__time {
+  color: #9aa29e;
+  font-size: 17px;
+}
+.pickup-handoff-tag {
+  display: inline-block;
+  margin-top: 7px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 16px;
+  font-weight: 800;
+}
+.pickup-handoff-tag--temporary {
+  color: #8b5b0c;
+  background: #fff0ce;
+}
+.pickup-handoff-tag--exception {
+  color: #9a4439;
+  background: #fde5e0;
+}
+.pickup-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 11px;
+  margin-top: 16px;
+}
+.pickup-button {
+  box-sizing: border-box;
+  min-width: 150px;
+  margin-top: 15px;
+  padding: 14px 18px;
+  border-radius: 13px;
+  font-size: 21px;
+  font-weight: 780;
+  text-align: center;
+}
+.pickup-actions .pickup-button {
+  margin-top: 0;
+}
+.pickup-button--primary {
+  color: #fff;
+  background: #2f8064;
+}
+.pickup-button--secondary {
+  color: #2f8064;
+  background: #e7f3ed;
+  border: 1px solid #cbe2d8;
+}
+.pickup-button--checkout {
+  color: #fff;
+  background: #3d7897;
+}
+.pickup-student__done {
+  color: #74807b;
+  font-size: 18px;
+  text-align: right;
+}
+.pickup-empty {
+  padding: 50px 20px;
+  color: #818a86;
+  background: #fff;
+  border-radius: 18px;
+  font-size: 20px;
+  text-align: center;
+}
+
+.checkout-mask {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(21, 32, 28, 0.48);
+}
+.checkout-panel {
+  box-sizing: border-box;
+  width: 100%;
+  max-height: 88vh;
+  padding: 25px 24px calc(24px + env(safe-area-inset-bottom));
+  overflow-y: auto;
+  background: #f9f6f2;
+  border-radius: 28px 28px 0 0;
+}
+.checkout-panel__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.checkout-panel__eyebrow {
+  color: #7b8580;
+  font-size: 17px;
+}
+.checkout-panel__title {
+  margin-top: 3px;
+  font-size: 29px;
+  font-weight: 850;
+}
+.checkout-panel__close {
+  width: 54px;
+  height: 54px;
+  color: #69746f;
+  background: #ebe7e1;
+  border-radius: 50%;
+  font-size: 32px;
+  line-height: 50px;
+  text-align: center;
+}
+.checkout-modes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 20px;
+  padding: 6px;
+  background: #ebe7e1;
+  border-radius: 14px;
+}
+.checkout-mode {
+  padding: 12px 5px;
+  color: #737d78;
+  border-radius: 10px;
+  font-size: 17px;
+  text-align: center;
+}
+.checkout-mode--active {
+  color: #246b52;
+  background: #fff;
+  font-weight: 750;
+  box-shadow: 0 2px 8px rgba(26, 46, 40, 0.07);
+}
+.checkout-people {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+}
+.checkout-person {
+  display: flex;
+  align-items: center;
+  padding: 17px;
+  background: #fff;
+  border: 1px solid #e4dfd8;
+  border-radius: 14px;
+}
+.checkout-person--active {
+  background: #edf7f2;
+  border-color: #7fbca5;
+}
+.checkout-person__radio {
+  margin-right: 13px;
+  color: #2f8064;
+  font-size: 24px;
+}
+.checkout-person__name {
+  font-size: 21px;
+  font-weight: 750;
+}
+.checkout-person__phone {
+  margin-top: 3px;
+  color: #87908c;
+  font-size: 17px;
+}
+.checkout-empty {
+  display: block;
+  padding: 25px 10px;
+  color: #8b938f;
+  text-align: center;
+}
+.checkout-form {
+  margin-top: 15px;
+}
+.checkout-field {
+  margin-top: 15px;
+}
+.checkout-field__label {
+  margin-bottom: 7px;
+  color: #4e5d57;
+  font-size: 18px;
+  font-weight: 700;
+}
+.checkout-input,
+.checkout-picker,
+.checkout-textarea {
+  box-sizing: border-box;
+  width: 100%;
+  color: #25332e;
+  background: #fff;
+  border: 1px solid #dfdad3;
+  border-radius: 12px;
+  font-size: 20px;
+}
+.checkout-input,
+.checkout-picker {
+  height: 76px;
+  padding: 0 17px;
+  line-height: 76px;
+}
+.checkout-textarea {
+  height: 120px;
+  padding: 15px 17px;
+  line-height: 1.45;
+}
+.checkout-warning {
+  margin-top: 15px;
+  padding: 14px 16px;
+  color: #934a3e;
+  background: #fff0ed;
+  border-radius: 11px;
+  font-size: 17px;
+  line-height: 1.45;
+}
+.checkout-submit {
+  margin-top: 20px;
+  padding: 17px;
+  color: #fff;
+  background: #2f8064;
+  border-radius: 14px;
+  font-size: 23px;
+  font-weight: 800;
+  text-align: center;
+}

@@ -116,6 +116,8 @@ Content-Type: application/json
 GET  /api/parent/children
 GET  /api/parent/children/:studentId/timeline
 GET  /api/parent/children/:studentId/attendance
+GET  /api/parent/children/:studentId/pickup/today
+GET  /api/parent/children/:studentId/pickup-records
 GET  /api/parent/children/:studentId/homework
 POST /api/parent/homework-submissions/:submissionId/submit
 
@@ -191,6 +193,13 @@ GET  /api/teacher/classes/:classId/students
 
 GET  /api/teacher/workflow/today
 POST /api/teacher/workflow/:sessionId/steps/:stepId/check
+
+GET  /api/teacher/pickup/today
+POST /api/teacher/pickup/batch/picked-up
+POST /api/teacher/pickup/batch/arrived
+POST /api/teacher/pickup/students/:studentId/picked-up
+POST /api/teacher/pickup/students/:studentId/arrived
+POST /api/teacher/pickup/students/:studentId/left
 
 GET  /api/teacher/teaching-records
 POST /api/teacher/teaching-records
@@ -278,6 +287,89 @@ Content-Type: application/json
 - `photoUrls` 最多包含 3 张图片。
 - 当步骤的 `requirePhoto` 为 `true` 时，未提供照片会返回 `400`，不会写入打卡结果。
 - 已完成步骤再次提交会返回 `409`，用于阻止重复打卡和重复生成成长记录。
+
+### 安全接送与到离店
+
+CP-33 使用事实事件而不是可覆盖的单一状态：
+
+```http
+GET  /api/teacher/pickup/today?classId=<optional-class-id>
+POST /api/teacher/pickup/batch/picked-up
+POST /api/teacher/pickup/batch/arrived
+POST /api/teacher/pickup/students/:studentId/picked-up
+POST /api/teacher/pickup/students/:studentId/arrived
+POST /api/teacher/pickup/students/:studentId/left
+Authorization: Bearer <teacher-token>
+```
+
+`GET /teacher/pickup/today` 返回当前教师负责班级的活跃学生、今日事件，以及由事件/请假事实推导的 `waiting_pickup`、`picked_up`、`in_care`、`left`、`absent` 状态。`pickupPeople` 只包含可以接走学生的人，`deliveryPeople` 还包含 active 但无接走权限的监护人，用于准确记录“谁把孩子送到”。指定不属于当前教师的 `classId` 返回 `404`。
+
+学校接到可直接提交空对象或备注。到店必须明确到店方式：
+
+```json
+{
+  "arrivalMethod": "teacher_pickup",
+  "remark": "全员安全抵达"
+}
+```
+
+`arrivalMethod` 支持 `teacher_pickup`、`parent_delivered`、`self_arrived`、`other`。教师接送方式必须先存在“学校接到”事实；家长送达或自行到店不要求前置接送事实。
+
+家长送达时可选填具体送达人，后端会验证其必须是该学生的 active 监护人或有效授权人，并保存当时的姓名、关系和电话快照；其他到店方式携带送达人编号会返回 `400`：
+
+```json
+{
+  "arrivalMethod": "parent_delivered",
+  "deliveryPersonType": "guardian",
+  "deliveryPersonId": "<student-guardian-id>"
+}
+```
+
+高峰期可一次提交 1–50 个当前教师班级内的学生：
+
+```json
+{
+  "studentIds": ["<student-a-id>", "<student-b-id>"]
+}
+```
+
+`batch/picked-up` 只接受待接学生，`batch/arrived` 只接受已登记学校接到的学生。整批先完成权限、请假和状态预检，再在一个事务内写入；任一学生不合法时整批拒绝，不会部分成功。
+
+正常离店必须选择当前有效且已授权的监护人或非账号型授权接送人：
+
+```json
+{
+  "status": "normal",
+  "pickupPersonType": "guardian",
+  "pickupPersonId": "<student-guardian-id>",
+  "remark": "已核验身份"
+}
+```
+
+临时或异常接送不允许伪装为正常授权，必须填写接送人姓名、关系、联系方式和确认/处理结果；`exception` 还必须填写异常原因：
+
+```json
+{
+  "status": "temporary_authorization",
+  "temporaryName": "王女士",
+  "temporaryRelationship": "relative",
+  "temporaryPhone": "13800000000",
+  "resolution": "已电话联系主要监护人确认",
+  "remark": "临时授权一次"
+}
+```
+
+同一学生同一中国业务日的同类事件只能写入一次。服务预检、数据库唯一约束和事务共同阻止重复点击；教师小程序另用同步请求锁在发出第二个请求前阻断连点。到店和离店会在同一事务内同步兼容的 `AttendanceEvent.arrive` / `AttendanceEvent.leave`。系统不提供接送事实更新或删除接口。
+
+家长查询：
+
+```http
+GET /api/parent/children/:studentId/pickup/today
+GET /api/parent/children/:studentId/pickup-records?page=1&pageSize=30&from=2026-08-01&to=2026-08-31
+Authorization: Bearer <parent-token>
+```
+
+家长必须与学生存在 active `StudentGuardian` 关系；跨家庭访问返回 `404`。今日接口同时读取当天 `AttendanceEvent.absence`，返回 `status = absent` 和可选 `absenceRemark`，确保与教师端一致。历史记录保留送达人/接送人快照和经办教师，电话在家长响应中掩码展示，临时/异常状态、原因和处理结果不会被隐藏。
 
 ### 发布通知/家长任务
 
@@ -437,6 +529,10 @@ POST   /api/admin/students/:studentId/guardians
 PATCH  /api/admin/students/:studentId/guardians/:guardianId
 DELETE /api/admin/students/:studentId/guardians/:guardianId
 
+GET    /api/admin/students/:studentId/pickup-persons
+POST   /api/admin/students/:studentId/pickup-persons
+PATCH  /api/admin/pickup-persons/:personId
+
 GET    /api/admin/workflow-templates
 POST   /api/admin/workflow-templates
 PATCH  /api/admin/workflow-templates/:id
@@ -452,6 +548,7 @@ GET    /api/admin/business/lesson-plans
 PATCH  /api/admin/business/lesson-plans/:id/status
 GET    /api/admin/business/research-activities
 PATCH  /api/admin/business/research-activities/:id/status
+GET    /api/admin/business/pickup-records
 
 GET    /api/admin/audit-logs
 ```
@@ -553,6 +650,7 @@ Content-Type: application/json
   "canReceiveNotice": true,
   "canSubmitHomework": true,
   "canViewGrowth": true,
+  "canPickup": true,
   "status": "active",
   "remark": "主要联系人"
 }
@@ -585,12 +683,13 @@ Content-Type: application/json
   "canReceiveNotice": true,
   "canSubmitHomework": false,
   "canViewGrowth": true,
+  "canPickup": true,
   "status": "active",
   "remark": "仅接收通知和查看成长"
 }
 ```
 
-同一孩子只有一位正常绑定家长可以是主要联系人。`canReceiveNotice` 控制通知回执，`canSubmitHomework` 控制作业提交，`canViewGrowth` 控制成长时间线和考勤读取；权限不足时业务接口按不可见资源返回 `404`。
+同一孩子只有一位正常绑定家长可以是主要联系人。`canReceiveNotice` 控制通知回执，`canSubmitHomework` 控制作业提交，`canViewGrowth` 控制成长时间线和考勤读取，`canPickup` 控制该监护人能否作为正常离店接送人；权限不足时业务接口按不可见资源返回 `404`。
 
 解绑家长：
 
@@ -615,6 +714,7 @@ GET /api/admin/business/attendance
 GET /api/admin/business/workflows
 GET /api/admin/business/lesson-plans
 GET /api/admin/business/research-activities
+GET /api/admin/business/pickup-records
 ```
 
 通用查询参数包括 `page`、`pageSize`、`classId`、`teacherId`、`studentId`、`status`、`type`、`from` 和 `to`。各接口按业务实际字段使用适用参数，统一返回：
@@ -638,6 +738,42 @@ PATCH /api/admin/business/research-activities/:id/status
 ```
 
 请求体为 `{ "status": "<目标状态>" }`。教案支持 `draft`、`published`、`archived`；教研活动支持 `draft`、`open`、`completed`、`cancelled`。每次状态变化均写入审计日志。
+
+### 4.7 授权接送人与接送记录
+
+非账号型授权接送人由管理员按学生维护：
+
+```http
+GET  /api/admin/students/:studentId/pickup-persons
+POST /api/admin/students/:studentId/pickup-persons
+PATCH /api/admin/pickup-persons/:personId
+Authorization: Bearer <admin-token>
+```
+
+创建示例：
+
+```json
+{
+  "name": "张爷爷",
+  "relationship": "grandfather",
+  "phone": "13800000000",
+  "isActive": true,
+  "remark": "长期授权"
+}
+```
+
+`relationship` 支持 `father`、`mother`、`grandfather`、`grandmother`、`maternal_grandfather`、`maternal_grandmother`、`sibling`、`relative`、`other`。停用后不能用于正常离店，历史记录仍使用当时快照展示。
+
+管理员接送记录查询：
+
+```http
+GET /api/admin/business/pickup-records?from=2026-08-17&to=2026-08-17
+GET /api/admin/business/pickup-records?quickFilter=missing_arrival_today
+GET /api/admin/business/pickup-records?quickFilter=missing_leave_today
+GET /api/admin/business/pickup-records?quickFilter=exception
+```
+
+除通用分页与日期外，支持 `campusId`、`classId`、`teacherId`、`studentId`、`type`、`status`、`isException`。`missing_arrival_today` 会排除当天已登记请假/缺勤的学生；未到店/未离店占位项的 `happenedAt` 为 `null`，不得把 `serviceDate` 伪装成 08:00 的事件时间。管理员仅查询和追溯，当前没有修改或删除历史接送事实的 API。已有接送责任记录会阻止教师、家长、班级和学生的强制删除，只能停用或结业。
 
 ## 5. 文件上传
 
@@ -713,7 +849,7 @@ Content-Type: application/json
 | 401       | `UNAUTHORIZED`          | 缺少 token、token 无效、用户已禁用 |
 | 403       | `FORBIDDEN`             | 当前角色无权访问                   |
 | 404       | `NOT_FOUND`             | 资源不存在                         |
-| 409       | `CONFLICT`              | 手机号重复、绑定关系重复           |
+| 409       | `CONFLICT`              | 重复事实、绑定冲突、受保护历史阻止删除 |
 | 500       | `INTERNAL_SERVER_ERROR` | 未预期服务端错误                   |
 
 ## 7. 本地验证
@@ -774,6 +910,16 @@ pnpm --filter @ruizhibo/api verify:parent
 
 教师端覆盖身份、工作台、班级与学生、今日流程、教学记录、成长反馈、备课、教研、作业、通知回执、会话消息，以及未登录、跨角色和错误参数响应。家长端覆盖身份、孩子绑定、成长时间线、出勤、作业、通知、会话消息，以及未登录、跨角色和非本人孩子数据隔离。
 
+### 安全接送自动验证
+
+在本地或专用测试数据库运行：
+
+```powershell
+pnpm --filter @ruizhibo/api verify:pickup
+```
+
+脚本创建隔离的教师、班级、家长、学生和授权接送人，覆盖学校接到、到店、授权离店、家长读取、教师跨班拒绝、家长跨家庭拒绝、停用接送人拒绝、非法学生、重复到店/离店、临时异常交接、管理员异常筛选、`AttendanceEvent` 兼容以及接送历史阻止强制删除。验收回归还覆盖请假在教师/家长/后台三端一致、请假学生不进入“今日未到店”、具体送达人快照及跨学生引用拒绝、批量学校接到/安全到店的原子写入与幂等、后台班级数据层级和无虚假事件时间。结束时只停用测试主体，不删除不可变的接送事实，因此仅可在开发或专用测试数据库运行。
+
 需要验证完整写入闭环时显式追加 `-IncludeWrites`：
 
 ```powershell
@@ -792,11 +938,13 @@ pnpm --filter @ruizhibo/api verify:parent -- -ParentPhone <parent-phone> -Teache
 
 统一验证也支持环境变量 `VERIFY_API_BASE_URL`、`VERIFY_ADMIN_PHONE`、`VERIFY_TEACHER_PHONE`、`VERIFY_PARENT_PHONE`。这适合联调库已修改测试手机号，但仍希望一次运行全部只读检查的场景。
 
-部署到使用 seed 数据的测试环境后，可一次运行三套只读检查：
+部署到使用 seed 数据的测试环境后，可一次运行现有 API 回归与 CP-33 接送写入验证：
 
 ```powershell
 pnpm --filter @ruizhibo/api verify:all
 ```
+
+`verify:all` 现已包含 `verify:pickup`，会写入并保留已停用的隔离接送验证记录；不要对生产数据库运行。
 
 ## 8. 微信登录
 

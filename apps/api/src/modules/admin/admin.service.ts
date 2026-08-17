@@ -126,6 +126,7 @@ export class AdminService {
       sentMessages,
       notices,
       conversations,
+      pickupRecords,
     ] = await Promise.all([
       this.prisma.class.count({ where: { teacherId: id } }),
       this.prisma.attendanceEvent.count({ where: { teacherId: id } }),
@@ -140,6 +141,9 @@ export class AdminService {
       this.prisma.message.count({ where: { senderId: id } }),
       this.prisma.notice.count({ where: { teacherId: id } }),
       this.prisma.conversation.count({ where: { teacherId: id } }),
+      this.prisma.pickupRecord.count({
+        where: { OR: [{ teacherId: id }, { createdById: id }] },
+      }),
     ]);
     return {
       data: {
@@ -156,6 +160,7 @@ export class AdminService {
         sentMessages,
         notices,
         conversations,
+        pickupRecords,
       },
     };
   }
@@ -172,6 +177,11 @@ export class AdminService {
     const deletedReferences = force
       ? (await this.teacherReferences(id)).data
       : undefined;
+    if (force && deletedReferences && deletedReferences.pickupRecords > 0) {
+      throw new ConflictException(
+        "该老师已有安全接送责任记录，必须保留历史；请停用账号，不能强制删除",
+      );
+    }
     const teacher = await this.deleteWithRelationCheck(
       () =>
         this.prisma.$transaction(async (tx) => {
@@ -256,6 +266,7 @@ export class AdminService {
             canReceiveNotice: true,
             canSubmitHomework: true,
             canViewGrowth: true,
+            canPickup: true,
             status: true,
             remark: true,
             student: {
@@ -313,12 +324,18 @@ export class AdminService {
 
   async parentReferences(id: string) {
     await this.assertUserWithRoleExists(id, UserRole.parent, "Parent");
-    const [guardianships, noticeReceipts, conversations] = await Promise.all([
+    const [guardianships, noticeReceipts, conversations, pickupRecords] =
+      await Promise.all([
       this.prisma.studentGuardian.count({ where: { parentId: id } }),
       this.prisma.noticeReceipt.count({ where: { parentId: id } }),
       this.prisma.conversation.count({ where: { parentId: id } }),
+      this.prisma.pickupRecord.count({
+        where: { studentGuardian: { parentId: id } },
+      }),
     ]);
-    return { data: { guardianships, noticeReceipts, conversations } };
+    return {
+      data: { guardianships, noticeReceipts, conversations, pickupRecords },
+    };
   }
 
   async deleteParent(actorId: string, id: string, force = false) {
@@ -329,6 +346,14 @@ export class AdminService {
     if (!current) throw new NotFoundException("Parent not found");
     if (force && current.status === UserStatus.active) {
       throw new BadRequestException("请先将家长设为停用，再清理引用并删除");
+    }
+    if (force) {
+      const references = (await this.parentReferences(id)).data;
+      if (references.pickupRecords > 0) {
+        throw new ConflictException(
+          "该家长关联历史安全接送责任记录，必须保留历史；请停用账号，不能强制删除",
+        );
+      }
     }
     const parent = await this.deleteWithRelationCheck(
       () =>
@@ -468,6 +493,8 @@ export class AdminService {
       growthRecords,
       conversations,
       noticeReceipts,
+      authorizedPickupPeople,
+      pickupRecords,
     ] = await Promise.all([
       this.prisma.class.findUniqueOrThrow({
         where: { id },
@@ -480,6 +507,7 @@ export class AdminService {
               teachingRecords: true,
               lessonPlans: true,
               notices: true,
+              pickupRecords: true,
             },
           },
         },
@@ -496,6 +524,10 @@ export class AdminService {
       this.prisma.growthRecord.count({ where: { student: { classId: id } } }),
       this.prisma.conversation.count({ where: { student: { classId: id } } }),
       this.prisma.noticeReceipt.count({ where: { student: { classId: id } } }),
+      this.prisma.authorizedPickupPerson.count({
+        where: { student: { classId: id } },
+      }),
+      this.prisma.pickupRecord.count({ where: { classId: id } }),
     ]);
     return {
       data: {
@@ -506,12 +538,25 @@ export class AdminService {
         studentGrowthRecords: growthRecords,
         studentConversations: conversations,
         studentNoticeReceipts: noticeReceipts,
+        studentAuthorizedPickupPeople: authorizedPickupPeople,
+        studentPickupRecords: pickupRecords,
       },
     };
   }
 
   async deleteClass(actorId: string, id: string, force = false) {
     await this.assertClassExists(id);
+    if (force) {
+      const references = (await this.classReferences(id)).data;
+      if (
+        references.pickupRecords > 0 ||
+        references.studentPickupRecords > 0
+      ) {
+        throw new ConflictException(
+          "该班级关联历史安全接送责任记录，必须保留历史，不能强制删除",
+        );
+      }
+    }
     const klass = await this.deleteWithRelationCheck(
       () =>
         this.prisma.$transaction(async (tx) => {
@@ -534,6 +579,9 @@ export class AdminService {
                   { student: { classId: id } },
                 ],
               },
+            });
+            await tx.authorizedPickupPerson.deleteMany({
+              where: { student: { classId: id } },
             });
             await tx.studentGuardian.deleteMany({
               where: { student: { classId: id } },
@@ -647,6 +695,8 @@ export class AdminService {
             growthRecords: true,
             conversations: true,
             noticeReceipts: true,
+            authorizedPickupPeople: true,
+            pickupRecords: true,
           },
         },
       },
@@ -665,6 +715,14 @@ export class AdminService {
         "请先将学生状态设为停用或结业，再清理引用并删除",
       );
     }
+    if (force) {
+      const references = (await this.studentReferences(id)).data;
+      if (references.pickupRecords > 0) {
+        throw new ConflictException(
+          "该学生已有历史安全接送责任记录，必须保留历史；请停用或结业，不能强制删除",
+        );
+      }
+    }
     const student = await this.deleteWithRelationCheck(
       () =>
         this.prisma.$transaction(async (tx) => {
@@ -674,6 +732,9 @@ export class AdminService {
             });
             await tx.noticeReceipt.deleteMany({ where: { studentId: id } });
             await tx.homeworkSubmission.deleteMany({
+              where: { studentId: id },
+            });
+            await tx.authorizedPickupPerson.deleteMany({
               where: { studentId: id },
             });
             await tx.studentGuardian.deleteMany({ where: { studentId: id } });
@@ -724,6 +785,7 @@ export class AdminService {
             canReceiveNotice: dto.canReceiveNotice ?? true,
             canSubmitHomework: dto.canSubmitHomework ?? true,
             canViewGrowth: dto.canViewGrowth ?? true,
+            canPickup: dto.canPickup ?? true,
             status: dto.status ?? "active",
             remark: dto.remark,
           },
@@ -736,6 +798,7 @@ export class AdminService {
             canReceiveNotice: dto.canReceiveNotice ?? true,
             canSubmitHomework: dto.canSubmitHomework ?? true,
             canViewGrowth: dto.canViewGrowth ?? true,
+            canPickup: dto.canPickup ?? true,
             status: dto.status ?? "active",
             remark: dto.remark,
           },
@@ -827,6 +890,7 @@ export class AdminService {
           canReceiveNotice: dto.canReceiveNotice,
           canSubmitHomework: dto.canSubmitHomework,
           canViewGrowth: dto.canViewGrowth,
+          canPickup: dto.canPickup,
           status: dto.status,
           remark: dto.remark,
         },
@@ -1556,6 +1620,7 @@ export class AdminService {
       canReceiveNotice: true,
       canSubmitHomework: true,
       canViewGrowth: true,
+      canPickup: true,
       status: true,
       remark: true,
       studentId: true,

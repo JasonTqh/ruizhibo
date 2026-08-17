@@ -15,7 +15,12 @@ erDiagram
   Class ||--o{ Student : has
   Student ||--o{ StudentGuardian : binds
   User ||--o{ StudentGuardian : parent
+  Student ||--o{ AuthorizedPickupPerson : authorizes
+  Student ||--o{ PickupRecord : has
+  StudentGuardian ||--o{ PickupRecord : hands_off
+  AuthorizedPickupPerson ||--o{ PickupRecord : hands_off
   Student ||--o{ AttendanceEvent : has
+  AttendanceEvent ||--o| PickupRecord : mirrors
   Class ||--o{ WorkflowSession : has
   WorkflowSession ||--o{ WorkflowStep : has
   Class ||--o{ HomeworkAssignment : has
@@ -61,7 +66,7 @@ erDiagram
 - 一个孩子可以绑定多个家长。
 - 一个家长可以绑定多个孩子。
 - `isPrimary` 标记主要联系人，同一孩子只允许一个正常绑定关系为主要联系人。
-- `canReceiveNotice`、`canSubmitHomework`、`canViewGrowth` 分别控制通知回执、作业提交、成长与考勤查看。
+- `canReceiveNotice`、`canSubmitHomework`、`canViewGrowth`、`canPickup` 分别控制通知回执、作业提交、成长与考勤查看、正常离店接送授权。
 - `status` 支持 `active`、`pending`、`unlinked`；解绑采用状态变更而不是物理删除，以保留历史关系和审计记录。
 
 ## 4. 一日流程
@@ -74,6 +79,25 @@ erDiagram
 - `WorkflowStep`: 实际打卡步骤。
 
 这样可以保留历史记录，也能在未来调整模板。
+
+当前 workflow 仍是班级级流程定义与打卡，不等同于学生级托管执行。CP-33 的学生接送事实由独立的安全接送模型记录。
+
+### 4.1 安全接送与到离店
+
+CP-33 在复用 `AttendanceEvent` 的基础上增加两个领域模型：
+
+- `AuthorizedPickupPerson`：学生的非账号型授权接送人；姓名、关系使用枚举、电话、启停状态和备注由管理员维护。父母等已有家长继续复用 `StudentGuardian`，通过 `canPickup` 控制是否可正常接走。
+- `PickupRecord`：不可随意修改或删除的接送事实，事件类型为 `picked_up_from_school`、`arrived_at_center`、`left_center`。记录学生、当时校区/班级、业务日期、发生时间、经办教师、操作者、到店方式、接送人快照、交接状态、异常原因和处理结果。
+
+离店记录可关联 `StudentGuardian` 或 `AuthorizedPickupPerson`，但同时保存姓名、关系、电话快照，因此授权资料后续修改不会改变历史责任记录。`parent_delivered` 到店记录复用同一组关联和快照字段保存具体送达人；送达事实只要求 active 关系，不会错误地把 `canPickup = false` 理解为“不能送孩子到店”。临时授权和异常交接必须保存接送人信息、确认方式/处理结果；异常交接额外要求异常原因。
+
+`serviceDate` 使用 UTC+8 中国业务日的零点表示。`@@unique([studentId, serviceDate, type])` 阻止同一学生同一天重复写入同一节点；学生、班级、教师、校区、交接状态和异常查询均有对应组合索引。
+
+到店、离店创建时在同一数据库事务内复用或生成 `AttendanceEvent.arrive` / `AttendanceEvent.leave`，并由 `attendanceEventId` 关联，保持原有家长考勤和管理端查询兼容。学校接到不生成考勤事件。
+
+当天的 `AttendanceEvent.absence` 同时参与教师和家长今日接送状态推导，并从管理员“今日未到店”候选中排除。若历史数据中已经存在接送事实，则事实事件优先于请假标记，避免正在执行的安全责任链被中断。批量学校接到/安全到店不会增加新表或冗余状态，仍逐个创建相同的 `PickupRecord`，只是在同一事务中原子提交。
+
+当前不提供 `PickupRecord` 更新或删除 API。教师、家长、学生或班级一旦关联安全接送责任记录，管理端强制删除会被拒绝，应改为停用或结业；完整的纠错/冲正机制留待独立提案。
 
 ## 5. 作业
 
@@ -159,5 +183,7 @@ erDiagram
 - 家长确认通知/任务
 - 教师创建、编辑和变更教研活动状态
 - 教师报名或取消报名教研活动
+- 管理员新增或停用非账号型授权接送人
+- 教师登记学校接到、安全到店、正常/临时/异常离店
 
 这对托管机构运营很重要。

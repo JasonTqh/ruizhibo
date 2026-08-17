@@ -52,6 +52,9 @@ Assert-True (@($students.Body.data).Count -ge 1) "Expected at least one class st
 $studentId = $students.Body.data[0].id
 $workflow = Invoke-Api -Method "GET" -Path "/teacher/workflow/today" -Token $teacherToken
 Assert-DataArray $workflow "Workflow endpoint did not return data"
+$pickup = Invoke-Api -Method "GET" -Path "/teacher/pickup/today" -Token $teacherToken
+Assert-True ($null -ne $pickup.Body.data.summary) "Pickup today endpoint did not return a summary"
+Assert-True ($null -ne $pickup.Body.data.classes) "Pickup today endpoint did not return classes"
 
 Write-Step "Checking teaching, growth, lesson and research reads"
 Assert-DataArray (Invoke-Api -Method "GET" -Path "/teacher/teaching-records" -Token $teacherToken) "Teaching records endpoint did not return data"

@@ -48,6 +48,10 @@ Write-Step "Checking timeline, attendance and homework"
 Assert-DataArray (Invoke-Api -Method "GET" -Path "/parent/children/$studentId/timeline" -Token $parentToken) "Timeline endpoint did not return data"
 Assert-DataArray (Invoke-Api -Method "GET" -Path "/parent/children/$studentId/attendance" -Token $parentToken) "Attendance endpoint did not return data"
 Assert-DataArray (Invoke-Api -Method "GET" -Path "/parent/children/$studentId/homework" -Token $parentToken) "Homework endpoint did not return data"
+$pickupToday = Invoke-Api -Method "GET" -Path "/parent/children/$studentId/pickup/today" -Token $parentToken
+Assert-True ($null -ne $pickupToday.Body.data.status) "Pickup today endpoint did not return a status"
+$pickupHistory = Invoke-Api -Method "GET" -Path "/parent/children/$studentId/pickup-records" -Token $parentToken
+Assert-True ($null -ne $pickupHistory.Body.data.items) "Pickup history endpoint did not return items"
 
 Write-Step "Checking notices and conversations"
 Assert-DataArray (Invoke-Api -Method "GET" -Path "/parent/notices" -Token $parentToken) "Notices endpoint did not return data"
@@ -63,6 +67,8 @@ $unauthorized = Invoke-Api -Method "GET" -Path "/parent/children" -ExpectedStatu
 Assert-True ($unauthorized.Body.error.code -eq "UNAUTHORIZED") "Expected missing token to return UNAUTHORIZED"
 $notFound = Invoke-Api -Method "GET" -Path "/parent/children/not-a-student/timeline" -Token $parentToken -ExpectedStatus 404
 Assert-True ($notFound.Body.error.code -eq "NOT_FOUND") "Expected unbound student access to return NOT_FOUND"
+$pickupNotFound = Invoke-Api -Method "GET" -Path "/parent/children/not-a-student/pickup-records" -Token $parentToken -ExpectedStatus 404
+Assert-True ($pickupNotFound.Body.error.code -eq "NOT_FOUND") "Expected unbound pickup history access to return NOT_FOUND"
 
 if ($IncludeWrites) {
   Write-Step "Running parent write verification with fresh teacher prerequisites"

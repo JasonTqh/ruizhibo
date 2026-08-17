@@ -9,6 +9,14 @@ const h = React.createElement;
 
 const quickActions = [
   {
+    key: "pickup",
+    icon: "安",
+    title: "今日接送",
+    description: "接到、到店与离店交接",
+    tone: "yellow",
+    action: () => Taro.navigateTo({ url: "/pages/pickup/index" }),
+  },
+  {
     key: "workflow",
     icon: "✓",
     title: "流程打卡",
@@ -46,6 +54,7 @@ export default function HomePage() {
   const [dashboard, setDashboard] = useState(null);
   const [profile, setProfile] = useState(null);
   const [conversations, setConversations] = useState([]);
+  const [pickup, setPickup] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const loadingRef = useRef(false);
@@ -56,14 +65,16 @@ export default function HomePage() {
     setLoading(true);
     setError("");
     try {
-      const [nextDashboard, nextProfile, nextConversations] = await Promise.all([
+      const [nextDashboard, nextProfile, nextConversations, nextPickup] = await Promise.all([
         teacherRequest("/teacher/dashboard"),
         teacherRequest("/me"),
         teacherRequest("/teacher/conversations"),
+        teacherRequest("/teacher/pickup/today"),
       ]);
       setDashboard(nextDashboard);
       setProfile(nextProfile);
       setConversations(nextConversations);
+      setPickup(nextPickup);
     } catch (err) {
       const message = err instanceof Error ? err.message : "工作台加载失败";
       setError(message);
@@ -157,6 +168,21 @@ export default function HomePage() {
     h(
       View,
       { className: "task-card" },
+      taskRow(
+        "安全接送",
+        pickup?.summary?.inCare
+          ? `${pickup.summary.inCare} 名学生在托管中，等待离店交接`
+          : pickup?.summary?.waiting
+            ? `${pickup.summary.waiting} 名学生尚未接到或到店`
+            : "今日接送状态已更新",
+        pickup?.summary?.exceptions
+          ? `${pickup.summary.exceptions} 项异常`
+          : pickup?.summary?.left === pickup?.summary?.total && pickup?.summary?.total
+            ? "已完成"
+            : "去处理",
+        pickup?.summary?.exceptions ? "danger" : "info",
+        () => Taro.navigateTo({ url: "/pages/pickup/index" }),
+      ),
       taskRow(
         "流程打卡",
         workflow.uncheckedStepCount

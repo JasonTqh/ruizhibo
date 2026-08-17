@@ -1,0 +1,255 @@
+.parent-pickup-page {
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: 24px 24px calc(48px + env(safe-area-inset-bottom));
+  background: #f5f0eb;
+}
+
+.parent-pickup-hero {
+  padding: 27px 25px;
+  color: #fff;
+  background: linear-gradient(135deg, #9a7425, #d2a53f);
+  border-radius: 24px;
+  box-shadow: 0 12px 28px rgba(90, 70, 26, 0.17);
+}
+.parent-pickup-hero--picked_up {
+  background: linear-gradient(135deg, #a2741b, #d5aa46);
+}
+.parent-pickup-hero--in_care {
+  background: linear-gradient(135deg, #246b52, #3f9675);
+}
+.parent-pickup-hero--left {
+  background: linear-gradient(135deg, #426f86, #68a0b9);
+}
+.parent-pickup-hero--absent {
+  background: linear-gradient(135deg, #854f48, #b9776d);
+}
+.parent-pickup-hero__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.parent-pickup-hero__eyebrow,
+.parent-pickup-hero__title,
+.parent-pickup-hero__hint,
+.parent-pickup-hero__exception,
+.parent-pickup-heading__title,
+.parent-pickup-heading__hint,
+.pickup-day__date,
+.pickup-event__title,
+.pickup-event__time,
+.pickup-event__teacher,
+.pickup-event__person,
+.pickup-event__meta,
+.pickup-event__remark {
+  display: block;
+}
+.parent-pickup-hero__eyebrow {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 18px;
+}
+.parent-pickup-hero__title {
+  margin-top: 6px;
+  font-size: 31px;
+  font-weight: 850;
+  line-height: 1.35;
+}
+.parent-pickup-hero__hint {
+  margin-top: 8px;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 19px;
+}
+.parent-pickup-hero__refresh {
+  width: 58px;
+  height: 58px;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.23);
+  border-radius: 50%;
+  font-size: 28px;
+  line-height: 58px;
+  text-align: center;
+}
+.parent-pickup-hero__exception {
+  margin-top: 17px;
+  padding-top: 14px;
+  color: #fff4d9;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  font-size: 17px;
+}
+.parent-pickup-error {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 15px;
+  padding: 16px 18px;
+  color: #984238;
+  background: #fff0ed;
+  border: 1px solid #f1cbc5;
+  border-radius: 12px;
+  font-size: 18px;
+}
+.parent-pickup-error__retry {
+  color: #2f8064;
+  font-weight: 750;
+}
+.parent-pickup-switch {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+  overflow-x: auto;
+}
+.parent-pickup-switch__item {
+  flex-shrink: 0;
+  padding: 10px 18px;
+  color: #6e7974;
+  background: #fff;
+  border: 1px solid #e2ddd6;
+  border-radius: 999px;
+  font-size: 19px;
+}
+.parent-pickup-switch__item--active {
+  color: #fff;
+  background: #2f8064;
+  border-color: #2f8064;
+}
+.parent-pickup-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 29px 3px 14px;
+}
+.parent-pickup-heading__title {
+  font-size: 27px;
+  font-weight: 850;
+}
+.parent-pickup-heading__hint {
+  color: #828b87;
+  font-size: 18px;
+}
+.pickup-day {
+  margin-bottom: 15px;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #e9e4dd;
+  border-radius: 18px;
+  box-shadow: 0 5px 16px rgba(26, 46, 40, 0.05);
+}
+.pickup-day__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 17px 19px;
+  background: #faf8f5;
+  border-bottom: 1px solid #eee9e3;
+}
+.pickup-day__date {
+  font-size: 21px;
+  font-weight: 800;
+}
+.pickup-day__safe,
+.pickup-day__exception {
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 16px;
+}
+.pickup-day__safe {
+  color: #2d7158;
+  background: #e6f3ed;
+}
+.pickup-day__exception {
+  color: #98473d;
+  background: #fde9e5;
+}
+.pickup-timeline {
+  padding: 19px 18px 7px;
+}
+.pickup-event {
+  display: flex;
+  min-height: 100px;
+}
+.pickup-event__rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 34px;
+  flex-shrink: 0;
+}
+.pickup-event__dot {
+  width: 17px;
+  height: 17px;
+  margin-top: 5px;
+  background: #d5a43c;
+  border: 5px solid #fff3d6;
+  border-radius: 50%;
+}
+.pickup-event__dot--arrived_at_center {
+  background: #2f8064;
+  border-color: #ddf0e8;
+}
+.pickup-event__dot--left_center {
+  background: #5d91aa;
+  border-color: #e2f0f5;
+}
+.pickup-event__line {
+  flex: 1;
+  width: 2px;
+  margin-top: 4px;
+  background: #e4dfd8;
+}
+.pickup-event:last-child .pickup-event__line {
+  background: transparent;
+}
+.pickup-event__main {
+  flex: 1;
+  min-width: 0;
+  padding: 0 0 20px 8px;
+}
+.pickup-event__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.pickup-event__title {
+  font-size: 21px;
+  font-weight: 800;
+}
+.pickup-event__time {
+  color: #7e8883;
+  font-size: 18px;
+}
+.pickup-event__teacher,
+.pickup-event__person,
+.pickup-event__meta,
+.pickup-event__remark {
+  margin-top: 5px;
+  color: #707b76;
+  font-size: 17px;
+  line-height: 1.4;
+}
+.pickup-event__exception-box {
+  margin-top: 9px;
+  padding: 11px 13px;
+  color: #93483d;
+  background: #fff0ed;
+  border-radius: 10px;
+  font-size: 17px;
+  line-height: 1.5;
+}
+.pickup-event__exception-box text {
+  display: block;
+}
+.parent-pickup-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 55px 20px;
+  color: #858e89;
+  background: #fff;
+  border-radius: 18px;
+  font-size: 20px;
+}
+.parent-pickup-empty__icon {
+  margin-bottom: 9px;
+  color: #8eb5a5;
+  font-size: 43px;
+}

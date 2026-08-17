@@ -43,6 +43,10 @@ export class BindGuardianDto {
   canViewGrowth?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  canPickup?: boolean;
+
+  @IsOptional()
   @IsIn(["active", "pending", "unlinked"])
   status?: string;
 

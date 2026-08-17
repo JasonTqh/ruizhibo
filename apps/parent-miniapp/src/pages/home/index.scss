@@ -43,6 +43,83 @@
   display: block;
 }
 
+.home-pickup {
+  display: flex;
+  align-items: center;
+  margin-top: 18px;
+  padding: 20px 22px;
+  background: #ffffff;
+  border: 1px solid #e4dfd8;
+  border-left: 8px solid #d7a640;
+  border-radius: 18px;
+  box-shadow: 0 5px 18px rgba(26, 46, 40, 0.05);
+}
+
+.home-pickup--picked_up {
+  border-left-color: #d7a640;
+  background: #fffaf0;
+}
+.home-pickup--in_care {
+  border-left-color: #2f8064;
+  background: #f4fbf8;
+}
+.home-pickup--left {
+  border-left-color: #5d91aa;
+  background: #f4f9fb;
+}
+.home-pickup--absent {
+  border-left-color: #a85a4e;
+  background: #fff4f1;
+}
+.home-pickup--exception {
+  border-color: #df8274;
+  border-left-width: 8px;
+  background: #fff4f1;
+}
+.home-pickup__main {
+  flex: 1;
+  min-width: 0;
+}
+.home-pickup__eyebrow,
+.home-pickup__status,
+.home-pickup__detail,
+.home-pickup__handler,
+.home-pickup__warning,
+.home-pickup__arrow {
+  display: block;
+}
+.home-pickup__eyebrow {
+  color: #87908c;
+  font-size: 16px;
+}
+.home-pickup__status {
+  margin-top: 3px;
+  font-size: 23px;
+  font-weight: 800;
+}
+.home-pickup__detail {
+  margin-top: 5px;
+  color: #6f7a75;
+  font-size: 18px;
+}
+.home-pickup__handler {
+  margin-top: 5px;
+  color: #49645a;
+  font-size: 17px;
+  font-weight: 700;
+}
+.home-pickup__warning {
+  margin-top: 7px;
+  color: #9a483d;
+  font-size: 17px;
+}
+.home-pickup__arrow {
+  flex-shrink: 0;
+  margin-left: 12px;
+  color: #2f8064;
+  font-size: 18px;
+}
+
 .parent-home__brand {
   font-size: 31px;
   font-weight: 850;
@@ -246,9 +323,15 @@
   line-height: 58px;
 }
 
-.parent-quick-item__icon--yellow { background: #d9a537; }
-.parent-quick-item__icon--coral { background: #db7564; }
-.parent-quick-item__icon--blue { background: #629fc1; }
+.parent-quick-item__icon--yellow {
+  background: #d9a537;
+}
+.parent-quick-item__icon--coral {
+  background: #db7564;
+}
+.parent-quick-item__icon--blue {
+  background: #629fc1;
+}
 
 .parent-quick-item__title {
   overflow: hidden;
@@ -311,9 +394,15 @@
   border-radius: 999px;
 }
 
-.reminder-row__bar--yellow { background: #e0ad42; }
-.reminder-row__bar--coral { background: #df7968; }
-.reminder-row__bar--blue { background: #65a1c2; }
+.reminder-row__bar--yellow {
+  background: #e0ad42;
+}
+.reminder-row__bar--coral {
+  background: #df7968;
+}
+.reminder-row__bar--blue {
+  background: #65a1c2;
+}
 
 .reminder-row__main {
   flex: 1;
@@ -344,9 +433,18 @@
   font-size: 17px;
 }
 
-.reminder-row__badge--yellow { color: #8b5b0c; background: #fff1d2; }
-.reminder-row__badge--coral { color: #97453a; background: #fde8e4; }
-.reminder-row__badge--blue { color: #346e8c; background: #e4f1f7; }
+.reminder-row__badge--yellow {
+  color: #8b5b0c;
+  background: #fff1d2;
+}
+.reminder-row__badge--coral {
+  color: #97453a;
+  background: #fde8e4;
+}
+.reminder-row__badge--blue {
+  color: #346e8c;
+  background: #e4f1f7;
+}
 
 .growth-preview__row {
   align-items: flex-start;
@@ -369,9 +467,18 @@
   font-weight: 800;
 }
 
-.growth-preview__icon--coral { color: #a54c3f; background: #fce9e5; }
-.growth-preview__icon--yellow { color: #95640f; background: #fff2d7; }
-.growth-preview__icon--blue { color: #397493; background: #e5f1f7; }
+.growth-preview__icon--coral {
+  color: #a54c3f;
+  background: #fce9e5;
+}
+.growth-preview__icon--yellow {
+  color: #95640f;
+  background: #fff2d7;
+}
+.growth-preview__icon--blue {
+  color: #397493;
+  background: #e5f1f7;
+}
 
 .growth-preview__main {
   flex: 1;

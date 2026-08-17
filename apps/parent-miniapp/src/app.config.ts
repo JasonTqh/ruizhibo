@@ -4,6 +4,7 @@ export default defineAppConfig({
     "pages/login/index",
     "pages/homework/index",
     "pages/growth/index",
+    "pages/pickup/index",
     "pages/messages/index",
     "pages/chat/index",
     "pages/profile/index",

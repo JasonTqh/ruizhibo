@@ -15,6 +15,7 @@ export default function HomePage() {
   const [homework, setHomework] = useState([]);
   const [notices, setNotices] = useState([]);
   const [conversations, setConversations] = useState([]);
+  const [pickup, setPickup] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const requestSequence = useRef(0);
@@ -37,29 +38,39 @@ export default function HomePage() {
       setActiveChildId(nextChild?.id || "");
       if (nextChild) Taro.setStorageSync(ACTIVE_CHILD_KEY, nextChild.id);
 
-      const [nextRecords, nextHomework, nextNotices, nextConversations] =
-        await Promise.all([
-          nextChild
-            ? parentRequest(`/parent/children/${nextChild.id}/timeline`)
-            : Promise.resolve([]),
-          nextChild
-            ? parentRequest(`/parent/children/${nextChild.id}/homework`)
-            : Promise.resolve([]),
-          parentRequest("/parent/notices"),
-          parentRequest("/parent/conversations"),
-        ]);
+      const [
+        nextRecords,
+        nextHomework,
+        nextNotices,
+        nextConversations,
+        nextPickup,
+      ] = await Promise.all([
+        nextChild
+          ? parentRequest(`/parent/children/${nextChild.id}/timeline`)
+          : Promise.resolve([]),
+        nextChild
+          ? parentRequest(`/parent/children/${nextChild.id}/homework`)
+          : Promise.resolve([]),
+        parentRequest("/parent/notices"),
+        parentRequest("/parent/conversations"),
+        nextChild
+          ? parentRequest(`/parent/children/${nextChild.id}/pickup/today`)
+          : Promise.resolve(null),
+      ]);
       if (sequence !== requestSequence.current) return;
       setRecords(nextRecords);
       setHomework(nextHomework);
       setNotices(nextNotices);
       setConversations(nextConversations);
+      setPickup(nextPickup);
       syncCommunicationBadge(nextNotices, nextConversations);
     } catch (loadError) {
-      if (sequence === requestSequence.current) setError(
-        loadError instanceof Error
-          ? loadError.message
-          : "首页加载失败，请稍后重试。",
-      );
+      if (sequence === requestSequence.current)
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : "首页加载失败，请稍后重试。",
+        );
     } finally {
       if (sequence === requestSequence.current) setLoading(false);
       loadingRef.current = false;
@@ -75,15 +86,18 @@ export default function HomePage() {
     setLoading(true);
     setError("");
     try {
-      const [nextRecords, nextHomework] = await Promise.all([
+      const [nextRecords, nextHomework, nextPickup] = await Promise.all([
         parentRequest(`/parent/children/${childId}/timeline`),
         parentRequest(`/parent/children/${childId}/homework`),
+        parentRequest(`/parent/children/${childId}/pickup/today`),
       ]);
       if (sequence !== requestSequence.current) return;
       setRecords(nextRecords);
       setHomework(nextHomework);
+      setPickup(nextPickup);
     } catch (loadError) {
-      if (sequence === requestSequence.current) setError("切换孩子失败，请重试。");
+      if (sequence === requestSequence.current)
+        setError("切换孩子失败，请重试。");
     } finally {
       if (sequence === requestSequence.current) setLoading(false);
       loadingRef.current = false;
@@ -196,6 +210,11 @@ export default function HomePage() {
             "请联系管理员完成家长与孩子的绑定。",
           ),
         ),
+    child
+      ? pickupStatusCard(pickup, () =>
+          Taro.navigateTo({ url: `/pages/pickup/index?studentId=${child.id}` }),
+        )
+      : null,
     h(
       View,
       { className: "parent-quick-grid" },
@@ -275,41 +294,39 @@ export default function HomePage() {
       View,
       { className: "growth-preview" },
       records.length
-        ? records
-            .slice(0, 3)
-            .map((record, index) =>
+        ? records.slice(0, 3).map((record, index) =>
+            h(
+              View,
+              { className: "growth-preview__row", key: record.id },
               h(
                 View,
-                { className: "growth-preview__row", key: record.id },
-                h(
-                  View,
-                  {
-                    className: `growth-preview__icon growth-preview__icon--${recordTone(record.type, index)}`,
-                  },
-                  h(Text, null, recordIcon(record.type)),
-                ),
-                h(
-                  View,
-                  { className: "growth-preview__main" },
-                  h(
-                    Text,
-                    { className: "growth-preview__type" },
-                    recordTypeText(record.type),
-                  ),
-                  h(Text, { className: "growth-preview__title" }, record.title),
-                  h(
-                    Text,
-                    { className: "growth-preview__content" },
-                    record.content,
-                  ),
-                ),
+                {
+                  className: `growth-preview__icon growth-preview__icon--${recordTone(record.type, index)}`,
+                },
+                h(Text, null, recordIcon(record.type)),
+              ),
+              h(
+                View,
+                { className: "growth-preview__main" },
                 h(
                   Text,
-                  { className: "growth-preview__time" },
-                  shortDate(record.happenedAt),
+                  { className: "growth-preview__type" },
+                  recordTypeText(record.type),
+                ),
+                h(Text, { className: "growth-preview__title" }, record.title),
+                h(
+                  Text,
+                  { className: "growth-preview__content" },
+                  record.content,
                 ),
               ),
-            )
+              h(
+                Text,
+                { className: "growth-preview__time" },
+                shortDate(record.happenedAt),
+              ),
+            ),
+          )
         : h(
             View,
             { className: "growth-preview__empty" },
@@ -332,9 +349,59 @@ function syncCommunicationBadge(noticeItems, conversationItems) {
   );
   const total = pending + unread;
   const task = total
-    ? Taro.setTabBarBadge({ index: 2, text: total > 99 ? "99+" : String(total) })
+    ? Taro.setTabBarBadge({
+        index: 2,
+        text: total > 99 ? "99+" : String(total),
+      })
     : Taro.removeTabBarBadge({ index: 2 });
   Promise.resolve(task).catch(() => undefined);
+}
+
+function pickupStatusCard(pickup, onClick) {
+  const latest = pickup?.events?.[pickup.events.length - 1];
+  const status = pickup?.status || "waiting_pickup";
+  const detail =
+    status === "left"
+      ? `${timeText(latest?.happenedAt)} · ${pickupRelationshipText(latest?.relationshipSnapshot)} ${latest?.pickupPersonNameSnapshot || ""}接走`
+      : status === "in_care"
+        ? latest?.arrivalMethod === "parent_delivered" &&
+          latest?.pickupPersonNameSnapshot
+          ? `${timeText(latest?.happenedAt)} · ${pickupRelationshipText(latest.relationshipSnapshot)} ${latest.pickupPersonNameSnapshot}送达`
+          : `${timeText(latest?.happenedAt)} · 已进入托管照护`
+        : status === "picked_up"
+          ? `${timeText(latest?.happenedAt)} · 正在前往锐之博`
+          : status === "absent"
+            ? `今日请假 / 缺勤${pickup?.absenceRemark ? ` · ${pickup.absenceRemark}` : ""}`
+            : "尚未登记今日接送节点";
+  return h(
+    View,
+    {
+      className: `home-pickup home-pickup--${status}${latest?.isException ? " home-pickup--exception" : ""}`,
+      onClick,
+    },
+    h(
+      View,
+      { className: "home-pickup__main" },
+      h(Text, { className: "home-pickup__eyebrow" }, "今日接送"),
+      h(Text, { className: "home-pickup__status" }, pickupStatusText(status)),
+      h(Text, { className: "home-pickup__detail" }, detail),
+      latest?.teacher?.name
+        ? h(
+            Text,
+            { className: "home-pickup__handler" },
+            `经办：${latest.teacher.name}`,
+          )
+        : null,
+      latest?.isException
+        ? h(
+            Text,
+            { className: "home-pickup__warning" },
+            "⚠ 临时或异常接送，点击查看处理记录",
+          )
+        : null,
+    ),
+    h(Text, { className: "home-pickup__arrow" }, "查看记录 ›"),
+  );
 }
 
 function quickItem(icon, title, description, tone, onClick) {
@@ -422,4 +489,40 @@ function shortDate(value) {
     return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
   }
   return `${date.getMonth() + 1}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function pickupStatusText(status) {
+  return (
+    {
+      waiting_pickup: "等待接送",
+      picked_up: "已接到，正在前往中心",
+      in_care: "已安全到店",
+      left: "已安全离店",
+      absent: "今日请假 / 缺勤",
+    }[status] || "等待接送"
+  );
+}
+
+function pickupRelationshipText(value) {
+  return (
+    {
+      father: "父亲",
+      mother: "母亲",
+      grandfather: "爷爷",
+      grandmother: "奶奶",
+      maternal_grandfather: "外公",
+      maternal_grandmother: "外婆",
+      sibling: "兄弟姐妹",
+      relative: "亲属",
+      other: "其他",
+    }[value] ||
+    value ||
+    "接送人"
+  );
+}
+
+function timeText(value) {
+  if (!value) return "今日";
+  const date = new Date(value);
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }

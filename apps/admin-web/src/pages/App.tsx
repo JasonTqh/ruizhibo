@@ -71,6 +71,7 @@ interface ParentSummary extends UserSummary {
     canReceiveNotice: boolean;
     canSubmitHomework: boolean;
     canViewGrowth: boolean;
+    canPickup: boolean;
     status: string;
     remark?: string;
     student: { id: string; name: string; class: { name: string } };
@@ -101,6 +102,7 @@ interface StudentSummary {
     canReceiveNotice: boolean;
     canSubmitHomework: boolean;
     canViewGrowth: boolean;
+    canPickup: boolean;
     status: string;
     remark?: string;
     parent: UserSummary;
@@ -159,12 +161,15 @@ const classReferenceLabels = {
   teachingRecords: "教学记录",
   lessonPlans: "教案",
   notices: "通知/任务",
+  pickupRecords: "班级安全接送记录",
   studentGuardians: "学生家长绑定",
   studentAttendance: "学生考勤",
   studentSubmissions: "学生作业提交",
   studentGrowthRecords: "学生成长记录",
   studentConversations: "学生家校会话",
   studentNoticeReceipts: "学生通知回执",
+  studentAuthorizedPickupPeople: "学生授权接送人",
+  studentPickupRecords: "学生安全接送记录",
 };
 
 const studentReferenceLabels = {
@@ -174,12 +179,15 @@ const studentReferenceLabels = {
   growthRecords: "成长记录",
   conversations: "家校会话",
   noticeReceipts: "通知回执",
+  authorizedPickupPeople: "授权接送人",
+  pickupRecords: "安全接送记录",
 };
 
 const parentReferenceLabels = {
   guardianships: "学生绑定",
   noticeReceipts: "通知回执",
   conversations: "家校会话",
+  pickupRecords: "安全接送记录",
 };
 
 const teacherReferenceLabels = {
@@ -196,6 +204,7 @@ const teacherReferenceLabels = {
   sentMessages: "发送消息",
   notices: "通知/任务",
   conversations: "家校会话",
+  pickupRecords: "安全接送责任记录",
 };
 
 function referenceTotal(counts: ReferenceCounts) {
@@ -623,6 +632,14 @@ function TeachersPanel({
         `/admin/teachers/${record.id}/references`,
       );
       const total = referenceTotal(counts);
+      if ((counts.pickupRecords ?? 0) > 0) {
+        Modal.warning({
+          title: "不能删除老师",
+          content:
+            "该老师已有安全接送责任记录。历史记录必须保留，请将老师账号设为停用。",
+        });
+        return;
+      }
       if (total > 0 && record.status === "active") {
         Modal.warning({
           title: "请先停用老师",
@@ -787,6 +804,7 @@ interface BindingView {
   canReceiveNotice: boolean;
   canSubmitHomework: boolean;
   canViewGrowth: boolean;
+  canPickup: boolean;
   status: string;
   remark?: string;
 }
@@ -840,6 +858,7 @@ function GuardianManager({
       canReceiveNotice: true,
       canSubmitHomework: true,
       canViewGrowth: true,
+      canPickup: true,
       status: "active",
       remark: "",
     });
@@ -981,6 +1000,13 @@ function GuardianManager({
             >
               <Switch />
             </Form.Item>
+            <Form.Item
+              name="canPickup"
+              label="授权接送"
+              valuePropName="checked"
+            >
+              <Switch />
+            </Form.Item>
           </Space>
           <Form.Item name="remark" label="备注">
             <Input />
@@ -1015,6 +1041,7 @@ function GuardianManager({
                 item.canReceiveNotice && "通知",
                 item.canSubmitHomework && "作业",
                 item.canViewGrowth && "成长",
+                item.canPickup && "接送",
               ]
                 .filter(Boolean)
                 .join("、") || "无",
@@ -1093,6 +1120,14 @@ function ParentsPanel({
         `/admin/parents/${record.id}/references`,
       );
       const total = referenceTotal(counts);
+      if ((counts.pickupRecords ?? 0) > 0) {
+        Modal.warning({
+          title: "不能删除家长",
+          content:
+            "该家长已作为接送人写入历史责任记录。请将家长账号设为停用，历史记录不能删除。",
+        });
+        return;
+      }
       if (total > 0 && record.status === "active") {
         Modal.warning({
           title: "请先停用家长",
@@ -1319,6 +1354,17 @@ function ClassesPanel({
         `/admin/classes/${record.id}/references`,
       );
       const total = referenceTotal(counts);
+      if (
+        (counts.pickupRecords ?? 0) > 0 ||
+        (counts.studentPickupRecords ?? 0) > 0
+      ) {
+        Modal.warning({
+          title: "不能删除班级",
+          content:
+            "该班级或班内学生已有安全接送责任记录。历史记录必须保留，不能执行强制删除。",
+        });
+        return;
+      }
       Modal.confirm({
         title: total ? "清理关联数据并删除班级？" : "删除班级？",
         content: total ? (
@@ -1483,6 +1529,166 @@ function ClassesPanel({
   );
 }
 
+interface PickupPersonView {
+  id: string;
+  name: string;
+  relationship: string;
+  phone?: string;
+  isActive: boolean;
+  remark?: string;
+}
+
+const pickupRelationshipOptions = [
+  { value: "father", label: "父亲" },
+  { value: "mother", label: "母亲" },
+  { value: "grandfather", label: "爷爷" },
+  { value: "grandmother", label: "奶奶" },
+  { value: "maternal_grandfather", label: "外公" },
+  { value: "maternal_grandmother", label: "外婆" },
+  { value: "sibling", label: "兄弟姐妹" },
+  { value: "relative", label: "亲属" },
+  { value: "other", label: "其他" },
+];
+
+function PickupPeopleManager({
+  student,
+  request,
+  onClose,
+}: {
+  student?: StudentSummary;
+  request: <T>(path: string, options?: RequestInit) => Promise<T>;
+  onClose: () => void;
+}) {
+  const [form] = Form.useForm();
+  const [people, setPeople] = useState<PickupPersonView[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  async function load() {
+    if (!student) return;
+    setLoading(true);
+    try {
+      setPeople(
+        await request<PickupPersonView[]>(
+          `/admin/students/${student.id}/pickup-persons`,
+        ),
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (student) {
+      form.setFieldsValue({ relationship: "other", isActive: true });
+      load().catch((error: Error) =>
+        Modal.error({ title: "接送人加载失败", content: error.message }),
+      );
+    }
+  }, [student?.id]);
+
+  return (
+    <Drawer
+      title={`授权接送人 · ${student?.name ?? ""}`}
+      width={760}
+      open={Boolean(student)}
+      onClose={onClose}
+    >
+      <Alert
+        showIcon
+        type="info"
+        message="家长绑定中的“授权接送”人员会自动出现在教师端；此处用于添加没有家长账号的爷爷、奶奶或其他固定授权人。"
+      />
+      <Card title="新增固定授权人" size="small" style={{ marginTop: 16 }}>
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={(values) =>
+            submitChange(async () => {
+              await request(`/admin/students/${student!.id}/pickup-persons`, {
+                method: "POST",
+                body: JSON.stringify(values),
+              });
+              form.resetFields();
+              form.setFieldsValue({ relationship: "other", isActive: true });
+              await load();
+            })
+          }
+        >
+          <Row gutter={12}>
+            <Col span={8}>
+              <Form.Item name="name" label="姓名" rules={[{ required: true }]}>
+                <Input maxLength={50} />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="relationship" label="关系" rules={[{ required: true }]}>
+                <Select options={pickupRelationshipOptions} />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item
+                name="phone"
+                label="联系电话"
+                rules={[{ pattern: /^[0-9+\-() ]{6,30}$/, message: "请输入有效联系电话" }]}
+              >
+                <Input maxLength={30} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item name="remark" label="授权备注">
+            <Input maxLength={300} />
+          </Form.Item>
+          <Form.Item name="isActive" valuePropName="checked">
+            <Switch checkedChildren="启用" unCheckedChildren="停用" />
+          </Form.Item>
+          <Button type="primary" htmlType="submit">添加授权人</Button>
+        </Form>
+      </Card>
+      <Table
+        style={{ marginTop: 16 }}
+        rowKey="id"
+        loading={loading}
+        dataSource={people}
+        locale={{ emptyText: "暂无额外授权接送人" }}
+        columns={[
+          { title: "姓名", dataIndex: "name" },
+          {
+            title: "关系",
+            render: (_, item) =>
+              pickupRelationshipOptions.find((option) => option.value === item.relationship)?.label ?? item.relationship,
+          },
+          { title: "电话", dataIndex: "phone", render: (value) => value || "-" },
+          {
+            title: "状态",
+            render: (_, item) =>
+              item.isActive ? <Tag color="green">已授权</Tag> : <Tag>已停用</Tag>,
+          },
+          {
+            title: "操作",
+            render: (_, item) => (
+              <Button
+                type="link"
+                danger={item.isActive}
+                onClick={() =>
+                  submitChange(async () => {
+                    await request(`/admin/pickup-persons/${item.id}`, {
+                      method: "PATCH",
+                      body: JSON.stringify({ isActive: !item.isActive }),
+                    });
+                    await load();
+                  })
+                }
+              >
+                {item.isActive ? "停用" : "重新启用"}
+              </Button>
+            ),
+          },
+        ]}
+      />
+    </Drawer>
+  );
+}
+
 function StudentsPanel({
   classes,
   students,
@@ -1500,6 +1706,7 @@ function StudentsPanel({
   const [editForm] = Form.useForm();
   const [editing, setEditing] = useState<StudentSummary | null>(null);
   const [managingId, setManagingId] = useState<string | null>(null);
+  const [pickupManagingId, setPickupManagingId] = useState<string | null>(null);
   const [referenceTarget, setReferenceTarget] = useState<{
     record: StudentSummary;
     counts: ReferenceCounts;
@@ -1520,6 +1727,14 @@ function StudentsPanel({
         `/admin/students/${record.id}/references`,
       );
       const total = referenceTotal(counts);
+      if ((counts.pickupRecords ?? 0) > 0) {
+        Modal.warning({
+          title: "不能删除学生",
+          content:
+            "该学生已有安全接送责任记录。请将状态设为停用或结业，历史记录不能删除。",
+        });
+        return;
+      }
       if (total > 0 && record.status === "active") {
         Modal.warning({
           title: "请先停用学生",
@@ -1651,6 +1866,9 @@ function StudentsPanel({
                 <Button type="link" onClick={() => setManagingId(record.id)}>
                   管理家长
                 </Button>
+                <Button type="link" onClick={() => setPickupManagingId(record.id)}>
+                  授权接送人
+                </Button>
                 <Button
                   type="link"
                   onClick={() => loadStudentReferences(record)}
@@ -1730,6 +1948,11 @@ function StudentsPanel({
         request={request}
         refreshAll={refreshAll}
         onClose={() => setManagingId(null)}
+      />
+      <PickupPeopleManager
+        student={students.find((item) => item.id === pickupManagingId)}
+        request={request}
+        onClose={() => setPickupManagingId(null)}
       />
       <Modal
         title={`${referenceTarget?.record.name ?? "学生"}的引用`}

@@ -31,6 +31,37 @@ enum AttendanceType {
   absence
 }
 
+enum PickupRelationship {
+  father
+  mother
+  grandfather
+  grandmother
+  maternal_grandfather
+  maternal_grandmother
+  sibling
+  relative
+  other
+}
+
+enum PickupEventType {
+  picked_up_from_school
+  arrived_at_center
+  left_center
+}
+
+enum PickupArrivalMethod {
+  teacher_pickup
+  parent_delivered
+  self_arrived
+  other
+}
+
+enum PickupHandoffStatus {
+  normal
+  temporary_authorization
+  exception
+}
+
 enum HomeworkStatus {
   pending
   submitted
@@ -95,21 +126,23 @@ model User {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
-  teachingClasses  Class[]              @relation("ClassTeacher")
-  guardianships    StudentGuardian[]
-  attendanceLogs   AttendanceEvent[]    @relation("AttendanceTeacher")
-  workflowSessions WorkflowSession[]
-  workflowChecks   WorkflowStep[]       @relation("WorkflowStepTeacher")
-  homeworkAssigned HomeworkAssignment[]
-  teachingRecords  TeachingRecord[]
-  lessonPlans      LessonPlan[]
-  researchActivities ResearchActivity[]    @relation("ResearchActivityOrganizer")
+  teachingClasses        Class[]               @relation("ClassTeacher")
+  guardianships          StudentGuardian[]
+  attendanceLogs         AttendanceEvent[]     @relation("AttendanceTeacher")
+  workflowSessions       WorkflowSession[]
+  workflowChecks         WorkflowStep[]        @relation("WorkflowStepTeacher")
+  homeworkAssigned       HomeworkAssignment[]
+  teachingRecords        TeachingRecord[]
+  lessonPlans            LessonPlan[]
+  researchActivities     ResearchActivity[]    @relation("ResearchActivityOrganizer")
   researchParticipations ResearchParticipant[]
-  growthRecords    GrowthRecord[]
-  sentMessages     Message[]
-  publishedNotices Notice[]             @relation("NoticeTeacher")
-  noticeReceipts   NoticeReceipt[]      @relation("NoticeReceiptParent")
-  auditLogs        AuditLog[]
+  growthRecords          GrowthRecord[]
+  sentMessages           Message[]
+  publishedNotices       Notice[]              @relation("NoticeTeacher")
+  noticeReceipts         NoticeReceipt[]       @relation("NoticeReceiptParent")
+  handledPickupRecords   PickupRecord[]        @relation("PickupRecordTeacher")
+  createdPickupRecords   PickupRecord[]        @relation("PickupRecordCreator")
+  auditLogs              AuditLog[]
 }
 
 model Campus {
@@ -122,6 +155,7 @@ model Campus {
 
   classes            Class[]
   researchActivities ResearchActivity[]
+  pickupRecords      PickupRecord[]
 }
 
 model Class {
@@ -140,6 +174,7 @@ model Class {
   teachingRecords     TeachingRecord[]
   lessonPlans         LessonPlan[]
   notices             Notice[]
+  pickupRecords       PickupRecord[]
 }
 
 model Student {
@@ -152,31 +187,35 @@ model Student {
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 
-  class          Class                @relation(fields: [classId], references: [id])
-  guardians      StudentGuardian[]
-  attendance     AttendanceEvent[]
-  submissions    HomeworkSubmission[]
-  growthRecords  GrowthRecord[]
-  conversations  Conversation[]
-  noticeReceipts NoticeReceipt[]
+  class                  Class                    @relation(fields: [classId], references: [id])
+  guardians              StudentGuardian[]
+  attendance             AttendanceEvent[]
+  submissions            HomeworkSubmission[]
+  growthRecords          GrowthRecord[]
+  conversations          Conversation[]
+  noticeReceipts         NoticeReceipt[]
+  authorizedPickupPeople AuthorizedPickupPerson[]
+  pickupRecords          PickupRecord[]
 }
 
 model StudentGuardian {
-  id        String   @id @default(cuid())
-  studentId String
-  parentId  String
-  relation  String
-  isPrimary Boolean  @default(false)
-  canReceiveNotice Boolean @default(true)
-  canSubmitHomework Boolean @default(true)
-  canViewGrowth Boolean @default(true)
-  status    String   @default("active")
-  remark    String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                String   @id @default(cuid())
+  studentId         String
+  parentId          String
+  relation          String
+  isPrimary         Boolean  @default(false)
+  canReceiveNotice  Boolean  @default(true)
+  canSubmitHomework Boolean  @default(true)
+  canViewGrowth     Boolean  @default(true)
+  canPickup         Boolean  @default(true)
+  status            String   @default("active")
+  remark            String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  student Student @relation(fields: [studentId], references: [id])
-  parent  User    @relation(fields: [parentId], references: [id])
+  student       Student        @relation(fields: [studentId], references: [id])
+  parent        User           @relation(fields: [parentId], references: [id])
+  pickupRecords PickupRecord[]
 
   @@unique([studentId, parentId])
 }
@@ -190,8 +229,69 @@ model AttendanceEvent {
   remark     String?
   createdAt  DateTime       @default(now())
 
-  student Student @relation(fields: [studentId], references: [id])
-  teacher User?   @relation("AttendanceTeacher", fields: [teacherId], references: [id])
+  student      Student       @relation(fields: [studentId], references: [id])
+  teacher      User?         @relation("AttendanceTeacher", fields: [teacherId], references: [id])
+  pickupRecord PickupRecord?
+}
+
+model AuthorizedPickupPerson {
+  id           String             @id @default(cuid())
+  studentId    String
+  name         String
+  relationship PickupRelationship
+  phone        String?
+  isActive     Boolean            @default(true)
+  remark       String?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  student       Student        @relation(fields: [studentId], references: [id])
+  pickupRecords PickupRecord[]
+
+  @@index([studentId, isActive])
+}
+
+model PickupRecord {
+  id                       String               @id @default(cuid())
+  studentId                String
+  campusId                 String
+  classId                  String
+  serviceDate              DateTime
+  type                     PickupEventType
+  happenedAt               DateTime
+  teacherId                String
+  createdById              String
+  arrivalMethod            PickupArrivalMethod?
+  studentGuardianId        String?
+  pickupPersonId           String?
+  pickupPersonNameSnapshot String?
+  relationshipSnapshot     String?
+  phoneSnapshot            String?
+  status                   PickupHandoffStatus  @default(normal)
+  isException              Boolean              @default(false)
+  exceptionReason          String?
+  resolution               String?
+  remark                   String?
+  attendanceEventId        String?              @unique
+  createdAt                DateTime             @default(now())
+  updatedAt                DateTime             @updatedAt
+
+  student         Student                 @relation(fields: [studentId], references: [id])
+  campus          Campus                  @relation(fields: [campusId], references: [id])
+  class           Class                   @relation(fields: [classId], references: [id])
+  teacher         User                    @relation("PickupRecordTeacher", fields: [teacherId], references: [id])
+  createdBy       User                    @relation("PickupRecordCreator", fields: [createdById], references: [id])
+  studentGuardian StudentGuardian?        @relation(fields: [studentGuardianId], references: [id])
+  pickupPerson    AuthorizedPickupPerson? @relation(fields: [pickupPersonId], references: [id])
+  attendanceEvent AttendanceEvent?        @relation(fields: [attendanceEventId], references: [id], onDelete: SetNull)
+
+  @@unique([studentId, serviceDate, type])
+  @@index([studentId, serviceDate])
+  @@index([classId, serviceDate])
+  @@index([teacherId, serviceDate])
+  @@index([campusId, serviceDate])
+  @@index([status, serviceDate])
+  @@index([isException, serviceDate])
 }
 
 model WorkflowTemplate {
@@ -326,21 +426,21 @@ model LessonPlan {
 }
 
 model ResearchActivity {
-  id           String                 @id @default(cuid())
-  organizerId  String
-  campusId     String
-  type         ResearchActivityType
-  title        String
-  description  String
-  startAt      DateTime
-  endAt        DateTime
-  location     String
-  status       ResearchActivityStatus @default(draft)
-  createdAt    DateTime               @default(now())
-  updatedAt    DateTime               @updatedAt
+  id          String                 @id @default(cuid())
+  organizerId String
+  campusId    String
+  type        ResearchActivityType
+  title       String
+  description String
+  startAt     DateTime
+  endAt       DateTime
+  location    String
+  status      ResearchActivityStatus @default(draft)
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
 
-  organizer   User                    @relation("ResearchActivityOrganizer", fields: [organizerId], references: [id])
-  campus      Campus                  @relation(fields: [campusId], references: [id])
+  organizer    User                  @relation("ResearchActivityOrganizer", fields: [organizerId], references: [id])
+  campus       Campus                @relation(fields: [campusId], references: [id])
   participants ResearchParticipant[]
 
   @@index([campusId, startAt])

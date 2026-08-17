@@ -4,6 +4,7 @@ import {
   HomeworkStatus,
   LessonPlanStatus,
   MessageKind,
+  PickupRelationship,
   PrismaClient,
   ResearchActivityStatus,
   ResearchActivityType,
@@ -103,11 +104,34 @@ async function main() {
     },
     update: {
       relation: "妈妈",
+      canPickup: true,
     },
     create: {
       studentId: student.id,
       parentId: parent.id,
       relation: "妈妈",
+      canPickup: true,
+    },
+  });
+
+  await prisma.authorizedPickupPerson.upsert({
+    where: { id: "seed-pickup-person-grandfather" },
+    update: {
+      studentId: student.id,
+      name: "张爷爷",
+      relationship: PickupRelationship.grandfather,
+      phone: "13800000003",
+      isActive: true,
+      remark: "Seed authorized pickup person",
+    },
+    create: {
+      id: "seed-pickup-person-grandfather",
+      studentId: student.id,
+      name: "张爷爷",
+      relationship: PickupRelationship.grandfather,
+      phone: "13800000003",
+      isActive: true,
+      remark: "Seed authorized pickup person",
     },
   });
 
