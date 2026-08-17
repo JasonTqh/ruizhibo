@@ -2,8 +2,16 @@
 // 目标：生产模式测试环境 http://localhost:8080/api（dev-login 已禁用）
 // 用法：node tools/run-regression.mjs（需 Node 22，建议 NODE_OPTIONS=''）
 // 输出：tmp/regression-results.json
-const ADMIN_PHONE = "13800000000";
-const ADMIN_PASSWORD = "RzLocalTest#2026";
+const BASE = (process.env.VERIFY_API_BASE_URL ?? "http://localhost:8080/api").replace(/\/+$/, "");
+const ADMIN_PHONE = process.env.VERIFY_ADMIN_PHONE ?? "13800000000";
+const ADMIN_PASSWORD = process.env.VERIFY_ADMIN_PASSWORD;
+const EXPECTED_VERSION = process.env.VERIFY_APP_VERSION;
+if (!ADMIN_PASSWORD) {
+  throw new Error("Set VERIFY_ADMIN_PASSWORD before running admin regression");
+}
+if (!EXPECTED_VERSION) {
+  throw new Error("Set VERIFY_APP_VERSION before running admin regression");
+}
 const TS = Date.now().toString().slice(-6);
 const TAG = `回归${TS}`;
 // 生成合法 11 位手机号（1 开头 + 10 位数字）
@@ -323,7 +331,7 @@ console.log("=== L. 健康与请求 ID ===");
 {
   const r = await call("GET", "/health");
   const v = r.data?.data?.version ?? "";
-  record("健康", "版本号匹配当前提交", "ac40fbc", `${v.slice(0, 7)}`, v.startsWith("ac40fbc"), r.text.slice(0, 200));
+  record("健康", "版本号匹配预期提交", EXPECTED_VERSION, `${v.slice(0, EXPECTED_VERSION.length)}`, v.startsWith(EXPECTED_VERSION), r.text.slice(0, 200));
   record("健康", "数据库状态 ok", "ok", `${r.data?.data?.database ?? "?"}`, r.data?.data?.database === "ok");
   record("健康", "文件存储 local", "local", `${r.data?.data?.fileStorage ?? "?"}`, r.data?.data?.fileStorage === "local");
   const rid = r.headers.get("x-request-id");
@@ -365,6 +373,7 @@ console.log(`\n===== 汇总: ${passCount}/${results.length} 通过 =====`);
 if (failures.length) {
   console.log("--- 失败项 ---");
   for (const f of failures) console.log(`[FAIL] [${f.group}] ${f.name}: 期望 ${f.expected}, 实际 ${f.actual} | ${f.extra}`);
+  process.exitCode = 1;
 }
 const fs = await import("node:fs");
 fs.writeFileSync("tmp/regression-results.json", JSON.stringify({ runAt: new Date().toISOString(), total: results.length, pass: passCount, fail: failures.length, results, failures }, null, 2), "utf-8");

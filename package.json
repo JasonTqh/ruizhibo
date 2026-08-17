@@ -10,6 +10,7 @@
     "dev:teacher": "pnpm --filter @ruizhibo/teacher-miniapp dev:weapp",
     "verify:deployment": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/verify-test-deployment.ps1",
     "verify:release": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/verify-test-deployment.ps1 -ProductionGate",
+    "verify:production-config": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/verify-production-config.ps1",
     "backup:deployment": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/backup-test-deployment.ps1",
     "restore:deployment": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/restore-test-deployment.ps1",
     "build": "pnpm -r build",

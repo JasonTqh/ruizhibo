@@ -104,8 +104,14 @@ export default function WorkflowPage() {
     try {
       const photoUrls = [];
       for (const path of localPhotos) {
-        const asset = await uploadWorkflowImage(path);
-        photoUrls.push(asset.url);
+        try {
+          const asset = await uploadWorkflowImage(path);
+          photoUrls.push(asset.url);
+        } catch (uploadError) {
+          throw new Error(
+            `照片上传失败：${errorMessage(uploadError, "请检查网络后重试")}`,
+          );
+        }
       }
       const updatedStep = await teacherRequest(
         `/teacher/workflow/${session.id}/steps/${step.id}/check`,

@@ -1178,6 +1178,41 @@ pnpm verify:release -- `
   -RequireHttps
 ```
 
+### CP-32 真实上线验收与儿童数据安全加固
+
+状态：**代码已完成；整体为 `WAITING_FOR_EXTERNAL_ACCEPTANCE`；未进入 CP-33。**
+
+本节 CP-32 以 `docs/project-audit-and-next-roadmap.md` 第 12 节为唯一来源，不沿用任何历史同号提案。
+
+代码完成范围：
+
+- workflow 图片保存前要求 FileAsset 存在、ownerId 为当前教师、scene 为 `workflow` 且 MIME 为图片。
+- message、homework、workflow 复用统一的 FileAsset 归属策略。
+- 教师端上传固定使用 `scene=workflow`，上传失败保留照片并给出明确反馈。
+- 自动回归覆盖当前教师 workflow 成功、message/homework scene 拒绝、跨教师拒绝和不存在资产拒绝。
+- `verify:all` 增加完整 HTTP 回归；`verify:release` 增加策略门禁和生产配置审计。
+- 管理后台深度回归改为从环境变量读取管理员密码和预期版本，不再在代码中保存测试密码。
+
+不包含：管理员账号管理、学生级流程、安全接送、生活记录、日报/周报、招生收费、经营看板、订阅消息或 AI。
+
+外部验收项（`WAITING_FOR_EXTERNAL_ACCEPTANCE`）：
+
+- 真实 HTTPS 测试域名、可信证书和 Caddy 外网入口。
+- 微信公众平台 request、uploadFile、downloadFile 合法域名。
+- 教师端、家长端正式 AppID/AppSecret 部署配置。
+- 两端体验版真机登录/绑定、数据隔离与 workflow 图片链路。
+- 隔离环境完整恢复演练。
+
+验证命令：
+
+```powershell
+pnpm --filter @ruizhibo/api verify:workflow-image-policy
+pnpm --filter @ruizhibo/api verify:workflow-images
+pnpm --filter @ruizhibo/api verify:all
+pnpm verify:production-config -- -EnvPath deploy/.env -RequireHttps
+pnpm verify:release -- -DeploymentEnvPath deploy/.env -RequireHttps <其他发布参数>
+```
+
 ## 推荐执行顺序
 
 严格建议按以下顺序推进：
@@ -1191,13 +1226,13 @@ CP-13 -> CP-14 -> CP-15 -> CP-16
 CP-17 -> CP-18 -> CP-19 -> CP-20
 CP-21 -> CP-22
 UI-01 -> UI-02 -> UI-03 -> UI-04 -> UI-05 -> UI-06 -> UI-07 -> UI-08 -> UI-09
-CP-23 -> CP-24 -> CP-25 -> CP-26 -> CP-27 -> CP-28 -> CP-29 -> CP-30 -> CP-31
+CP-23 -> CP-24 -> CP-25 -> CP-26 -> CP-27 -> CP-28 -> CP-29 -> CP-30 -> CP-31 -> CP-32
 ```
 
 当前建议优先执行：
 
 ```text
-CP-31 真实 HTTPS 域名与微信体验版人工验收
+CP-32 外部验收：真实 HTTPS、微信合法域名、两端体验版真机与隔离恢复演练
 ```
 
 ## 每个提案的完成定义

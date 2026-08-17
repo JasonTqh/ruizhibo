@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 import { GrowthRecordType, HomeworkStatus } from "@prisma/client";
 import { AuditService } from "../audit/audit.service";
+import { assertOwnedFileAssetUrls } from "../files/file-asset-policy";
 import { prepareMessageInput } from "../messages/message-input";
 import { PrismaService } from "../prisma/prisma.service";
 import { SendParentMessageDto } from "./dto/send-parent-message.dto";
@@ -166,23 +167,17 @@ export class ParentService {
     }
 
     const content = dto.content?.trim() ?? "";
-    const fileUrls = Array.from(new Set(dto.fileUrls ?? []));
+    let fileUrls = Array.from(new Set(dto.fileUrls ?? []));
     if (!content && fileUrls.length === 0) {
       throw new BadRequestException("Homework content or image is required");
     }
 
-    if (fileUrls.length > 0) {
-      const ownedFileCount = await this.prisma.fileAsset.count({
-        where: {
-          ownerId: parentId,
-          scene: "homework",
-          url: { in: fileUrls },
-        },
-      });
-      if (ownedFileCount !== fileUrls.length) {
-        throw new BadRequestException("Homework image is invalid");
-      }
-    }
+    fileUrls = await assertOwnedFileAssetUrls(this.prisma, {
+      ownerId: parentId,
+      scene: "homework",
+      urls: fileUrls,
+      invalidMessage: "Homework image is invalid",
+    });
 
     const submittedAt = new Date();
     const updated = await this.prisma.$transaction(async (transaction) => {

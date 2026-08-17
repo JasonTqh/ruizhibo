@@ -34,6 +34,19 @@ function Resolve-RepoPath {
   return (Resolve-Path -LiteralPath $candidate).Path
 }
 
+function Get-FileSha256 {
+  param([Parameter(Mandatory = $true)][string]$Path)
+
+  $stream = [System.IO.File]::OpenRead($Path)
+  $algorithm = [System.Security.Cryptography.SHA256]::Create()
+  try {
+    return ([System.BitConverter]::ToString($algorithm.ComputeHash($stream))).Replace("-", "").ToLowerInvariant()
+  } finally {
+    $algorithm.Dispose()
+    $stream.Dispose()
+  }
+}
+
 function Get-DotEnvValue {
   param(
     [Parameter(Mandatory = $true)][string]$Path,
@@ -162,7 +175,7 @@ function Assert-Artifact {
     throw "$Label file size does not match: $path"
   }
 
-  $actualHash = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
+  $actualHash = Get-FileSha256 -Path $path
   if ($actualHash -ne ([string]$Metadata.sha256).ToLowerInvariant()) {
     throw "$Label SHA-256 validation failed: $path"
   }

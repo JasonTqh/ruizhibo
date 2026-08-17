@@ -1,5 +1,6 @@
 import { BadRequestException } from "@nestjs/common";
 import { MessageKind } from "@prisma/client";
+import { assertOwnedFileAssetUrls } from "../files/file-asset-policy";
 import { PrismaService } from "../prisma/prisma.service";
 
 export interface SendMessageInput {
@@ -15,7 +16,7 @@ export async function prepareMessageInput(
 ) {
   const kind = input.kind ?? MessageKind.text;
   const content = input.content?.trim() ?? "";
-  const fileUrls = Array.from(new Set(input.fileUrls ?? []));
+  let fileUrls = Array.from(new Set(input.fileUrls ?? []));
 
   if (kind === MessageKind.text) {
     if (!content) {
@@ -37,17 +38,13 @@ export async function prepareMessageInput(
     throw new BadRequestException("每条消息最多发送 3 张图片");
   }
 
-  const ownedFiles = await prisma.fileAsset.count({
-    where: {
-      ownerId: senderId,
-      scene: "message",
-      url: { in: fileUrls },
-      mimeType: { startsWith: "image/" },
-    },
+  fileUrls = await assertOwnedFileAssetUrls(prisma, {
+    ownerId: senderId,
+    scene: "message",
+    urls: fileUrls,
+    imageOnly: true,
+    invalidMessage: "消息图片无效或不属于当前用户",
   });
-  if (ownedFiles !== fileUrls.length) {
-    throw new BadRequestException("消息图片无效或不属于当前用户");
-  }
 
   return {
     kind,

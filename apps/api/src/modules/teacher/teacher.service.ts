@@ -17,6 +17,7 @@ import {
   UserStatus,
 } from "@prisma/client";
 import { AuditService } from "../audit/audit.service";
+import { assertOwnedFileAssetUrls } from "../files/file-asset-policy";
 import { prepareMessageInput } from "../messages/message-input";
 import { PrismaService } from "../prisma/prisma.service";
 import { CheckWorkflowStepDto } from "./dto/check-workflow-step.dto";
@@ -231,12 +232,21 @@ export class TeacherService {
     }
 
     const step = session.steps[0];
+    const photoUrls = Array.from(new Set(dto.photoUrls ?? []));
     if (step.checked) {
       throw new ConflictException("该流程环节已经完成，请勿重复打卡");
     }
-    if (step.requirePhoto && !dto.photoUrls?.length) {
+    if (step.requirePhoto && photoUrls.length === 0) {
       throw new BadRequestException("该流程环节需要先上传照片凭证");
     }
+
+    await assertOwnedFileAssetUrls(this.prisma, {
+      ownerId: teacherId,
+      scene: "workflow",
+      urls: photoUrls,
+      imageOnly: true,
+      invalidMessage: "流程图片无效、不属于当前教师或文件场景不是 workflow",
+    });
 
     const checkedAt = new Date();
     const updateResult = await this.prisma.workflowStep.updateMany({
@@ -245,7 +255,7 @@ export class TeacherService {
         checked: true,
         checkedAt,
         teacherId,
-        photoUrls: dto.photoUrls ?? [],
+        photoUrls,
       },
     });
     if (updateResult.count === 0) {

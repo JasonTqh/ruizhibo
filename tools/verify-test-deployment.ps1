@@ -9,6 +9,7 @@ param(
   [string]$ExpectedStorageDriver = "",
   [string]$ExpectedCorsOrigin = "",
   [string]$ExpectedVersion = $(if ($env:VERIFY_APP_VERSION) { $env:VERIFY_APP_VERSION } else { "" }),
+  [string]$DeploymentEnvPath = $(if ($env:VERIFY_DEPLOY_ENV_PATH) { $env:VERIFY_DEPLOY_ENV_PATH } else { "deploy/.env" }),
   [string]$AdminPhone = "13800000000",
   [string]$AdminPassword = $env:VERIFY_ADMIN_PASSWORD,
   [string]$TeacherPhone = "13800000001",
@@ -19,6 +20,7 @@ $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 $BaseUrl = $BaseUrl.TrimEnd("/")
 $AdminUrl = $AdminUrl.TrimEnd("/")
+$repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 
 function Read-ErrorContent {
   param($ErrorRecord)
@@ -141,6 +143,25 @@ if ($ProductionGate) {
   if ([string]::IsNullOrWhiteSpace($ExpectedVersion)) {
     throw "Set VERIFY_APP_VERSION to the deployed Git revision before running the production release gate"
   }
+  if ($AdminPassword.Length -lt 12) {
+    throw "VERIFY_ADMIN_PASSWORD must contain at least 12 characters"
+  }
+
+  Write-Host "[deploy-verify] Checking production configuration without exposing secrets"
+  $configArguments = @("-EnvPath", $DeploymentEnvPath)
+  if ($RequireHttps) { $configArguments += "-RequireHttps" }
+  & (Join-Path $PSScriptRoot "verify-production-config.ps1") @configArguments
+}
+
+Write-Host "[deploy-verify] Checking workflow image ownership policy"
+Push-Location $repoRoot
+try {
+  & pnpm --filter @ruizhibo/api verify:workflow-image-policy
+  if ($LASTEXITCODE -ne 0) {
+    throw "Workflow image policy verification failed with exit code $LASTEXITCODE"
+  }
+} finally {
+  Pop-Location
 }
 
 Write-Host "[deploy-verify] Checking API, database and storage health"
@@ -273,7 +294,6 @@ if ($RunApiSuite) {
   $env:VERIFY_TEACHER_PHONE = $TeacherPhone
   $env:VERIFY_PARENT_PHONE = $ParentPhone
 
-  $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
   Push-Location $repoRoot
   try {
     & pnpm --filter @ruizhibo/api verify:all

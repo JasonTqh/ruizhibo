@@ -130,6 +130,14 @@ pnpm --filter @ruizhibo/api typecheck
 pnpm --filter @ruizhibo/api build
 pnpm --filter @ruizhibo/api seed
 pnpm --filter @ruizhibo/api verify:admin
+pnpm --filter @ruizhibo/api verify:workflow-image-policy
+pnpm --filter @ruizhibo/api verify:workflow-images
+```
+
+`verify:workflow-images` 会创建并清理隔离的临时教师/班级，需要封闭开发环境开启 dev login；生产发布门禁不依赖 dev login，而是自动执行 `verify:workflow-image-policy`。生产配置可单独执行：
+
+```powershell
+pnpm verify:production-config -- -EnvPath deploy/.env -RequireHttps
 ```
 
 小程序验证：
@@ -143,7 +151,7 @@ pnpm --filter @ruizhibo/parent-miniapp build
 
 ## 6. 下一阶段优先级
 
-CP-21、CP-22、UI-01 至 UI-09 以及 CP-23 至 CP-31 均已完成代码实现和本地/隔离环境验证。下一阶段不再新增大块基础能力，优先做真实测试环境验收和小范围试运行。
+CP-21、CP-22、UI-01 至 UI-09、CP-23 至 CP-31，以及最新路线图定义的 CP-32 代码部分均已完成本地/隔离环境验证。CP-32 整体状态为 `WAITING_FOR_EXTERNAL_ACCEPTANCE`，在真实 HTTPS、微信合法域名和体验版真机验收完成前不进入后续 CP。
 
 建议优先顺序：
 
@@ -252,6 +260,26 @@ CP-21、CP-22、UI-01 至 UI-09 以及 CP-23 至 CP-31 均已完成代码实现�
 - Caddy 补充 HSTS 与 `Permissions-Policy`，门禁同时验证已有安全响应头。
 - 自动检查正式管理员登录、开发登录禁用、CORS、生产前端包和真实文件上传。
 - 已在隔离的 Docker 生产模式环境通过自动回归，等待真实 HTTPS 域名人工验收。
+
+### CP-32 真实上线验收与儿童数据安全加固
+
+**代码已完成**
+
+- workflow 打卡保存图片前校验 FileAsset 必须存在、属于当前教师、scene 为 `workflow` 且 MIME 为图片。
+- message、homework、workflow 复用同一 FileAsset 校验策略；错误引用统一返回明确的 400。
+- 教师端上传明确使用 `scene=workflow`；上传失败会显示原因并保留照片供重试。
+- 新增五类策略回归与完整 HTTP 回归，并接入 `verify:all` 和 `verify:release`。
+- 发布配置审计覆盖 dev login、CORS、JWT、管理员密码入口、PostgreSQL、文件存储、持久化、备份/恢复资产、Caddy 和微信凭据完整性。
+
+**WAITING_FOR_EXTERNAL_ACCEPTANCE**
+
+- 真实域名 HTTPS/Caddy 证书与安全响应头。
+- 微信教师端/家长端 AppID、AppSecret 的部署环境配置。
+- 微信公众平台 request、uploadFile、downloadFile 合法域名。
+- 教师端、家长端体验版真机登录/绑定、数据隔离和 workflow 图片链路。
+- 隔离环境的实际恢复演练；正式环境只执行备份和 `-ValidateOnly`。
+
+CP-32 代码完成与外部验收状态必须分开记录，当前不进入 CP-33。
 
 ## 7. 给 Codex 的任务模板
 

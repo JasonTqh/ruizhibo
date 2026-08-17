@@ -31,6 +31,19 @@ function Resolve-RepoPath {
   return (Resolve-Path -LiteralPath $candidate).Path
 }
 
+function Get-FileSha256 {
+  param([Parameter(Mandatory = $true)][string]$Path)
+
+  $stream = [System.IO.File]::OpenRead($Path)
+  $algorithm = [System.Security.Cryptography.SHA256]::Create()
+  try {
+    return ([System.BitConverter]::ToString($algorithm.ComputeHash($stream))).Replace("-", "").ToLowerInvariant()
+  } finally {
+    $algorithm.Dispose()
+    $stream.Dispose()
+  }
+}
+
 function Get-DotEnvValue {
   param(
     [Parameter(Mandatory = $true)][string]$Path,
@@ -149,7 +162,7 @@ function New-ArtifactMetadata {
   return [ordered]@{
     file = Split-Path -Leaf $Path
     bytes = (Get-Item -LiteralPath $Path).Length
-    sha256 = (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
+    sha256 = Get-FileSha256 -Path $Path
   }
 }
 
