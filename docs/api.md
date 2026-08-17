@@ -691,6 +691,8 @@ Content-Type: application/json
 
 同一孩子只有一位正常绑定家长可以是主要联系人。`canReceiveNotice` 控制通知回执，`canSubmitHomework` 控制作业提交，`canViewGrowth` 控制成长时间线和考勤读取，`canPickup` 控制该监护人能否作为正常离店接送人；权限不足时业务接口按不可见资源返回 `404`。
 
+`canPickup` 属于显式安全授权。创建或重新绑定监护关系时如果请求省略该字段，后端固定保存为 `false`；管理后台新增绑定也默认关闭。只有管理员明确提交 `canPickup: true` 后，该监护人才会出现在正常离店接送人列表中。`canPickup: false` 不影响 active 监护人作为“家长送达”的送达人事实记录。
+
 解绑家长：
 
 ```http

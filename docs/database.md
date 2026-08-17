@@ -66,7 +66,7 @@ erDiagram
 - 一个孩子可以绑定多个家长。
 - 一个家长可以绑定多个孩子。
 - `isPrimary` 标记主要联系人，同一孩子只允许一个正常绑定关系为主要联系人。
-- `canReceiveNotice`、`canSubmitHomework`、`canViewGrowth`、`canPickup` 分别控制通知回执、作业提交、成长与考勤查看、正常离店接送授权。
+- `canReceiveNotice`、`canSubmitHomework`、`canViewGrowth`、`canPickup` 分别控制通知回执、作业提交、成长与考勤查看、正常离店接送授权。`canPickup` 是儿童交接权限，数据库默认值为 `false`，只能由管理员明确开启。
 - `status` 支持 `active`、`pending`、`unlinked`；解绑采用状态变更而不是物理删除，以保留历史关系和审计记录。
 
 ## 4. 一日流程
@@ -95,7 +95,11 @@ CP-33 在复用 `AttendanceEvent` 的基础上增加两个领域模型：
 
 到店、离店创建时在同一数据库事务内复用或生成 `AttendanceEvent.arrive` / `AttendanceEvent.leave`，并由 `attendanceEventId` 关联，保持原有家长考勤和管理端查询兼容。学校接到不生成考勤事件。
 
-当天的 `AttendanceEvent.absence` 同时参与教师和家长今日接送状态推导，并从管理员“今日未到店”候选中排除。若历史数据中已经存在接送事实，则事实事件优先于请假标记，避免正在执行的安全责任链被中断。批量学校接到/安全到店不会增加新表或冗余状态，仍逐个创建相同的 `PickupRecord`，只是在同一事务中原子提交。
+当天的 `AttendanceEvent.absence` 同时参与教师和家长今日接送状态推导，并从管理员“今日未到店”候选中排除。CP-33.1 增加双向一致性保护：存在缺勤时不能写入任何 `PickupRecord`，存在任意接送事实时不能再写入缺勤；单个和批量接送使用同一规则。
+
+由于互斥关系跨越 `AttendanceEvent` 和 `PickupRecord` 两张表，migration `20260817190000_harden_pickup_authorization_and_attendance` 使用两个 PostgreSQL trigger 和相同的 transaction-scoped advisory lock 做数据库兜底，避免“同时登记接送与缺勤”的竞态。服务层仍在事务内执行明确检查并返回业务 `409`。migration 不删除或覆盖升级前已经存在的冲突责任记录；这类历史数据只报告并停止继续流转，后续需要独立的人工核查/冲正提案。
+
+同一 migration 将所有缺少明确授权证据的历史 `StudentGuardian.canPickup` 收紧为 `false`。升级后管理员需要逐位重新确认正常离店接送资格；seed 和验证数据必须显式写入 `canPickup: true`，不得依赖默认值。
 
 当前不提供 `PickupRecord` 更新或删除 API。教师、家长、学生或班级一旦关联安全接送责任记录，管理端强制删除会被拒绝，应改为停用或结业；完整的纠错/冲正机制留待独立提案。
 

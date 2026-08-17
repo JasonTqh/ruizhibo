@@ -858,7 +858,7 @@ function GuardianManager({
       canReceiveNotice: true,
       canSubmitHomework: true,
       canViewGrowth: true,
-      canPickup: true,
+      canPickup: false,
       status: "active",
       remark: "",
     });
@@ -1002,7 +1002,7 @@ function GuardianManager({
             </Form.Item>
             <Form.Item
               name="canPickup"
-              label="授权接送"
+              label="授权接送：允许该家长作为正常离店接送人"
               valuePropName="checked"
             >
               <Switch />

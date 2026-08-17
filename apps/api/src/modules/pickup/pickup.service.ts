@@ -271,7 +271,7 @@ export class PickupService {
         "已登记学校接到的学生必须使用教师接送方式到店",
       );
     }
-    if (!pickedUp) await this.assertNotAbsentToday(studentId);
+    await this.assertNotAbsentToday(studentId);
     const delivery = await this.resolveDeliveryPerson(studentId, dto);
 
     return this.createFact(teacherId, student, {
@@ -284,6 +284,7 @@ export class PickupService {
 
   async leftCenter(teacherId: string, studentId: string, dto: LeaveStudentDto) {
     const student = await this.assertTeacherStudent(teacherId, studentId);
+    await this.assertNotAbsentToday(studentId);
     const existing = await this.todayRecordTypes(studentId);
     if (!existing.has(PickupEventType.arrived_at_center)) {
       throw new BadRequestException("学生尚未到店，不能办理离店");
@@ -582,9 +583,7 @@ export class PickupService {
       typesByStudent.set(record.studentId, types);
     }
 
-    const blockedAbsences = absences.filter(
-      (event) => (typesByStudent.get(event.studentId)?.size ?? 0) === 0,
-    );
+    const blockedAbsences = absences;
     if (blockedAbsences.length > 0) {
       const absentIds = new Set(
         blockedAbsences.map((event) => event.studentId),
@@ -662,6 +661,8 @@ export class PickupService {
     happenedAt: Date,
     serviceDate: Date,
   ) {
+    await this.assertNotAbsentToday(student.id, serviceDate, transaction);
+
     const created = await transaction.pickupRecord.create({
       data: {
         studentId: student.id,
@@ -966,9 +967,12 @@ export class PickupService {
     return new Set(records.map((record) => record.type));
   }
 
-  private async assertNotAbsentToday(studentId: string) {
-    const serviceDate = chinaBusinessDate();
-    const absence = await this.prisma.attendanceEvent.findFirst({
+  private async assertNotAbsentToday(
+    studentId: string,
+    serviceDate = chinaBusinessDate(),
+    client: Pick<Prisma.TransactionClient, "attendanceEvent"> = this.prisma,
+  ) {
+    const absence = await client.attendanceEvent.findFirst({
       where: {
         studentId,
         type: AttendanceType.absence,
@@ -1017,6 +1021,15 @@ export class PickupService {
   }
 
   private rethrowPickupWriteError(error: unknown): never {
+    if (
+      String(error).includes("ATTENDANCE_PICKUP_CONFLICT") ||
+      (error instanceof Error &&
+        error.message.includes("ATTENDANCE_PICKUP_CONFLICT"))
+    ) {
+      throw new ConflictException(
+        "该学生今天已登记请假/缺勤，不能执行接送操作",
+      );
+    }
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"

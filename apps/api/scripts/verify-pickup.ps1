@@ -136,6 +136,21 @@ try {
     name = "verify-pickup-batch-b-$suffix"
   } -ExpectedStatus 201
   $createdStudents += $batchStudentB.Body.data.id
+  $unauthorizedStudent = Invoke-Api -Method "POST" -Path "/admin/students" -Token $adminToken -Body @{
+    classId = $classA.Body.data.id
+    name = "verify-pickup-unauthorized-$suffix"
+  } -ExpectedStatus 201
+  $createdStudents += $unauthorizedStudent.Body.data.id
+  $pickupThenAbsenceStudent = Invoke-Api -Method "POST" -Path "/admin/students" -Token $adminToken -Body @{
+    classId = $classA.Body.data.id
+    name = "verify-pickup-before-absence-$suffix"
+  } -ExpectedStatus 201
+  $createdStudents += $pickupThenAbsenceStudent.Body.data.id
+  $legacyConflictStudent = Invoke-Api -Method "POST" -Path "/admin/students" -Token $adminToken -Body @{
+    classId = $classA.Body.data.id
+    name = "verify-pickup-legacy-conflict-$suffix"
+  } -ExpectedStatus 201
+  $createdStudents += $legacyConflictStudent.Body.data.id
 
   $guardianA = Invoke-Api -Method "POST" -Path "/admin/students/$($normalStudent.Body.data.id)/guardians" -Token $adminToken -Body @{
     parentId = $parentA.Body.data.id
@@ -163,6 +178,11 @@ try {
     relation = "father"
     canPickup = $true
   } -ExpectedStatus 201 | Out-Null
+  $unauthorizedGuardian = Invoke-Api -Method "POST" -Path "/admin/students/$($unauthorizedStudent.Body.data.id)/guardians" -Token $adminToken -Body @{
+    parentId = $parentA.Body.data.id
+    relation = "father"
+  } -ExpectedStatus 201
+  Assert-True ($unauthorizedGuardian.Body.data.canPickup -eq $false) "Guardian without explicit pickup permission was authorized by default"
 
   $authorized = Invoke-Api -Method "POST" -Path "/admin/students/$($normalStudent.Body.data.id)/pickup-persons" -Token $adminToken -Body @{
     name = "verify-grandfather-$suffix"
@@ -188,7 +208,31 @@ try {
   } -ExpectedStatus 201
   $parentAToken = $parentALogin.Body.data.token
 
-  Write-Step "Absence is consistent for teacher, parent and admin missing-arrival views"
+  Write-Step "A-B: guardian pickup requires explicit authorization"
+  $authorizationToday = Invoke-Api -Method "GET" -Path "/teacher/pickup/today" -Token $teacherAToken
+  $unauthorizedToday = @($authorizationToday.Body.data.classes.students | Where-Object { $_.id -eq $unauthorizedStudent.Body.data.id }) | Select-Object -First 1
+  Assert-True (@($unauthorizedToday.pickupPeople | Where-Object { $_.id -eq $unauthorizedGuardian.Body.data.id }).Count -eq 0) "Unauthorized guardian appeared as a normal pickup person"
+  Assert-True (@($unauthorizedToday.deliveryPeople | Where-Object { $_.id -eq $unauthorizedGuardian.Body.data.id }).Count -eq 1) "Active guardian should remain available as a delivery person"
+  Invoke-Api -Method "POST" -Path "/teacher/pickup/students/$($unauthorizedStudent.Body.data.id)/arrived" -Token $teacherAToken -Body @{
+    arrivalMethod = "self_arrived"
+  } -ExpectedStatus 201 | Out-Null
+  Invoke-Api -Method "POST" -Path "/teacher/pickup/students/$($unauthorizedStudent.Body.data.id)/left" -Token $teacherAToken -Body @{
+    status = "normal"
+    pickupPersonType = "guardian"
+    pickupPersonId = $unauthorizedGuardian.Body.data.id
+  } -ExpectedStatus 400 | Out-Null
+  $authorizedGuardian = Invoke-Api -Method "PATCH" -Path "/admin/students/$($unauthorizedStudent.Body.data.id)/guardians/$($unauthorizedGuardian.Body.data.id)" -Token $adminToken -Body @{
+    canPickup = $true
+  }
+  Assert-True ($authorizedGuardian.Body.data.canPickup -eq $true) "Administrator could not explicitly authorize guardian pickup"
+  $authorizedGuardianLeft = Invoke-Api -Method "POST" -Path "/teacher/pickup/students/$($unauthorizedStudent.Body.data.id)/left" -Token $teacherAToken -Body @{
+    status = "normal"
+    pickupPersonType = "guardian"
+    pickupPersonId = $unauthorizedGuardian.Body.data.id
+  } -ExpectedStatus 201
+  Assert-True ($authorizedGuardianLeft.Body.data.studentGuardianId -eq $unauthorizedGuardian.Body.data.id) "Explicitly authorized guardian could not complete normal checkout"
+
+  Write-Step "C: absence blocks school pickup and remains consistent across views"
   $fixtureOutput = & pnpm exec tsx "$PSScriptRoot/pickup-verification-fixture.ts" create-absence $absentStudent.Body.data.id $teacherA.Body.data.id
   if ($LASTEXITCODE -ne 0) {
     throw "Could not create isolated pickup absence fixture: $fixtureOutput"
@@ -202,6 +246,48 @@ try {
   $adminAbsentMissing = Invoke-Api -Method "GET" -Path "/admin/business/pickup-records?quickFilter=missing_arrival_today&studentId=$($absentStudent.Body.data.id)" -Token $adminToken
   Assert-True ($adminAbsentMissing.Body.data.total -eq 0) "Absent student appeared in admin missing-arrival results"
   Invoke-Api -Method "POST" -Path "/teacher/pickup/students/$($absentStudent.Body.data.id)/picked-up" -Token $teacherAToken -Body @{} -ExpectedStatus 409 | Out-Null
+
+  Write-Step "D: pickup activity blocks a later absence write"
+  Invoke-Api -Method "POST" -Path "/teacher/pickup/students/$($pickupThenAbsenceStudent.Body.data.id)/picked-up" -Token $teacherAToken -Body @{} -ExpectedStatus 201 | Out-Null
+  $previousErrorActionPreference = $ErrorActionPreference
+  try {
+    $ErrorActionPreference = "Continue"
+    $blockedAbsenceOutput = (& pnpm exec tsx "$PSScriptRoot/pickup-verification-fixture.ts" create-absence $pickupThenAbsenceStudent.Body.data.id $teacherA.Body.data.id 2>&1 | Out-String)
+    $blockedAbsenceExitCode = $LASTEXITCODE
+  } finally {
+    $ErrorActionPreference = $previousErrorActionPreference
+  }
+  Assert-True ($blockedAbsenceExitCode -ne 0) "Attendance absence was written after pickup activity started"
+  Assert-True ($blockedAbsenceOutput -match "ATTENDANCE_PICKUP_CONFLICT") "Rejected absence did not report the pickup consistency conflict"
+
+  Write-Step "E-F: legacy conflict blocks single and atomic batch arrival"
+  Invoke-Api -Method "POST" -Path "/teacher/pickup/students/$($legacyConflictStudent.Body.data.id)/picked-up" -Token $teacherAToken -Body @{} -ExpectedStatus 201 | Out-Null
+  $previousConflictFixtureFlag = $env:PICKUP_VERIFICATION_ALLOW_CONFLICT_FIXTURE
+  try {
+    $env:PICKUP_VERIFICATION_ALLOW_CONFLICT_FIXTURE = "1"
+    $legacyConflictOutput = & pnpm exec tsx "$PSScriptRoot/pickup-verification-fixture.ts" create-conflicting-absence $legacyConflictStudent.Body.data.id $teacherA.Body.data.id
+    if ($LASTEXITCODE -ne 0) {
+      throw "Could not create isolated pre-CP-33.1 conflict fixture: $legacyConflictOutput"
+    }
+  } finally {
+    if ($null -eq $previousConflictFixtureFlag) {
+      Remove-Item Env:PICKUP_VERIFICATION_ALLOW_CONFLICT_FIXTURE -ErrorAction SilentlyContinue
+    } else {
+      $env:PICKUP_VERIFICATION_ALLOW_CONFLICT_FIXTURE = $previousConflictFixtureFlag
+    }
+  }
+  Invoke-Api -Method "POST" -Path "/teacher/pickup/students/$($legacyConflictStudent.Body.data.id)/arrived" -Token $teacherAToken -Body @{
+    arrivalMethod = "teacher_pickup"
+  } -ExpectedStatus 409 | Out-Null
+  $consistencyBatchIds = @($legacyConflictStudent.Body.data.id, $pickupThenAbsenceStudent.Body.data.id)
+  Invoke-Api -Method "POST" -Path "/teacher/pickup/batch/arrived" -Token $teacherAToken -Body @{
+    studentIds = $consistencyBatchIds
+  } -ExpectedStatus 409 | Out-Null
+  $consistencyToday = Invoke-Api -Method "GET" -Path "/teacher/pickup/today" -Token $teacherAToken
+  $consistencyStudents = @($consistencyToday.Body.data.classes.students | Where-Object { $_.id -in $consistencyBatchIds })
+  Assert-True ($consistencyStudents.Count -eq 2) "Consistency batch students were not returned"
+  Assert-True (@($consistencyStudents | Where-Object { $_.status -ne "picked_up" }).Count -eq 0) "Failed consistency batch partially advanced a student"
+  Assert-True (@($consistencyStudents.events | Where-Object { $_.type -eq "arrived_at_center" }).Count -eq 0) "Failed consistency batch created an arrival fact"
 
   Write-Step "1-4: normal school pickup, arrival, authorized checkout and parent read"
   $today = Invoke-Api -Method "GET" -Path "/teacher/pickup/today" -Token $teacherAToken
@@ -355,7 +441,7 @@ try {
   Invoke-Api -Method "DELETE" -Path "/admin/parents/$($parentA.Body.data.id)?force=true" -Token $adminToken -ExpectedStatus 409 | Out-Null
   Invoke-Api -Method "DELETE" -Path "/admin/classes/$($classA.Body.data.id)?force=true" -Token $adminToken -ExpectedStatus 409 | Out-Null
 
-  Write-Host "Safe pickup API verification passed (required flow plus absence consistency, delivery-person, batch, admin and immutable-history guards)."
+  Write-Host "Safe pickup API verification passed (explicit guardian authorization, bidirectional absence consistency, legacy-conflict, atomic batch, delivery-person, admin and immutable-history guards)."
 } finally {
   Disable-VerificationData
 }

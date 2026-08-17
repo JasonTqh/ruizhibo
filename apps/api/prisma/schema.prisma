@@ -207,7 +207,7 @@ model StudentGuardian {
   canReceiveNotice  Boolean  @default(true)
   canSubmitHomework Boolean  @default(true)
   canViewGrowth     Boolean  @default(true)
-  canPickup         Boolean  @default(true)
+  canPickup         Boolean  @default(false)
   status            String   @default("active")
   remark            String?
   createdAt         DateTime @default(now())
