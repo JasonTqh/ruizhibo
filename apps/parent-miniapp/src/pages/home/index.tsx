@@ -18,6 +18,7 @@ export default function HomePage() {
   const [conversations, setConversations] = useState([]);
   const [pickup, setPickup] = useState(null);
   const [workflow, setWorkflow] = useState(null);
+  const [care, setCare] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const requestSequence = useRef(0);
@@ -47,6 +48,7 @@ export default function HomePage() {
         nextConversations,
         nextPickup,
         nextWorkflow,
+        nextCare,
       ] = await Promise.all([
         nextChild
           ? parentRequest(`/parent/children/${nextChild.id}/timeline`)
@@ -62,6 +64,9 @@ export default function HomePage() {
         nextChild
           ? parentRequest(`/parent/children/${nextChild.id}/workflow/today`)
           : Promise.resolve(null),
+        nextChild
+          ? parentRequest(`/parent/children/${nextChild.id}/care/today`)
+          : Promise.resolve(null),
       ]);
       if (sequence !== requestSequence.current) return;
       setRecords(nextRecords);
@@ -70,6 +75,7 @@ export default function HomePage() {
       setConversations(nextConversations);
       setPickup(nextPickup);
       setWorkflow(nextWorkflow);
+      setCare(nextCare);
       syncCommunicationBadge(nextNotices, nextConversations);
     } catch (loadError) {
       if (sequence === requestSequence.current)
@@ -93,18 +99,20 @@ export default function HomePage() {
     setLoading(true);
     setError("");
     try {
-      const [nextRecords, nextHomework, nextPickup, nextWorkflow] =
+      const [nextRecords, nextHomework, nextPickup, nextWorkflow, nextCare] =
         await Promise.all([
           parentRequest(`/parent/children/${childId}/timeline`),
           parentRequest(`/parent/children/${childId}/homework`),
           parentRequest(`/parent/children/${childId}/pickup/today`),
           parentRequest(`/parent/children/${childId}/workflow/today`),
+          parentRequest(`/parent/children/${childId}/care/today`),
         ]);
       if (sequence !== requestSequence.current) return;
       setRecords(nextRecords);
       setHomework(nextHomework);
       setPickup(nextPickup);
       setWorkflow(nextWorkflow);
+      setCare(nextCare);
     } catch (loadError) {
       if (sequence === requestSequence.current)
         setError("切换孩子失败，请重试。");
@@ -226,6 +234,7 @@ export default function HomePage() {
         )
       : null,
     child ? workflowTodayCard(workflow, loading) : null,
+    child ? careTodayCard(care, loading) : null,
     h(
       View,
       { className: "parent-quick-grid" },
@@ -508,6 +517,187 @@ function workflowTodayCard(workflow, loading) {
           { className: "home-workflow__empty" },
           loading ? "正在加载今日托管进度…" : "今天暂无托管流程记录",
         ),
+  );
+}
+
+function careTodayCard(care, loading) {
+  const meals = [
+    ["点心", care?.meal?.snack],
+    ["晚餐", care?.meal?.dinner],
+  ].filter(([, record]) => record);
+  const exceptions = care?.exceptions || [];
+  const attention = exceptions.filter((item) => item.needsAttention);
+  return h(
+    View,
+    { className: "home-care" },
+    h(
+      View,
+      { className: "home-care__heading" },
+      h(
+        View,
+        null,
+        h(Text, { className: "home-care__eyebrow" }, "今日生活"),
+        h(
+          Text,
+          { className: "home-care__title" },
+          attention.length
+            ? `⚠ ${attention.length} 项需要关注`
+            : "生活照护记录",
+        ),
+      ),
+      h(
+        Text,
+        {
+          className: attention.length
+            ? "home-care__status home-care__status--attention"
+            : "home-care__status",
+        },
+        attention.length ? "请留意" : "今日",
+      ),
+    ),
+    h(
+      View,
+      { className: "home-care__summary" },
+      meals.length
+        ? meals.map(([label, record]) =>
+            careSummaryItem(
+              label,
+              mealCareText(record.value),
+              record.happenedAt,
+            ),
+          )
+        : careSummaryItem("用餐", loading ? "加载中" : "未记录"),
+      careSummaryItem(
+        "饮水",
+        care?.water?.count ? `${care.water.count} 次` : "未记录",
+        care?.water?.lastAt,
+      ),
+      careSummaryItem(
+        "休息",
+        restCareText(care?.rest),
+        care?.rest?.happenedAt,
+      ),
+      careSummaryItem(
+        "情绪",
+        moodCareText(care?.mood?.value),
+        care?.mood?.happenedAt,
+        ["low", "upset"].includes(care?.mood?.value) ? "attention" : "",
+      ),
+    ),
+    exceptions.length
+      ? h(
+          View,
+          { className: "home-care__attention-list" },
+          ...exceptions.map((item) =>
+            h(
+              View,
+              {
+                className: `home-care__attention${item.needsAttention ? " home-care__attention--urgent" : ""}`,
+                key: item.id,
+              },
+              h(
+                View,
+                { className: "home-care__attention-heading" },
+                h(
+                  Text,
+                  { className: "home-care__attention-title" },
+                  item.needsAttention ? "⚠ 需要关注" : "生活情况记录",
+                ),
+                h(
+                  Text,
+                  { className: "home-care__attention-time" },
+                  timeText(item.happenedAt),
+                ),
+              ),
+              h(
+                Text,
+                { className: "home-care__attention-remark" },
+                item.remark,
+              ),
+              item.resolution
+                ? h(
+                    Text,
+                    { className: "home-care__attention-resolution" },
+                    `老师处理：${item.resolution}`,
+                  )
+                : null,
+              item.teacher?.name
+                ? h(
+                    Text,
+                    { className: "home-care__attention-teacher" },
+                    `记录：${item.teacher.name}`,
+                  )
+                : null,
+              item.photoUrls?.length
+                ? h(
+                    View,
+                    { className: "home-care__photos" },
+                    ...item.photoUrls.map((url) =>
+                      h(Image, {
+                        key: url,
+                        className: "home-care__photo",
+                        src: resolveApiAssetUrl(url),
+                        mode: "aspectFill",
+                        onClick: () =>
+                          Taro.previewImage({
+                            current: resolveApiAssetUrl(url),
+                            urls: item.photoUrls.map(resolveApiAssetUrl),
+                          }),
+                      }),
+                    ),
+                  )
+                : null,
+            ),
+          ),
+        )
+      : null,
+  );
+}
+
+function careSummaryItem(label, value, happenedAt, tone = "") {
+  return h(
+    View,
+    {
+      className: `home-care__item${tone ? ` home-care__item--${tone}` : ""}`,
+    },
+    h(Text, { className: "home-care__item-label" }, label),
+    h(Text, { className: "home-care__item-value" }, value),
+    happenedAt
+      ? h(Text, { className: "home-care__item-time" }, timeText(happenedAt))
+      : null,
+  );
+}
+
+function mealCareText(value) {
+  return (
+    {
+      good: "吃得很好",
+      normal: "正常",
+      little: "吃得较少",
+      refused: "未进食",
+    }[value] || "未记录"
+  );
+}
+
+function restCareText(record) {
+  if (!record) return "未记录";
+  const label =
+    {
+      slept: "已睡眠",
+      rested: "已休息",
+      no_rest: "未休息",
+    }[record.value] || record.value;
+  return `${label}${record.durationMinutes ? ` ${record.durationMinutes} 分钟` : ""}`;
+}
+
+function moodCareText(value) {
+  return (
+    {
+      good: "愉快",
+      normal: "平稳",
+      low: "低落",
+      upset: "明显不开心",
+    }[value] || "未记录"
   );
 }
 

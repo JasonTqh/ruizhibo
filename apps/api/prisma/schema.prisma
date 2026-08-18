@@ -69,6 +69,27 @@ enum StudentWorkflowStepStatus {
   exception
 }
 
+enum StudentCareRecordType {
+  meal
+  water
+  rest
+  mood
+  exception
+}
+
+enum CareMealSlot {
+  snack
+  dinner
+}
+
+enum CareExceptionCategory {
+  physical
+  emotional
+  injury
+  behavior
+  other
+}
+
 enum HomeworkStatus {
   pending
   submitted
@@ -150,6 +171,7 @@ model User {
   noticeReceipts         NoticeReceipt[]       @relation("NoticeReceiptParent")
   handledPickupRecords   PickupRecord[]        @relation("PickupRecordTeacher")
   createdPickupRecords   PickupRecord[]        @relation("PickupRecordCreator")
+  careRecords            StudentCareRecord[]   @relation("StudentCareRecordTeacher")
   auditLogs              AuditLog[]
 }
 
@@ -205,6 +227,7 @@ model Student {
   authorizedPickupPeople AuthorizedPickupPerson[]
   pickupRecords          PickupRecord[]
   workflowSteps          StudentWorkflowStep[]
+  careRecords            StudentCareRecord[]
 }
 
 model StudentGuardian {
@@ -360,8 +383,8 @@ model WorkflowStep {
   teacherId    String?
   photoUrls    String[]  @default([])
 
-  session WorkflowSession @relation(fields: [sessionId], references: [id])
-  teacher User?           @relation("WorkflowStepTeacher", fields: [teacherId], references: [id])
+  session      WorkflowSession       @relation(fields: [sessionId], references: [id])
+  teacher      User?                 @relation("WorkflowStepTeacher", fields: [teacherId], references: [id])
   studentSteps StudentWorkflowStep[]
 
   @@unique([sessionId, stepKey])
@@ -386,6 +409,34 @@ model StudentWorkflowStep {
   @@unique([workflowStepId, studentId])
   @@index([studentId, status])
   @@index([status])
+}
+
+model StudentCareRecord {
+  id                String                 @id @default(cuid())
+  studentId         String
+  teacherId         String?
+  type              StudentCareRecordType
+  mealSlot          CareMealSlot?
+  value             String?
+  quantity          Int?
+  durationMinutes   Int?
+  exceptionCategory CareExceptionCategory?
+  happenedAt        DateTime
+  serviceDate       DateTime
+  needsAttention    Boolean                @default(false)
+  remark            String?
+  resolution        String?
+  photoUrls         String[]               @default([])
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  teacher User?   @relation("StudentCareRecordTeacher", fields: [teacherId], references: [id], onDelete: SetNull)
+
+  @@index([studentId, serviceDate])
+  @@index([type, serviceDate])
+  @@index([teacherId, serviceDate])
+  @@index([needsAttention, serviceDate])
 }
 
 model HomeworkAssignment {

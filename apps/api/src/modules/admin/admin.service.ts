@@ -129,6 +129,7 @@ export class AdminService {
       notices,
       conversations,
       pickupRecords,
+      careRecords,
     ] = await Promise.all([
       this.prisma.class.count({ where: { teacherId: id } }),
       this.prisma.attendanceEvent.count({ where: { teacherId: id } }),
@@ -146,6 +147,7 @@ export class AdminService {
       this.prisma.pickupRecord.count({
         where: { OR: [{ teacherId: id }, { createdById: id }] },
       }),
+      this.prisma.studentCareRecord.count({ where: { teacherId: id } }),
     ]);
     return {
       data: {
@@ -163,6 +165,7 @@ export class AdminService {
         notices,
         conversations,
         pickupRecords,
+        careRecords,
       },
     };
   }
@@ -699,6 +702,7 @@ export class AdminService {
             noticeReceipts: true,
             authorizedPickupPeople: true,
             pickupRecords: true,
+            careRecords: true,
           },
         },
       },
@@ -719,9 +723,9 @@ export class AdminService {
     }
     if (force) {
       const references = (await this.studentReferences(id)).data;
-      if (references.pickupRecords > 0) {
+      if (references.pickupRecords > 0 || references.careRecords > 0) {
         throw new ConflictException(
-          "该学生已有历史安全接送责任记录，必须保留历史；请停用或结业，不能强制删除",
+          "该学生已有历史接送或生活照护责任记录，必须保留历史；请停用或结业，不能强制删除",
         );
       }
     }

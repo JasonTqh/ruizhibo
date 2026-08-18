@@ -6,6 +6,7 @@ export default defineAppConfig({
     "pages/research/index",
     "pages/teaching/index",
     "pages/workflow/index",
+    "pages/care/index",
     "pages/pickup/index",
     "pages/notices/index",
     "pages/messages/index",

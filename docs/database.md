@@ -112,6 +112,20 @@ CP-33 在复用 `AttendanceEvent` 的基础上增加两个领域模型：
 
 当前不提供 `PickupRecord` 更新或删除 API。教师、家长、学生或班级一旦关联安全接送责任记录，管理端强制删除会被拒绝，应改为停用或结业；完整的纠错/冲正机制留待独立提案。
 
+### 4.2 生活照护与异常记录
+
+CP-35 新增统一 `StudentCareRecord`，不为用餐、饮水、休息、情绪和异常分别建表。`type` 使用 `meal`、`water`、`rest`、`mood`、`exception`，并通过受控字段 `mealSlot`、`value`、`quantity`、`durationMinutes`、`exceptionCategory`、`remark`、`resolution`、`needsAttention` 和 `photoUrls` 表达对应事实，不使用万能 JSON。
+
+对应 migration 为 `20260818130000_add_student_care_records` 和 `20260818131000_require_care_exception_remark`。后者在第一条已应用 migration 之后追加严格的异常备注非空数据库约束，不修改或删除任何既有业务数据。
+
+用餐餐次只覆盖当前托管业务的 `snack`、`dinner`；数据库 partial unique index 保证同一学生、同一中国业务日和同一餐次只有一条记录。休息同样通过 partial unique index 保证每天一条主要记录。饮水、情绪与异常允许多条；饮水每条 `quantity = 1`，当天次数由记录聚合得到。用餐和休息允许当天更新并保留 `updatedAt` 与最后经办教师，异常第一版只允许追加。
+
+数据库 CHECK 约束限制不同类型可使用的字段组合，并保证异常备注非空。应用层进一步限制用餐、休息和情绪的受控值、休息时长、备注/处理结果长度，以及 `scene=care` 图片归属。`serviceDate` 使用现有 Asia/Shanghai 业务日工具计算，不依赖数据库会话时区。
+
+学生外键使用 `ON DELETE RESTRICT` 保留历史事实；教师外键使用 `ON DELETE SET NULL`，教师被停用或移除后仍保留原始照护记录。常用查询在学生/日期、类型/日期、教师/日期和关注状态/日期上建索引。管理端删除学生时也会把已有照护事实作为历史引用阻止强制删除。
+
+`StudentCareRecord` 不关联或复制 `PickupRecord`、`StudentWorkflowStep`，也不自动生成 `GrowthRecord`。接送、日流程、生活照护仍是三类独立事实，后续每日托管报告通过查询聚合。
+
 ## 5. 作业
 
 作业分两层：
@@ -133,7 +147,7 @@ CP-33 在复用 `AttendanceEvent` 的基础上增加两个领域模型：
 - 老师反馈
 - 中心通知
 
-CP-34 起，普通一日流程完成、跳过或异常只写 `StudentWorkflowStep`，不再自动生成 `GrowthRecord`。`GrowthRecord` 继续用于值得长期保留和家长关注的成长事件，避免被日常操作日志污染。
+CP-34 起，普通一日流程完成、跳过或异常只写 `StudentWorkflowStep`；CP-35 的普通照护和异常也只写 `StudentCareRecord`，两者都不自动生成 `GrowthRecord`。`GrowthRecord` 继续用于值得长期保留和家长关注的成长事件，避免被日常操作日志污染。
 
 ## 7. 家校沟通
 
@@ -174,7 +188,7 @@ CP-34 起，普通一日流程完成、跳过或异常只写 `StudentWorkflowSte
 - `mimeType`: 文件类型。
 - `size`: 文件大小。
 - `ownerId`: 上传用户。
-- `scene`: 使用场景，例如 `workflow`、`homework`、`message`。
+- `scene`: 使用场景，例如 `workflow`、`homework`、`message`、`care`。
 - `storageDriver`: 当前文件使用的存储驱动，例如 `local` 或 `s3`。
 - `storageKey`: 本地相对路径或对象存储 key。
 
@@ -201,5 +215,7 @@ CP-34 起，普通一日流程完成、跳过或异常只写 `StudentWorkflowSte
 - 教师报名或取消报名教研活动
 - 管理员新增或停用非账号型授权接送人
 - 教师登记学校接到、安全到店、正常/临时/异常离店
+- 教师创建单学生生活照护/异常记录；异常必须审计
+- 教师批量记录用餐、饮水或休息；每次批量请求只写一条汇总审计
 
 这对托管机构运营很重要。

@@ -45,6 +45,7 @@ type BusinessKind =
   | "growth"
   | "attendance"
   | "pickup"
+  | "care"
   | "workflow"
   | "studentWorkflow"
   | "lesson"
@@ -60,6 +61,7 @@ interface FilterValues {
   from?: string;
   to?: string;
   quickFilter?: string;
+  needsAttention?: string;
 }
 
 const businessKinds: Array<{
@@ -83,6 +85,11 @@ const businessKinds: Array<{
     key: "pickup",
     label: "接送记录",
     endpoint: "/admin/business/pickup-records",
+  },
+  {
+    key: "care",
+    label: "生活照护",
+    endpoint: "/admin/business/care-records",
   },
   { key: "workflow", label: "一日流程", endpoint: "/admin/business/workflows" },
   {
@@ -111,6 +118,7 @@ const typeOptions: Partial<Record<BusinessKind, string[]>> = {
   growth: ["attendance", "homework", "workflow", "teacher_feedback", "notice"],
   attendance: ["arrive", "leave", "late", "absence"],
   pickup: ["picked_up_from_school", "arrived_at_center", "left_center"],
+  care: ["meal", "water", "rest", "mood", "exception"],
   research: ["discussion", "observation", "training"],
 };
 
@@ -151,6 +159,23 @@ const typeLabels: Record<string, string> = {
   discussion: "研讨",
   observation: "观摩",
   training: "培训",
+  meal: "用餐",
+  water: "饮水",
+  rest: "休息",
+  mood: "情绪",
+  exception: "异常",
+};
+
+const careValueLabels: Record<string, string> = {
+  good: "良好",
+  normal: "正常 / 平稳",
+  little: "吃得较少",
+  refused: "未进食",
+  slept: "已睡眠",
+  rested: "已休息",
+  no_rest: "未休息",
+  low: "低落",
+  upset: "明显不开心",
 };
 
 function formatDate(value?: string) {
@@ -162,6 +187,9 @@ function recordTitle(kind: BusinessKind, record: BusinessRecord) {
     return record.type
       ? `${record.student?.name ?? "学生"} · ${typeLabels[record.type] ?? record.type}`
       : `${record.student?.name ?? "学生"} · ${statusLabels[record.status] ?? record.status}`;
+  }
+  if (kind === "care") {
+    return `${record.student?.name ?? "学生"} · ${typeLabels[record.type] ?? record.type}`;
   }
   if (kind === "lesson") return record.theme;
   if (kind === "teaching") return record.course;
@@ -177,6 +205,7 @@ function recordTime(kind: BusinessKind, record: BusinessRecord) {
     return record.date;
   if (kind === "growth" || kind === "attendance") return record.happenedAt;
   if (kind === "pickup") return record.happenedAt;
+  if (kind === "care") return record.happenedAt;
   if (kind === "research") return record.startAt;
   return record.createdAt;
 }
@@ -197,6 +226,13 @@ function recordStatus(kind: BusinessKind, record: BusinessRecord) {
     if (record.isException)
       return `⚠ ${statusLabels[record.status] ?? record.status}`;
     return statusLabels[record.status] ?? record.status ?? "-";
+  }
+  if (kind === "care") {
+    if (record.type === "exception") {
+      return record.needsAttention ? "⚠ 需要家长关注" : "异常已记录";
+    }
+    if (record.type === "water") return `饮水 ${record.quantity ?? 1} 次`;
+    return careValueLabels[record.value] ?? record.value ?? "已记录";
   }
   if (kind === "growth")
     return record.visibleToParent ? "家长可见" : "仅内部可见";
@@ -338,6 +374,8 @@ export function BusinessPanel({
           color={
             record.status === "cancelled" ||
             record.isException ||
+            (kind === "care" &&
+              (record.type === "exception" || record.needsAttention)) ||
             (kind === "studentWorkflow" && record.summary?.exception)
               ? "red"
               : "green"
@@ -490,6 +528,30 @@ export function BusinessPanel({
               />
             </Form.Item>
           ) : null}
+          {kind === "care" ? (
+            <Form.Item name="quickFilter" label="快捷筛选">
+              <Select
+                allowClear
+                style={{ width: 170 }}
+                options={[
+                  { value: "today_exception", label: "今日异常" },
+                  { value: "needs_attention", label: "需要家长关注" },
+                ]}
+              />
+            </Form.Item>
+          ) : null}
+          {kind === "care" ? (
+            <Form.Item name="needsAttention" label="需关注">
+              <Select
+                allowClear
+                style={{ width: 120 }}
+                options={[
+                  { value: "true", label: "是" },
+                  { value: "false", label: "否" },
+                ]}
+              />
+            </Form.Item>
+          ) : null}
           <Form.Item name="from" label="开始">
             <Input type="date" style={{ width: 145 }} />
           </Form.Item>
@@ -602,6 +664,53 @@ export function BusinessPanel({
                 </Descriptions.Item>
                 <Descriptions.Item label="备注">
                   {selected.remark ?? "-"}
+                </Descriptions.Item>
+              </>
+            ) : null}
+            {kind === "care" ? (
+              <>
+                <Descriptions.Item label="业务日期">
+                  {selected.serviceDate
+                    ? String(selected.serviceDate).slice(0, 10)
+                    : "-"}
+                </Descriptions.Item>
+                <Descriptions.Item label="照护类型">
+                  {typeLabels[selected.type] ?? selected.type}
+                </Descriptions.Item>
+                <Descriptions.Item label="餐次">
+                  {selected.mealSlot === "snack"
+                    ? "点心"
+                    : selected.mealSlot === "dinner"
+                      ? "晚餐"
+                      : "-"}
+                </Descriptions.Item>
+                <Descriptions.Item label="记录值">
+                  {careValueLabels[selected.value] ?? selected.value ?? "-"}
+                </Descriptions.Item>
+                <Descriptions.Item label="饮水次数">
+                  {selected.quantity ?? "-"}
+                </Descriptions.Item>
+                <Descriptions.Item label="休息时长">
+                  {selected.durationMinutes
+                    ? `${selected.durationMinutes} 分钟`
+                    : "-"}
+                </Descriptions.Item>
+                <Descriptions.Item label="异常类别">
+                  {selected.exceptionCategory ?? "-"}
+                </Descriptions.Item>
+                <Descriptions.Item label="需要家长关注">
+                  {selected.needsAttention ? "是" : "否"}
+                </Descriptions.Item>
+                <Descriptions.Item label="事实 / 备注">
+                  {selected.remark ?? "-"}
+                </Descriptions.Item>
+                <Descriptions.Item label="处理情况">
+                  {selected.resolution ?? "-"}
+                </Descriptions.Item>
+                <Descriptions.Item label="照片">
+                  {selected.photoUrls?.length
+                    ? `${selected.photoUrls.length} 张（仅展示安全访问 URL）`
+                    : "-"}
                 </Descriptions.Item>
               </>
             ) : null}

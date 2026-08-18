@@ -25,9 +25,10 @@
     "verify:workflow-image-policy": "pnpm build && node scripts/verify-workflow-image-policy.js",
     "verify:workflow-images": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-workflow-images.ps1",
     "verify:student-workflow": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-student-workflow.ps1",
+    "verify:care-records": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-care-records.ps1",
     "verify:pickup": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-pickup.ps1",
     "verify:observability": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-observability.ps1",
-    "verify:all": "pnpm verify:admin && pnpm verify:teacher && pnpm verify:parent && pnpm verify:workflow-images && pnpm verify:student-workflow && pnpm verify:pickup"
+    "verify:all": "pnpm verify:admin && pnpm verify:teacher && pnpm verify:parent && pnpm verify:workflow-images && pnpm verify:student-workflow && pnpm verify:pickup && pnpm verify:care-records"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.864.0",

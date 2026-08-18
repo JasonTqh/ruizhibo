@@ -250,6 +250,172 @@
   font-size: 18px;
   text-align: center;
 }
+
+.home-care {
+  margin-top: 18px;
+  padding: 22px;
+  background: #ffffff;
+  border: 1px solid #ebe6df;
+  border-radius: 20px;
+  box-shadow: 0 5px 18px rgba(26, 46, 40, 0.05);
+}
+
+.home-care__heading,
+.home-care__attention-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.home-care__eyebrow,
+.home-care__title,
+.home-care__item-label,
+.home-care__item-value,
+.home-care__item-time,
+.home-care__attention-title,
+.home-care__attention-time,
+.home-care__attention-remark,
+.home-care__attention-resolution,
+.home-care__attention-teacher,
+.home-care__other-exception {
+  display: block;
+}
+
+.home-care__eyebrow {
+  color: #7d8883;
+  font-size: 17px;
+}
+
+.home-care__title {
+  margin-top: 3px;
+  color: #2c4038;
+  font-size: 25px;
+  font-weight: 850;
+}
+
+.home-care__status {
+  padding: 7px 11px;
+  color: #2c6f57;
+  background: #e5f3ec;
+  border-radius: 999px;
+  font-size: 17px;
+}
+
+.home-care__status--attention {
+  color: #9d483e;
+  background: #fde9e5;
+}
+
+.home-care__summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 17px;
+}
+
+.home-care__item {
+  padding: 14px 15px;
+  background: #f4f7f5;
+  border-radius: 13px;
+}
+
+.home-care__item--attention {
+  background: #fff0ed;
+}
+
+.home-care__item-label {
+  color: #7f8985;
+  font-size: 16px;
+}
+
+.home-care__item-value {
+  margin-top: 3px;
+  color: #2f443c;
+  font-size: 21px;
+  font-weight: 800;
+}
+
+.home-care__item--attention .home-care__item-value {
+  color: #a24b40;
+}
+
+.home-care__item-time {
+  margin-top: 3px;
+  color: #9aa19e;
+  font-size: 14px;
+}
+
+.home-care__attention-list {
+  margin-top: 15px;
+}
+
+.home-care__attention {
+  margin-top: 10px;
+  padding: 17px;
+  background: #f7f5f2;
+  border: 1px solid #e5dfd8;
+  border-radius: 14px;
+}
+
+.home-care__attention--urgent {
+  background: #fff0ed;
+  border-color: #f0c6bf;
+}
+
+.home-care__attention:first-child {
+  margin-top: 0;
+}
+
+.home-care__attention-title {
+  color: #a1493f;
+  font-size: 19px;
+  font-weight: 800;
+}
+
+.home-care__attention-time {
+  color: #a67d76;
+  font-size: 16px;
+}
+
+.home-care__attention-remark {
+  margin-top: 9px;
+  color: #543e39;
+  font-size: 19px;
+  line-height: 1.5;
+}
+
+.home-care__attention-resolution {
+  margin-top: 8px;
+  color: #66524d;
+  font-size: 17px;
+  line-height: 1.45;
+}
+
+.home-care__attention-teacher {
+  margin-top: 7px;
+  color: #8c716b;
+  font-size: 16px;
+}
+
+.home-care__photos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.home-care__photo {
+  width: 84px;
+  height: 84px;
+  background: #eee7e4;
+  border-radius: 10px;
+}
+
+.home-care__other-exception {
+  margin-top: 12px;
+  color: #8b6962;
+  font-size: 16px;
+}
 .home-pickup__handler {
   margin-top: 5px;
   color: #49645a;

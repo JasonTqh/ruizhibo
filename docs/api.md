@@ -326,6 +326,47 @@ Authorization: Bearer <admin-token>
 
 支持按日期、班级、教师、学生和 `pending|completed|skipped|exception|absent` 筛选，返回学生日汇总与完整步骤。未提供日期时只查询当前中国业务日；只提供一侧日期时按该单日查询；显式日期范围最多 31 天，避免将全部历史记录加载到内存。CP-34 不提供修改、删除或重置历史事实的管理端接口。
 
+### 生活照护与异常记录
+
+教师今日照护与写入接口：
+
+```http
+GET  /api/teacher/care/today?classId=<optional-class-id>
+POST /api/teacher/care/meal/batch
+POST /api/teacher/care/water/batch
+POST /api/teacher/care/rest/batch
+POST /api/teacher/students/:studentId/care-records/meal
+POST /api/teacher/students/:studentId/care-records/water
+POST /api/teacher/students/:studentId/care-records/rest
+POST /api/teacher/students/:studentId/care-records/mood
+POST /api/teacher/students/:studentId/care-records/exception
+Authorization: Bearer <teacher-token>
+```
+
+各类型使用独立 DTO：用餐要求 `mealSlot=snack|dinner` 和受控 `value`；饮水每次新增数量 1；休息要求受控状态并可带合理范围的 `durationMinutes`；情绪允许当天多次；异常必须填写事实备注，可带受控类别、非医疗处理、`needsAttention` 和照片。用餐/休息在同一业务日更新原记录，异常无更新或删除接口。
+
+批量接口必须显式传 `classId` 与 `studentIds`，不会因省略学生列表而危险地提交全班。服务会先完整验证教师班级、学生 active 状态、当天缺勤和离店时间，再在同一事务内全部写入；用餐/休息只补齐尚无记录的学生，不覆盖已有 `little/refused` 等例外。
+
+所有图片必须先通过 `POST /api/files` 使用 `scene=care` 上传。保存记录时会验证 URL 对应的 `FileAsset` 存在、属于当前教师、scene 正确且 MIME 为图片；`message/homework/workflow/care` 之间不能交叉引用。
+
+家长今日生活摘要：
+
+```http
+GET /api/parent/children/:studentId/care/today
+Authorization: Bearer <parent-token>
+```
+
+仅 active `StudentGuardian` 可读取。响应聚合餐食、饮水次数、主要休息、最新情绪和按时间排序的异常；只返回页面所需的展示字段与安全图片 URL，不返回其他学生、教师内部编号或 `FileAsset.ownerId/scene/storageKey` 等元数据。
+
+管理端只读查询：
+
+```http
+GET /api/admin/business/care-records?from=<date>&to=<date>&classId=<id>&teacherId=<id>&studentId=<id>&type=<type>&needsAttention=<boolean>&quickFilter=<today_exception|needs_attention>&page=<n>&pageSize=<n>
+Authorization: Bearer <admin-token>
+```
+
+未提供日期时只查当前中国业务日，显式日期范围最多 31 天；筛选与分页均在数据库执行。接口只读，不提供修改、删除或异常覆盖能力。
+
 ### 安全接送与到离店
 
 CP-33 使用事实事件而不是可覆盖的单一状态：
@@ -970,6 +1011,16 @@ pnpm --filter @ruizhibo/api verify:student-workflow
 
 脚本创建隔离主体并覆盖 CP-34 的 24 个场景：初始化、单人三种终态、缺勤保护、跨教师/跨班/跨家庭拒绝、重复与终态改写拒绝、图片 owner/scene、部分与全班批量原子性、旧 `/check` 与 `requirePhoto` 兼容、家长今日时间线、管理端只读查询、停止生成 `GrowthRecord` 和 Dashboard `uncheckedStepCount` 一致性。脚本结束会停用测试教师、家长和学生，不得对生产数据库运行。
 
+### 生活照护自动验证
+
+在本地或专用测试数据库运行：
+
+```powershell
+pnpm --filter @ruizhibo/api verify:care-records
+```
+
+脚本创建隔离教师、班级、家长和学生，覆盖 CP-35 规定的 30 个场景：五类记录及字段校验、用餐更新、饮水累计、批量原子性和例外保护、跨教师/跨班/跨家庭拒绝、缺勤保护、`scene=care` 图片 owner/scene、家长安全投影、管理端默认今日/31 天上限/异常筛选，以及不生成 `GrowthRecord`、不修改 Pickup/Workflow。脚本结束停用验证主体，但保留照护事实，因此不得在生产数据库运行。
+
 需要验证完整写入闭环时显式追加 `-IncludeWrites`：
 
 ```powershell
@@ -988,13 +1039,13 @@ pnpm --filter @ruizhibo/api verify:parent -- -ParentPhone <parent-phone> -Teache
 
 统一验证也支持环境变量 `VERIFY_API_BASE_URL`、`VERIFY_ADMIN_PHONE`、`VERIFY_TEACHER_PHONE`、`VERIFY_PARENT_PHONE`。这适合联调库已修改测试手机号，但仍希望一次运行全部只读检查的场景。
 
-部署到使用 seed 数据的测试环境后，可一次运行现有 API 回归、CP-34 学生流程和 CP-33 接送写入验证：
+部署到使用 seed 数据的测试环境后，可一次运行现有 API 回归、CP-33 接送、CP-34 学生流程和 CP-35 生活照护写入验证：
 
 ```powershell
 pnpm --filter @ruizhibo/api verify:all
 ```
 
-`verify:all` 现已包含 `verify:student-workflow` 与 `verify:pickup`，会写入并保留已停用的隔离验证主体及不可变业务事实；不要对生产数据库运行。
+`verify:all` 现已包含 `verify:pickup`、`verify:student-workflow` 与 `verify:care-records`，会写入并保留已停用的隔离验证主体及业务事实；不要对生产数据库运行。
 
 ## 8. 微信登录
 

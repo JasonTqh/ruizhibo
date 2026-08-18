@@ -9,6 +9,14 @@ const h = React.createElement;
 
 const quickActions = [
   {
+    key: "care",
+    icon: "护",
+    title: "今日照护",
+    description: "批量记录生活状态与异常",
+    tone: "green",
+    action: () => Taro.navigateTo({ url: "/pages/care/index" }),
+  },
+  {
     key: "pickup",
     icon: "安",
     title: "今日接送",
