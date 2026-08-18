@@ -421,12 +421,15 @@ pnpm --filter @ruizhibo/api verify:all
 - 报告以 Asia/Shanghai 业务日为唯一边界。家长可查最近 90 天，教师可查最近 31 天，未来和非法日期返回 `400`；老师寄语第一版只允许编辑当前业务日。
 - 总体状态按 `absence > left_center > arrived_at_center > picked_up_from_school > waiting_pickup` 推导；缺勤进入专用模式，不把无门店事实误报为流程失败、未进食或异常。
 - 接送以 `PickupRecord` 为主，Attendance 仅作不重复的 arrive/leave 兼容；离店展示历史责任快照和经办教师姓名，不返回电话或内部 ID。
+- CP-36.1 修复转班后的历史上下文：报告优先采用当天 `PickupRecord.classId/campusId`，无接送事实时依次使用真实 `StudentWorkflowStep` 所属 session、当天已提交/批阅作业所属班级，最后才回退学生当前班级；教师访问权限仍按当前负责班级校验。
 - 流程严格区分 `completed/skipped/exception/pending`，`processed=completed+skipped+exception`；已离店 pending 不自动改写，只展示个人流程照片，不返回班级步骤照片。
 - 生活照护明确区分“无记录”和正常：无饮水记录返回 `hasRecord=false,count=null`；情绪取当天 happenedAt 最新一条，饮水按 quantity 求和，异常保持事实性原文。
 - 作业按“当天 dueAt，或 dueAt 为空且当天创建，或当前学生当天提交/批阅”归属且只出现一次；状态使用当前持久化状态。成长反馈仅聚合当天 `visibleToParent=true` 的记录。
 - 新增 `StudentDailyReportNote`，同一学生/业务日唯一；学生外键 `RESTRICT`、教师外键 `SET NULL`。草稿仅教师和管理员可见，发布后家长可见，保存/发布/取消发布写 AuditLog。
 - 教师端新增班级摘要、状态/关注筛选、学生详情和寄语编辑；家长首页新增摘要入口及完整历史日报；管理后台新增按单业务日数据库分页、当前页批量聚合的只读日报查询。
-- 新增 `verify:daily-report` 并接入 `verify:all`，覆盖 80 个聚合、权限、日期、零副作用、隐私、筛选、分页、实时刷新和无数据语义场景。
+- 新增 `verify:daily-report` 并接入 `verify:all`，覆盖 89 个聚合、转班历史、权限、日期、零副作用、隐私、筛选、分页、实时刷新和无数据语义场景。
+
+已知限制：如果历史日期没有 PickupRecord、StudentWorkflowStep 或当天提交/批阅作业等可证明班级归属的事实，当前模型无法可靠恢复“无 submission 的旧班级 pending 作业”；此时不猜测旧班级，也不为 CP-36.1 引入完整日报快照或 StudentClassHistory。
 
 本地验证：
 

@@ -85,6 +85,88 @@ async function main() {
   assertVerificationName(student?.name);
   if (!student) throw new Error("Daily report verification student not found");
 
+  if (command === "create-transfer-contamination") {
+    if (!actorId) throw new Error("teacherId is required");
+    const serviceDate = chinaBusinessDate(
+      new Date(Date.now() - 24 * 60 * 60 * 1000),
+    );
+    const happenedAt = new Date(serviceDate.getTime() + 10 * 60 * 60 * 1000);
+    const template = await prisma.workflowTemplate.findFirst({
+      where: { isActive: true },
+      orderBy: [{ version: "desc" }, { createdAt: "desc" }],
+      include: { steps: { orderBy: { sortOrder: "asc" } } },
+    });
+    if (!template?.steps.length) {
+      throw new Error("Active workflow template required");
+    }
+    const workflowMarker = "new-class workflow must not leak";
+    const homeworkMarker = "new-class homework must not leak";
+
+    await prisma.$transaction(async (tx) => {
+      const session = await tx.workflowSession.upsert({
+        where: {
+          classId_date: { classId: student.classId, date: serviceDate },
+        },
+        create: {
+          classId: student.classId,
+          teacherId: actorId,
+          templateId: template.id,
+          date: serviceDate,
+          steps: {
+            create: template.steps.map((step) => ({
+              stepKey: step.stepKey,
+              name: step.name,
+              timeRange: step.timeRange,
+              sortOrder: step.sortOrder,
+              requirePhoto: step.requirePhoto,
+            })),
+          },
+        },
+        update: {},
+        include: { steps: { orderBy: { sortOrder: "asc" } } },
+      });
+      if (!session.steps[0]) throw new Error("Workflow step required");
+      await tx.studentWorkflowStep.create({
+        data: {
+          workflowStepId: session.steps[0].id,
+          studentId: student.id,
+          status: StudentWorkflowStepStatus.completed,
+          completedAt: happenedAt,
+          teacherId: actorId,
+          remark: workflowMarker,
+        },
+      });
+      await tx.homeworkAssignment.create({
+        data: {
+          classId: student.classId,
+          teacherId: actorId,
+          title: homeworkMarker,
+          subject: "general",
+          content: "transferred class isolation verification",
+          dueAt: happenedAt,
+          createdAt: happenedAt,
+          submissions: {
+            create: {
+              studentId: student.id,
+              status: HomeworkStatus.reviewed,
+              submittedAt: happenedAt,
+              reviewedAt: happenedAt,
+              remark: homeworkMarker,
+            },
+          },
+        },
+      });
+    });
+    process.stdout.write(
+      JSON.stringify({
+        date: serviceDate.toISOString().slice(0, 10),
+        workflowMarker,
+        homeworkMarker,
+      }),
+    );
+    return;
+  }
+
   if (command === "create-absence") {
     if (!actorId) throw new Error("teacherId is required");
     const event = await prisma.attendanceEvent.create({

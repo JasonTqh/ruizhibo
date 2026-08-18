@@ -69,6 +69,8 @@ interface PickupFact {
   resolution?: string | null;
   remark?: string | null;
   teacher?: { name: string };
+  class: { id: string; name: string };
+  campus: { id: string; name: string };
 }
 
 interface WorkflowFact {
@@ -76,7 +78,13 @@ interface WorkflowFact {
   name?: string;
   timeRange?: string;
   sortOrder: number;
-  session: { classId: string };
+  session: {
+    class: {
+      id: string;
+      name: string;
+      campus: { id: string; name: string };
+    };
+  };
   studentSteps: Array<{
     studentId: string;
     status: StudentWorkflowStepStatus;
@@ -105,6 +113,11 @@ interface CareFact {
 
 interface HomeworkFact {
   classId: string;
+  class: {
+    id: string;
+    name: string;
+    campus: { id: string; name: string };
+  };
   title?: string;
   subject?: string;
   content?: string;
@@ -147,6 +160,12 @@ interface ReportFacts {
   homework: HomeworkFact[];
   growth: GrowthFact[];
   notes: NoteFact[];
+}
+
+interface ReportClassContext {
+  class: { id: string; name: string };
+  campus: { id: string; name: string };
+  source: "pickup" | "workflow" | "homework" | "current";
 }
 
 interface AttentionItem {
@@ -256,15 +275,7 @@ export class DailyReportService {
     const date = this.reportDate(query.date);
     const where: Prisma.StudentWhereInput = {
       ...(query.studentId ? { id: query.studentId } : {}),
-      ...(query.classId ? { classId: query.classId } : {}),
-      ...(query.campusId || query.teacherId
-        ? {
-            class: {
-              ...(query.campusId ? { campusId: query.campusId } : {}),
-              ...(query.teacherId ? { teacherId: query.teacherId } : {}),
-            },
-          }
-        : {}),
+      ...this.adminHistoricalContextWhere(query, date),
       ...this.adminStatusWhere(query.status, date),
       ...this.adminAttentionWhere(query, date),
       ...(query.published === undefined
@@ -426,6 +437,91 @@ export class DailyReportService {
     });
     if (!student) throw new NotFoundException("Student not found");
     return student;
+  }
+
+  private adminHistoricalContextWhere(
+    query: AdminDailyReportQueryDto,
+    date: ReportDateContext,
+  ): Prisma.StudentWhereInput {
+    if (!query.classId && !query.campusId && !query.teacherId) return {};
+
+    const pickupContext: Prisma.PickupRecordWhereInput = {
+      serviceDate: date.date,
+      ...(query.classId ? { classId: query.classId } : {}),
+      ...(query.campusId ? { campusId: query.campusId } : {}),
+      ...(query.teacherId ? { teacherId: query.teacherId } : {}),
+    };
+    const workflowContext: Prisma.WorkflowSessionWhereInput = {
+      date: date.date,
+      ...(query.classId ? { classId: query.classId } : {}),
+      ...(query.campusId ? { class: { campusId: query.campusId } } : {}),
+      ...(query.teacherId ? { teacherId: query.teacherId } : {}),
+    };
+    const homeworkContext: Prisma.HomeworkSubmissionWhereInput = {
+      OR: [
+        { submittedAt: date.instantRange },
+        { reviewedAt: date.instantRange },
+      ],
+      homework: {
+        ...(query.classId ? { classId: query.classId } : {}),
+        ...(query.campusId ? { class: { campusId: query.campusId } } : {}),
+        ...(query.teacherId ? { teacherId: query.teacherId } : {}),
+      },
+    };
+    const currentClassContext: Prisma.ClassWhereInput = {
+      ...(query.classId ? { id: query.classId } : {}),
+      ...(query.campusId ? { campusId: query.campusId } : {}),
+      ...(query.teacherId ? { teacherId: query.teacherId } : {}),
+    };
+    const noPickupContext: Prisma.StudentWhereInput = {
+      pickupRecords: { none: { serviceDate: date.date } },
+    };
+    const noWorkflowContext: Prisma.StudentWhereInput = {
+      workflowSteps: {
+        none: { workflowStep: { session: { date: date.date } } },
+      },
+    };
+    const noHomeworkContext: Prisma.StudentWhereInput = {
+      submissions: {
+        none: {
+          OR: [
+            { submittedAt: date.instantRange },
+            { reviewedAt: date.instantRange },
+          ],
+        },
+      },
+    };
+
+    return {
+      OR: [
+        { pickupRecords: { some: pickupContext } },
+        {
+          AND: [
+            noPickupContext,
+            {
+              workflowSteps: {
+                some: { workflowStep: { session: workflowContext } },
+              },
+            },
+          ],
+        },
+        {
+          AND: [
+            noPickupContext,
+            noWorkflowContext,
+            { submissions: { some: homeworkContext } },
+          ],
+        },
+        {
+          AND: [
+            noPickupContext,
+            noWorkflowContext,
+            noHomeworkContext,
+            { class: currentClassContext },
+          ],
+        },
+      ],
+    };
   }
 
   private adminStatusWhere(
@@ -605,8 +701,10 @@ export class DailyReportService {
     includeGrowth: boolean,
   ): Promise<ReportFacts> {
     const studentIds = students.map((student) => student.id);
-    const classIds = [...new Set(students.map((student) => student.class.id))];
-    const [attendance, pickups, workflow, care, homework, growth, notes] =
+    const currentClassIds = [
+      ...new Set(students.map((student) => student.class.id)),
+    ];
+    const [attendance, pickups, workflow, care, growth, notes] =
       await Promise.all([
         this.prisma.attendanceEvent.findMany({
           where: {
@@ -624,9 +722,8 @@ export class DailyReportService {
           },
         }),
         this.loadPickupFacts(studentIds, date, detail),
-        this.loadWorkflowFacts(classIds, studentIds, date, detail),
+        this.loadWorkflowFacts(currentClassIds, studentIds, date, detail),
         this.loadCareFacts(studentIds, date, detail),
-        this.loadHomeworkFacts(classIds, studentIds, date, detail),
         detail && includeGrowth
           ? this.prisma.growthRecord.findMany({
               where: {
@@ -660,6 +757,19 @@ export class DailyReportService {
           },
         }),
       ]);
+    const historicalClassIds = [
+      ...new Set([
+        ...currentClassIds,
+        ...pickups.map((record) => record.class.id),
+        ...workflow.map((record) => record.session.class.id),
+      ]),
+    ];
+    const homework = await this.loadHomeworkFacts(
+      historicalClassIds,
+      studentIds,
+      date,
+      detail,
+    );
     return { attendance, pickups, workflow, care, homework, growth, notes };
   }
 
@@ -678,6 +788,8 @@ export class DailyReportService {
         arrivalMethod: true,
         status: true,
         isException: true,
+        class: { select: { id: true, name: true } },
+        campus: { select: { id: true, name: true } },
         ...(detail
           ? {
               pickupPersonNameSnapshot: true,
@@ -711,13 +823,29 @@ export class DailyReportService {
         : {}),
     } satisfies Prisma.StudentWorkflowStepSelect;
     return this.prisma.workflowStep.findMany({
-      where: { session: { classId: { in: classIds }, date: date.date } },
+      where: {
+        session: { date: date.date },
+        OR: [
+          { session: { classId: { in: classIds } } },
+          { studentSteps: { some: { studentId: { in: studentIds } } } },
+        ],
+      },
       orderBy: { sortOrder: "asc" },
       select: {
         stepKey: true,
         sortOrder: true,
         ...(detail ? { name: true, timeRange: true } : {}),
-        session: { select: { classId: true } },
+        session: {
+          select: {
+            class: {
+              select: {
+                id: true,
+                name: true,
+                campus: { select: { id: true, name: true } },
+              },
+            },
+          },
+        },
         studentSteps: {
           where: { studentId: { in: studentIds } },
           select: studentStepSelect,
@@ -764,10 +892,25 @@ export class DailyReportService {
   ): Promise<HomeworkFact[]> {
     return this.prisma.homeworkAssignment.findMany({
       where: {
-        classId: { in: classIds },
         OR: [
-          { dueAt: date.instantRange },
-          { dueAt: null, createdAt: date.instantRange },
+          {
+            classId: { in: classIds },
+            OR: [
+              { dueAt: date.instantRange },
+              { dueAt: null, createdAt: date.instantRange },
+              {
+                submissions: {
+                  some: {
+                    studentId: { in: studentIds },
+                    OR: [
+                      { submittedAt: date.instantRange },
+                      { reviewedAt: date.instantRange },
+                    ],
+                  },
+                },
+              },
+            ],
+          },
           {
             submissions: {
               some: {
@@ -784,6 +927,13 @@ export class DailyReportService {
       orderBy: { createdAt: "asc" },
       select: {
         classId: true,
+        class: {
+          select: {
+            id: true,
+            name: true,
+            campus: { select: { id: true, name: true } },
+          },
+        },
         dueAt: true,
         createdAt: true,
         ...(detail
@@ -822,11 +972,26 @@ export class DailyReportService {
       (record) => record.studentId === student.id,
     );
     const care = facts.care.filter((record) => record.studentId === student.id);
+    const reportClass = this.reportClassContext(
+      student,
+      pickups,
+      facts.workflow,
+      facts.homework,
+      date,
+    );
     const workflow = facts.workflow.filter(
-      (record) => record.session.classId === student.class.id,
+      (record) =>
+        record.session.class.id === reportClass.class.id &&
+        (reportClass.class.id === student.class.id ||
+          record.studentSteps.some((step) => step.studentId === student.id)),
     );
     const homework = facts.homework.filter((record) =>
-      this.homeworkBelongsToDate(record, student, date),
+      this.homeworkBelongsToDate(
+        record,
+        student.id,
+        reportClass.class.id,
+        date,
+      ),
     );
     const growth = facts.growth.filter(
       (record) => record.studentId === student.id,
@@ -870,12 +1035,12 @@ export class DailyReportService {
       student: { id: student.id, name: student.name },
       class:
         audience === "parent"
-          ? { name: student.class.name }
-          : { id: student.class.id, name: student.class.name },
+          ? { name: reportClass.class.name }
+          : { id: reportClass.class.id, name: reportClass.class.name },
       campus:
         audience === "admin"
-          ? { id: student.class.campus.id, name: student.class.campus.name }
-          : { name: student.class.campus.name },
+          ? { id: reportClass.campus.id, name: reportClass.campus.name }
+          : { name: reportClass.campus.name },
       status,
       statusLabel: statusLabels[status],
       isAbsent,
@@ -1225,10 +1390,11 @@ export class DailyReportService {
 
   private homeworkBelongsToDate(
     assignment: HomeworkFact,
-    student: StudentCandidate,
+    studentId: string,
+    reportClassId: string,
     date: ReportDateContext,
   ) {
-    if (assignment.classId !== student.class.id) return false;
+    if (assignment.classId !== reportClassId) return false;
     if (assignment.dueAt && this.inRange(assignment.dueAt, date.instantRange)) {
       return true;
     }
@@ -1239,7 +1405,7 @@ export class DailyReportService {
       return true;
     }
     const submission = assignment.submissions.find(
-      (record) => record.studentId === student.id,
+      (record) => record.studentId === studentId,
     );
     return Boolean(
       submission &&
@@ -1248,6 +1414,78 @@ export class DailyReportService {
         (submission.reviewedAt &&
           this.inRange(submission.reviewedAt, date.instantRange))),
     );
+  }
+
+  private reportClassContext(
+    student: StudentCandidate,
+    pickups: PickupFact[],
+    workflow: WorkflowFact[],
+    homework: HomeworkFact[],
+    date: ReportDateContext,
+  ): ReportClassContext {
+    const pickup = pickups[0];
+    if (pickup) {
+      return {
+        class: pickup.class,
+        campus: pickup.campus,
+        source: "pickup",
+      };
+    }
+
+    const workflowCounts = new Map<
+      string,
+      { count: number; context: ReportClassContext }
+    >();
+    for (const step of workflow) {
+      if (
+        !step.studentSteps.some((record) => record.studentId === student.id)
+      ) {
+        continue;
+      }
+      const klass = step.session.class;
+      const existing = workflowCounts.get(klass.id);
+      workflowCounts.set(klass.id, {
+        count: (existing?.count ?? 0) + 1,
+        context: {
+          class: { id: klass.id, name: klass.name },
+          campus: klass.campus,
+          source: "workflow",
+        },
+      });
+    }
+    const workflowContext = [...workflowCounts.values()].sort(
+      (left, right) =>
+        right.count - left.count ||
+        left.context.class.id.localeCompare(right.context.class.id),
+    )[0]?.context;
+    if (workflowContext) return workflowContext;
+
+    const homeworkContext = homework.find((assignment) =>
+      assignment.submissions.some(
+        (submission) =>
+          submission.studentId === student.id &&
+          ((submission.submittedAt &&
+            this.inRange(submission.submittedAt, date.instantRange)) ||
+            (submission.reviewedAt &&
+              this.inRange(submission.reviewedAt, date.instantRange))),
+      ),
+    );
+    if (homeworkContext) {
+      return {
+        class: {
+          id: homeworkContext.class.id,
+          name: homeworkContext.class.name,
+        },
+        campus: homeworkContext.class.campus,
+        source: "homework",
+      };
+    }
+
+    return {
+      class: { id: student.class.id, name: student.class.name },
+      campus: student.class.campus,
+      source: "current",
+    };
   }
 
   private inRange(value: Date, range: { gte: Date; lt: Date }) {

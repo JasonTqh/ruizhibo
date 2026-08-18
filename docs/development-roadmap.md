@@ -1385,6 +1385,7 @@ pnpm build
 - 不建立日报事实快照，不复制或改写底层事实；报告 GET 严格零写入。唯一持久化新增是教师文本寄语 `StudentDailyReportNote`。
 - 总体状态优先级为 `absence > left_center > arrived_at_center > picked_up_from_school > waiting_pickup`；缺勤使用专用模式，不把无数据解释为失败或异常。
 - 流程区分 completed、skipped、exception、pending，生活照护区分“无记录”和正常；接送使用历史快照且 Attendance 只作不重复 fallback。
+- CP-36.1 以当天 PickupRecord 的 classId/campusId 为首要历史班级上下文，无接送事实时再使用该学生真实 StudentWorkflowStep 所属 session 或当天已提交/批阅作业，避免转班后把当前班级混入旧日报。教师权限仍只按当前负责班级判断，不因历史聚合放宽。
 - 作业按明确业务日规则归属并只出现一次；GrowthRecord 只包含当天 `visibleToParent=true` 的记录。关注项按接送安全、Care needsAttention、其他 Care exception、Workflow exception、Homework overdue 排序。
 
 API 与安全：
@@ -1402,8 +1403,10 @@ API 与安全：
 
 自动验收：
 
-- 新增 `verify:daily-report` 80 场景并接入 `verify:all`，覆盖聚合规则、历史日期、权限、隐私、零副作用、实时刷新、分页和无数据语义。
+- 新增 `verify:daily-report` 89 场景并接入 `verify:all`，覆盖聚合规则、转班历史上下文、历史日期、权限、隐私、零副作用、实时刷新、分页和无数据语义。
 - API、教师端、家长端和管理端 typecheck/build、Prisma validate/migration status 作为完成门禁。
+
+已知限制：缺少 PickupRecord、StudentWorkflowStep、当天 submitted/reviewed HomeworkSubmission 等日期事实时，现有模型无法证明学生属于哪个旧班级，因此不会猜测或展示无 submission 的旧班级 pending 作业；后续如需完整恢复须另行设计班级成员历史，不在 CP-36.1 引入。
 
 外部验收项（`WAITING_FOR_EXTERNAL_ACCEPTANCE`）：
 

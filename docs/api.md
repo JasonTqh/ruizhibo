@@ -413,6 +413,10 @@ Authorization: Bearer <admin-token>
 
 三端日期统一为严格 `YYYY-MM-DD` 和 Asia/Shanghai 业务日；非法日期和未来日期返回 `400`。总体状态实时按 `absence > left_center > arrived_at_center > picked_up_from_school > waiting_pickup` 推导。缺勤进入专用模式，不把没有门店事实推断为流程失败、未进食或异常；`processed` 明确包含 completed、skipped、exception，且不等于 completed。
 
+历史日报班级上下文不会无条件读取 Student 当前 `classId`。存在当天 PickupRecord 时优先使用其历史 `classId/campusId`；否则依次使用当前学生真实 StudentWorkflowStep 所属 WorkflowSession、当天已提交/批阅 HomeworkSubmission 的作业班级，最后才回退当前班级。Workflow 历史以 `studentId + reportDate` 的真实学生步骤为核心，转班不会丢失旧班步骤；Homework 仍保留旧班当天已有提交/批阅的作业，并排除其他班级同日数据。教师端是否可访问学生仍按当前负责班级判断，不因历史上下文放宽。
+
+已知限制：如果旧班级当天只有无 submission 的 pending 作业，且没有 PickupRecord、StudentWorkflowStep 或其他可证明旧班归属的日期事实，当前数据模型无法可靠恢复当时成员关系，接口不会猜测该作业归属。
+
 ### 安全接送与到离店
 
 CP-33 使用事实事件而不是可覆盖的单一状态：

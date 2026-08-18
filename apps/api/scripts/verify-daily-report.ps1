@@ -304,7 +304,29 @@ try {
   Assert-True ($absenceReport.Body.data.attention.count -eq 0) "Case 74 absence generated attention"
   Invoke-Api -Method "GET" -Path "/parent/students/$($foreignStudent.Body.data.id)/daily-report" -Token $parentAToken -ExpectedStatus 404 | Out-Null
 
-  Write-Host "Daily report verification passed (Cases 1-80: aggregation, isolation, read-only GET, note privacy, filters, dates and no-data semantics)."
+  Write-Step "Cases 81-89: class-transfer history context and isolation"
+  Invoke-Api -Method "PATCH" -Path "/admin/students/$($students.history.id)" -Token $adminToken -Body @{ classId = $classB.Body.data.id } -ExpectedStatus 200 | Out-Null
+  $contamination = Invoke-Fixture "create-transfer-contamination" $students.history.id $teacherB.Body.data.id | ConvertFrom-Json
+  Assert-True ($contamination.date -eq $historyDate) "Transfer fixture used a different report date"
+  $beforeTransferRead = Get-Snapshot $students.history.id
+  $transferredHistory = Invoke-Api -Method "GET" -Path "/parent/students/$($students.history.id)/daily-report?date=$historyDate" -Token $parentAToken
+  Assert-True ($transferredHistory.Body.data.class.name -eq $classA.Body.data.name) "Case 81 historical report displayed the student's current class"
+  Assert-True ($transferredHistory.Body.data.workflow.summary.completed -eq 1 -and $transferredHistory.Raw.Contains("historical daily workflow")) "Case 82 lost the old-class StudentWorkflowStep"
+  Assert-True ($transferredHistory.Raw.Contains("historical daily homework")) "Case 83 lost the old-class reviewed homework"
+  Assert-True (-not $transferredHistory.Raw.Contains($contamination.workflowMarker)) "Case 84 mixed the new-class workflow into old history"
+  Assert-True (-not $transferredHistory.Raw.Contains($contamination.homeworkMarker)) "Case 85 mixed the new-class homework into old history"
+  $adminHistoryA = Invoke-Api -Method "GET" -Path "/admin/business/daily-reports?date=$historyDate&classId=$($classA.Body.data.id)&pageSize=50" -Token $adminToken
+  $adminHistoryB = Invoke-Api -Method "GET" -Path "/admin/business/daily-reports?date=$historyDate&classId=$($classB.Body.data.id)&pageSize=50" -Token $adminToken
+  $adminTransferred = @($adminHistoryA.Body.data.items | Where-Object { $_.student.id -eq $students.history.id })
+  Assert-True ($adminTransferred.Count -eq 1 -and $adminTransferred[0].class.id -eq $classA.Body.data.id -and $adminTransferred[0].campus.id -eq $campusId) "Cases 86-87 admin historical class/campus filtering is incorrect"
+  Assert-True (@($adminHistoryB.Body.data.items | Where-Object { $_.student.id -eq $students.history.id }).Count -eq 0) "Case 87 current-class data overrode pickup history"
+  Invoke-Api -Method "GET" -Path "/teacher/students/$($students.history.id)/daily-report?date=$historyDate" -Token $teacherAToken -ExpectedStatus 404 | Out-Null
+  $currentTeacherHistory = Invoke-Api -Method "GET" -Path "/teacher/students/$($students.history.id)/daily-report?date=$historyDate" -Token $teacherBToken
+  Assert-True ($currentTeacherHistory.Body.data.class.id -eq $classA.Body.data.id) "Case 88 changed teacher access or lost historical class context"
+  $afterTransferRead = Get-Snapshot $students.history.id
+  Assert-True (($afterTransferRead | ConvertTo-Json -Compress) -eq ($beforeTransferRead | ConvertTo-Json -Compress)) "Case 89 historical report GET changed persisted facts"
+
+  Write-Host "Daily report verification passed (Cases 1-89: aggregation, transfer history, isolation, read-only GET, note privacy, filters, dates and no-data semantics)."
 } finally {
   Disable-VerificationData
 }

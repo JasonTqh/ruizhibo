@@ -16,6 +16,8 @@ CP-35 后续更新（2026-08-18）：用户已单独授权 **CP-35 生活照护�
 
 CP-36 后续更新（2026-08-18）：用户已单独授权 **CP-36 每日托管报告**。工作区已新增统一实时聚合服务、教师寄语、教师/家长/管理端页面和 80 场景专属回归；不创建日报事实快照，所有报告 GET 零写入。代码和本地/隔离环境自动验证已完成，真实 20 人班、微信真机、真实儿童数据脱敏及图片/异常/寄语体验仍为 `WAITING_FOR_EXTERNAL_ACCEPTANCE`。本轮不进入 CP-37。
 
+CP-36.1 后续更新（2026-08-18）：修复学生转班后历史日报误用当前班级的问题。历史上下文现在以当天 PickupRecord 的 classId/campusId 为最高优先级，再使用真实 StudentWorkflowStep 或当天已提交/批阅作业；旧班 Workflow/Homework 保留，新班同日事实不混入，教师权限仍按当前负责班级判断。专项回归扩展到 89 场景；不新增 migration，不建立日报快照，也不进入 CP-37。
+
 ## 1. 执行摘要
 
 当前项目已经从“原型”进入“可封闭验证的内测系统”阶段。后端、管理后台、教师端、家长端四端已经围绕基础资料、教师/家长登录、通知回执、作业提交批阅、成长记录、教案教研、消息图片、文件存储、审计日志、部署检查和回归脚本形成了较完整的闭环。
@@ -41,8 +43,8 @@ CP-36 后续更新（2026-08-18）：用户已单独授权 **CP-36 每日托管�
 当前分支状态：
 
 - 当前分支：`main`
-- 远程基线：`461c63f fix: enforce checkout boundary for care records`
-- 当前 CP-36 修改尚未提交
+- 远程基线：`eb75a415 feat: add aggregated daily custody reports`
+- 当前 CP-36.1 历史日报班级上下文修复尚未提交
 - 最近开发节奏：从基础端到端流程、通知/作业/消息，再到管理后台、数据安全、部署验证、备份恢复、观测、正式管理员登录、发布验证门禁和回归验收，提交历史连续且方向清晰。
 
 最近关键提交说明：
@@ -711,13 +713,16 @@ flowchart LR
 - 统一使用 Asia/Shanghai 业务日和严格 `YYYY-MM-DD`。家长历史范围 90 天、教师 31 天、寄语只允许当天；未来日期和非法日期返回 `400`，管理端一次只查询一个业务日。
 - 总体状态按 `absence > left_center > arrived_at_center > picked_up_from_school > waiting_pickup` 推导；缺勤进入专用模式，不生成“未完成流程/没吃饭/没喝水”等误导信息。
 - 接送以 PickupRecord 为主并使用历史姓名/关系快照，Attendance arrive/leave 只作不重复 fallback；不返回电话。临时授权和异常进入最高优先级关注项。
+- CP-36.1 以当天 PickupRecord 的 classId/campusId 恢复历史班级，缺少接送时使用真实 StudentWorkflowStep 或当天提交/批阅作业；转班后不再用当前班级覆盖旧日报，教师权限保持当前班级策略。
 - Workflow 严格区分 completed/skipped/exception/pending，processed 与 completed 分开统计，已离店 pending 不自动改写，只展示 StudentWorkflowStep 个人照片，不泄露班级步骤照片。
 - Care 明确 no-data 语义，饮水无记录为 `hasRecord=false,count=null`，多条饮水按 quantity 求和，情绪取 happenedAt 最新一条，所有异常保持原始事实及处理文字。
 - Homework 按当天 dueAt、无 dueAt 且当天创建、或当前学生当天提交/批阅三条规则归属，同一 assignment 只出现一次且显示当前持久化状态。Growth 仅展示当天 `visibleToParent=true`。
 - 新增 `StudentDailyReportNote`，同学生同日唯一，支持草稿、清空、发布、重新发布和取消发布；学生外键 RESTRICT、教师外键 SET NULL，写操作审计，家长只看到已发布寄语。
 - 家长只通过 active StudentGuardian 访问，跨家庭返回 404；教师只能访问负责班级，跨班返回 404。家长响应不包含其他学生、内部事实 ID、教师 ID、电话、FileAsset 元数据或草稿。
 - 教师端完成班级摘要、筛选、学生详情和寄语编辑；家长首页完成摘要入口及完整历史日报；管理后台完成单日数据库分页、当前页批量聚合和只读详情。
-- 新增 `verify:daily-report` 80 场景并接入 `verify:all`；原 admin、teacher、parent、workflow image、student workflow、pickup 和 care 回归保持通过。
+- 新增 `verify:daily-report` 89 场景并接入 `verify:all`；包含 A 班事实后转入 B 班、旧班上下文/Workflow/已提交作业保留、新班数据隔离、教师权限不放宽和 GET 零副作用。原 admin、teacher、parent、workflow image、student workflow、pickup 和 care 回归保持通过。
+
+已知限制：没有 PickupRecord、StudentWorkflowStep、当天 submitted/reviewed HomeworkSubmission 等历史归属事实时，现有模型无法可靠判断无 submission 的旧班级 pending 作业；当前实现不猜测，也不在 CP-36.1 引入 StudentClassHistory 或日报快照。
 
 `WAITING_FOR_EXTERNAL_ACCEPTANCE`：
 
@@ -922,9 +927,9 @@ flowchart LR
 ```text
 Project audit completed.
 Branch: main
-Base commit: 461c63f fix: enforce checkout boundary for care records
-Code changes: CP-36 daily report aggregation, note migration, teacher/parent/admin UI and 80-case verification implemented in working tree
+Base commit: eb75a415 feat: add aggregated daily custody reports
+Code changes: CP-36.1 historical class context fix and 89-case daily-report verification implemented in working tree
 Report updated: docs/project-audit-and-next-roadmap.md
-Current status: CP-36 code complete; CP-32 through CP-36 external acceptance items remain pending
+Current status: CP-36.1 code complete and uncommitted; CP-32 through CP-36 external acceptance items remain pending
 Recommended next action: finish real HTTPS/WeChat plus pickup, workflow, care and daily-report device/store acceptance; do not enter CP-37 without authorization
 ```
