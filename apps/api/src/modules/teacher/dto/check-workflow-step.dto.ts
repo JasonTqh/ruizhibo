@@ -1,4 +1,5 @@
 import {
+  ArrayNotEmpty,
   ArrayMaxSize,
   IsArray,
   IsOptional,
@@ -13,4 +14,12 @@ export class CheckWorkflowStepDto {
   @IsString({ each: true })
   @MinLength(1, { each: true })
   photoUrls?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayNotEmpty()
+  @ArrayMaxSize(100)
+  @IsString({ each: true })
+  @MinLength(1, { each: true })
+  studentIds?: string[];
 }

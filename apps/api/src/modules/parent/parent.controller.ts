@@ -36,6 +36,14 @@ export class ParentController {
     return this.parentService.attendance(user.id, studentId);
   }
 
+  @Get("children/:studentId/workflow/today")
+  workflowToday(
+    @CurrentUser() user: AuthUser,
+    @Param("studentId") studentId: string,
+  ) {
+    return this.parentService.workflowToday(user.id, studentId);
+  }
+
   @Get("children/:studentId/homework")
   homework(
     @CurrentUser() user: AuthUser,

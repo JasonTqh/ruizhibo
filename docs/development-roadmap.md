@@ -17,7 +17,7 @@
 - CP-01 到 CP-20 的核心业务代码主线已落地。
 - CP-21、CP-22 与 UI-01 至 UI-09 已完成，并通过微信开发者工具与真机主链路验收。
 - CP-23 至 CP-31 的生产化能力已完成代码实现和本地/隔离环境验证，覆盖微信登录、自动验证脚本、测试环境部署配置、local/S3 文件存储、图片消息、备份恢复、观测性、管理后台正式登录和发布门禁。
-- CP-32 代码加固与最新重新定义的 CP-33 安全接送代码闭环已完成；两者仍有真实 HTTPS、微信体验版、真机与门店业务验收项。
+- CP-32 代码加固、最新重新定义的 CP-33/CP-33.1 安全接送，以及 CP-34 学生级一日托管流程代码闭环已完成；仍有真实 HTTPS、微信体验版、真机与门店业务验收项。
 - 额外已完成家长提交作业与独立聊天页：
   - 家长端 `POST /api/parent/homework-submissions/:submissionId/submit`
   - 家长小程序 `homework` 页面提交作业
@@ -28,7 +28,7 @@
   - 家长端 `GET /api/parent/notices`
   - 家长端 `POST /api/parent/notice-receipts/:receiptId/view`
   - 家长端 `POST /api/parent/notice-receipts/:receiptId/confirm`
-- 当前优先事项是接入真实 HTTPS 测试域名、微信公众平台合法域名和正式 AppSecret，执行 `verify:release`、备份恢复演练、体验版真机绑定，以及 CP-33 接送责任链的小范围业务试运行。
+- 当前优先事项是接入真实 HTTPS 测试域名、微信公众平台合法域名和正式 AppSecret，执行 `verify:release`、备份恢复演练、体验版真机绑定，以及 CP-33 接送责任链和 CP-34 学生流程高频操作的小范围业务试运行。
 
 ## 阶段 1：后端基础能力补齐
 
@@ -271,7 +271,7 @@ feat(api): add workflow template management
   - `checkedAt`
   - `teacherId`
   - 可选 `photoUrls`
-- 打卡后可同步生成 `GrowthRecord`，类型为 `workflow`。
+- 历史 CP-06 曾在班级打卡后同步生成 `GrowthRecord.workflow`；CP-34 已停止该自动行为，日常步骤改由 `StudentWorkflowStep` 保存，旧历史记录保留。
 
 验收：
 
@@ -1216,7 +1216,7 @@ pnpm verify:release -- -DeploymentEnvPath deploy/.env -RequireHttps <其他发�
 
 ### CP-33 安全接送与到离店闭环
 
-状态：**代码已完成；真机和真实门店交接为 `WAITING_FOR_EXTERNAL_ACCEPTANCE`；完成后停止，不进入 CP-34。**
+状态：**代码已完成；真机和真实门店交接为 `WAITING_FOR_EXTERNAL_ACCEPTANCE`；该轮完成后曾停止，CP-34 后续另行授权。**
 
 编号说明：本节是 2026-08-17 最新路线重新定义的业务 CP-33，替代历史同编号“发布流水线与回滚演练”。历史提案不再是 CP-33 的任务来源。
 
@@ -1265,7 +1265,7 @@ pnpm build
 
 ### CP-33.1 安全接送审查修复
 
-状态：**代码已完成；外部界面/真机确认仍为 `WAITING_FOR_EXTERNAL_ACCEPTANCE`；不进入 CP-34。**
+状态：**代码已完成；外部界面/真机确认仍为 `WAITING_FOR_EXTERNAL_ACCEPTANCE`；CP-34 后续另行授权。**
 
 范围严格限定为两项安全修复：
 
@@ -1280,6 +1280,54 @@ pnpm build
 
 限制：migration 不删除历史责任数据，升级前已存在的冲突需要人工审查；当前产品没有登记缺勤的业务写 API，数据库保护覆盖现有验证 fixture、直接 Prisma 写入和未来遵循数据库的写入口。
 
+### CP-34 学生级一日托管流程
+
+状态：**代码已完成；真实微信、真机高频操作和管理端人工验收为 `WAITING_FOR_EXTERNAL_ACCEPTANCE`；完成后停止，不进入 CP-35。**
+
+目标与模型：
+
+- 保留班级级 `WorkflowTemplate`、`WorkflowSession`、`WorkflowStep`，只在 `WorkflowStep` 下新增 `StudentWorkflowStep`，不创建平行的学生 session。
+- 学生步骤支持 `pending`、`completed`、`skipped`、`exception`；缺勤继续来自 `AttendanceEvent.absence` 并动态合成 `absent`。
+- 学生事实保存完成/处理时间、经办教师、个人照片和备注；唯一约束保证一个学生在同一步骤只有一条事实，历史删除使用 `RESTRICT` 保护。
+- `WorkflowStep.checked` 重新定义为 active、非缺勤学生均不再 pending；完成、跳过和异常均视为已处理，状态变化后同步 `checkedAt` 与最后经办教师。
+
+API 与安全：
+
+- `GET /api/teacher/workflow/today` 在旧结构上增加学生明细与汇总，并对当天已有 session 幂等补齐缺失事实。
+- 新增单学生 `complete`、`skip`、`exception` 和可选 `studentIds` 的 `batch-complete`；旧 `/check` 继续作为全班批量兼容入口。
+- 单人状态只允许从 pending 进入终态；跳过/异常原因必填；重复和终态改写返回 `409`。
+- 批量操作使用事务、步骤级 advisory lock 和 pending 条件更新，不覆盖 completed/skipped/exception；显式列表包含非法或缺勤学生时整批失败。
+- 教师权限检查 session、step、负责班级、学生班级和 active 状态；家长查询通过 active `StudentGuardian` 隔离。
+- 班级与个人照片分别保存，继续复用 `FileAsset ownerId + scene=workflow + imageOnly` 策略。
+
+界面：
+
+- 教师端以步骤为中心展示完成/待处理/跳过/异常/缺勤汇总，支持全部/待处理/已完成/异常等快捷筛选、批量完成、个人轻量详情及今日时间线。
+- 家长首页增加“今日托管进度”，聚合安全到店与真实步骤，可查看异常说明和个人照片。
+- 管理后台增加只读“学生托管流程”，支持日期、班级、教师、学生、状态筛选和完整步骤详情，不提供历史修改/删除。
+
+数据语义：
+
+- 普通 workflow 操作不再自动生成 `GrowthRecord`；旧历史记录不删除。
+- `StudentWorkflowStep` 是日常执行事实，`GrowthRecord` 继续用于值得长期保留的成长事件，后续日报可直接聚合前者。
+
+自动验收：
+
+```powershell
+pnpm --filter @ruizhibo/api verify:student-workflow
+pnpm --filter @ruizhibo/api verify:all
+pnpm typecheck
+pnpm build
+```
+
+`verify:student-workflow` 覆盖规定 24 个初始化、状态转换、缺勤、权限、图片、批量原子性、旧接口、家长隔离、GrowthRecord 停写与 Dashboard 一致性场景，并已接入 `verify:all`。
+
+外部验收项（`WAITING_FOR_EXTERNAL_ACCEPTANCE`）：
+
+- 真机验证 completed/skipped/exception/absent 同步显示和家长隔离。
+- 20 名脱敏学生执行“批量 17 人 + 1 跳过 + 1 异常 + 1 缺勤”的高频操作试运行。
+- 真机验证个人 workflow 图片上传、预览和失败反馈；管理后台确认筛选与详情只读。
+
 ## 推荐执行顺序
 
 严格建议按以下顺序推进：
@@ -1293,13 +1341,13 @@ CP-13 -> CP-14 -> CP-15 -> CP-16
 CP-17 -> CP-18 -> CP-19 -> CP-20
 CP-21 -> CP-22
 UI-01 -> UI-02 -> UI-03 -> UI-04 -> UI-05 -> UI-06 -> UI-07 -> UI-08 -> UI-09
-CP-23 -> CP-24 -> CP-25 -> CP-26 -> CP-27 -> CP-28 -> CP-29 -> CP-30 -> CP-31 -> CP-32 -> CP-33（安全接送）
+CP-23 -> CP-24 -> CP-25 -> CP-26 -> CP-27 -> CP-28 -> CP-29 -> CP-30 -> CP-31 -> CP-32 -> CP-33（安全接送） -> CP-33.1 -> CP-34（学生级流程）
 ```
 
 当前建议优先执行：
 
 ```text
-CP-32 外部验收与 CP-33 接送真机/真实门店验收；未授权进入 CP-34
+CP-32 外部验收、CP-33 接送真机/真实门店验收与 CP-34 学生流程真机高频验收；未授权进入 CP-35
 ```
 
 ## 每个提案的完成定义

@@ -18,6 +18,7 @@ import {
 } from "@prisma/client";
 import { AuditService } from "../audit/audit.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { StudentWorkflowService } from "../workflow/student-workflow.service";
 import { BindGuardianDto } from "./dto/bind-guardian.dto";
 import { CreateClassDto } from "./dto/create-class.dto";
 import { CreateStudentDto } from "./dto/create-student.dto";
@@ -45,6 +46,7 @@ export class AdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly studentWorkflow: StudentWorkflowService,
   ) {}
 
   async listTeachers() {
@@ -1218,6 +1220,10 @@ export class AdminService {
       this.prisma.workflowSession.count({ where }),
     ]);
     return this.paginated(items, total, page, pageSize);
+  }
+
+  listStudentWorkflows(query: BusinessQueryDto) {
+    return this.studentWorkflow.adminList(query);
   }
 
   async listLessonPlans(query: BusinessQueryDto) {

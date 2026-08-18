@@ -22,6 +22,10 @@ import { CreateNoticeDto } from "./dto/create-notice.dto";
 import { CreateResearchActivityDto } from "./dto/create-research-activity.dto";
 import { CreateTeachingRecordDto } from "./dto/create-teaching-record.dto";
 import { SendTeacherMessageDto } from "./dto/send-teacher-message.dto";
+import {
+  CompleteStudentWorkflowStepDto,
+  ResolveStudentWorkflowStepDto,
+} from "./dto/student-workflow-action.dto";
 import { UpdateHomeworkSubmissionDto } from "./dto/update-homework-submission.dto";
 import { UpdateLessonPlanDto } from "./dto/update-lesson-plan.dto";
 import { UpdateLessonPlanStatusDto } from "./dto/update-lesson-plan-status.dto";
@@ -73,6 +77,72 @@ export class TeacherController {
     );
   }
 
+  @Post("workflow/:sessionId/steps/:stepId/batch-complete")
+  batchCompleteWorkflowStep(
+    @CurrentUser() user: AuthUser,
+    @Param("sessionId") sessionId: string,
+    @Param("stepId") stepId: string,
+    @Body() dto: CheckWorkflowStepDto,
+  ) {
+    return this.teacherService.batchCompleteStudentWorkflowStep(
+      user.id,
+      sessionId,
+      stepId,
+      dto,
+    );
+  }
+
+  @Post("workflow/:sessionId/steps/:stepId/students/:studentId/complete")
+  completeStudentWorkflowStep(
+    @CurrentUser() user: AuthUser,
+    @Param("sessionId") sessionId: string,
+    @Param("stepId") stepId: string,
+    @Param("studentId") studentId: string,
+    @Body() dto: CompleteStudentWorkflowStepDto,
+  ) {
+    return this.teacherService.completeStudentWorkflowStep(
+      user.id,
+      sessionId,
+      stepId,
+      studentId,
+      dto,
+    );
+  }
+
+  @Post("workflow/:sessionId/steps/:stepId/students/:studentId/skip")
+  skipStudentWorkflowStep(
+    @CurrentUser() user: AuthUser,
+    @Param("sessionId") sessionId: string,
+    @Param("stepId") stepId: string,
+    @Param("studentId") studentId: string,
+    @Body() dto: ResolveStudentWorkflowStepDto,
+  ) {
+    return this.teacherService.skipStudentWorkflowStep(
+      user.id,
+      sessionId,
+      stepId,
+      studentId,
+      dto,
+    );
+  }
+
+  @Post("workflow/:sessionId/steps/:stepId/students/:studentId/exception")
+  exceptionStudentWorkflowStep(
+    @CurrentUser() user: AuthUser,
+    @Param("sessionId") sessionId: string,
+    @Param("stepId") stepId: string,
+    @Param("studentId") studentId: string,
+    @Body() dto: ResolveStudentWorkflowStepDto,
+  ) {
+    return this.teacherService.exceptionStudentWorkflowStep(
+      user.id,
+      sessionId,
+      stepId,
+      studentId,
+      dto,
+    );
+  }
+
   @Get("teaching-records")
   teachingRecords(@CurrentUser() user: AuthUser) {
     return this.teacherService.teachingRecords(user.id);
@@ -101,10 +171,7 @@ export class TeacherController {
   }
 
   @Get("lesson-plans")
-  lessonPlans(
-    @CurrentUser() user: AuthUser,
-    @Query("scope") scope?: string,
-  ) {
+  lessonPlans(@CurrentUser() user: AuthUser, @Query("scope") scope?: string) {
     return this.teacherService.lessonPlans(user.id, scope);
   }
 

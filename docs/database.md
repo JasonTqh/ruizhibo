@@ -23,6 +23,8 @@ erDiagram
   AttendanceEvent ||--o| PickupRecord : mirrors
   Class ||--o{ WorkflowSession : has
   WorkflowSession ||--o{ WorkflowStep : has
+  WorkflowStep ||--o{ StudentWorkflowStep : tracks
+  Student ||--o{ StudentWorkflowStep : performs
   Class ||--o{ HomeworkAssignment : has
   HomeworkAssignment ||--o{ HomeworkSubmission : has
   Student ||--o{ GrowthRecord : has
@@ -77,10 +79,17 @@ erDiagram
 - `WorkflowTemplateStep`: 模板步骤。
 - `WorkflowSession`: 某班级某一天的流程实例。
 - `WorkflowStep`: 实际打卡步骤。
+- `StudentWorkflowStep`: 该班当天某一步骤下，单个学生的执行事实。
 
 这样可以保留历史记录，也能在未来调整模板。
 
-当前 workflow 仍是班级级流程定义与打卡，不等同于学生级托管执行。CP-33 的学生接送事实由独立的安全接送模型记录。
+CP-34 保留原有班级模板、每日实例和班级步骤，在 `WorkflowStep` 下增加学生维度，不新增平行的学生 session。`StudentWorkflowStep.status` 支持 `pending`、`completed`、`skipped`、`exception`；处理时间、经办教师、个人照片和备注随事实保存，`@@unique([workflowStepId, studentId])` 防止同一步骤产生重复学生事实。
+
+缺勤不写入 workflow 状态枚举。当天 `AttendanceEvent.absence` 在查询时动态合成为 `effectiveStatus = absent`，因此考勤更正后无需批量修改 workflow 数据，且缺勤学生不能执行正常流程操作。
+
+`WorkflowStep.checked` 保留并重新定义为：该步骤所有 active、非缺勤学生均已离开 `pending`。`completed`、`skipped`、`exception` 都算已处理，inactive/graduated 与当天缺勤学生不参与待处理计数。每次单人或批量操作后都会同步 `checked`、`checkedAt` 和最后经办教师，教师 Dashboard 继续通过它统计未完成步骤。
+
+`WorkflowStep.photoUrls` 是班级步骤凭证，`StudentWorkflowStep.photoUrls` 是个人凭证，两者不互相复制。两类照片都复用 `FileAsset` 的 `ownerId + scene=workflow + imageOnly` 校验。学生事实对 `WorkflowStep` 和 `Student` 使用 `ON DELETE RESTRICT`，教师关系使用 `SET NULL` 保留事实本身。
 
 ### 4.1 安全接送与到离店
 
@@ -119,10 +128,12 @@ CP-33 在复用 `AttendanceEvent` 的基础上增加两个领域模型：
 来源可以是：
 
 - 出勤事件
-- 流程打卡摘要
+- CP-34 以前已经生成的历史流程打卡摘要（保留但不清理）
 - 作业状态
 - 老师反馈
 - 中心通知
+
+CP-34 起，普通一日流程完成、跳过或异常只写 `StudentWorkflowStep`，不再自动生成 `GrowthRecord`。`GrowthRecord` 继续用于值得长期保留和家长关注的成长事件，避免被日常操作日志污染。
 
 ## 7. 家校沟通
 
@@ -179,6 +190,7 @@ CP-33 在复用 `AttendanceEvent` 的基础上增加两个领域模型：
 - 管理员正式登录
 - 管理员调整教案和教研活动状态
 - 教师流程打卡
+- 教师单个完成、跳过、异常处理和批量完成学生流程
 - 教师创建教学记录、备课计划、教研活动、成长反馈、作业
 - 教师更新教案状态
 - 家长提交或重新提交作业

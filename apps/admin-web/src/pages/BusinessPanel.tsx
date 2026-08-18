@@ -46,6 +46,7 @@ type BusinessKind =
   | "attendance"
   | "pickup"
   | "workflow"
+  | "studentWorkflow"
   | "lesson"
   | "research";
 
@@ -84,6 +85,11 @@ const businessKinds: Array<{
     endpoint: "/admin/business/pickup-records",
   },
   { key: "workflow", label: "一日流程", endpoint: "/admin/business/workflows" },
+  {
+    key: "studentWorkflow",
+    label: "学生托管流程",
+    endpoint: "/admin/business/student-workflows",
+  },
   { key: "lesson", label: "教案", endpoint: "/admin/business/lesson-plans" },
   {
     key: "research",
@@ -95,6 +101,7 @@ const businessKinds: Array<{
 const statusOptions: Partial<Record<BusinessKind, string[]>> = {
   homework: ["pending", "submitted", "reviewed", "overdue"],
   workflow: ["active", "completed"],
+  studentWorkflow: ["pending", "completed", "skipped", "exception", "absent"],
   lesson: ["draft", "published", "archived"],
   research: ["draft", "open", "completed", "cancelled"],
   pickup: ["normal", "temporary_authorization", "exception"],
@@ -124,6 +131,8 @@ const statusLabels: Record<string, string> = {
   exception: "异常接送",
   missing_arrival: "今日未到店",
   missing_leave: "今日未离店",
+  skipped: "已跳过",
+  absent: "缺勤",
 };
 
 const typeLabels: Record<string, string> = {
@@ -157,12 +166,15 @@ function recordTitle(kind: BusinessKind, record: BusinessRecord) {
   if (kind === "lesson") return record.theme;
   if (kind === "teaching") return record.course;
   if (kind === "workflow") return record.template?.name;
+  if (kind === "studentWorkflow")
+    return `${record.student?.name ?? "学生"} · 今日托管`;
   return record.title ?? record.name ?? "未命名记录";
 }
 
 function recordTime(kind: BusinessKind, record: BusinessRecord) {
   if (kind === "lesson") return record.lessonDate;
-  if (kind === "teaching" || kind === "workflow") return record.date;
+  if (kind === "teaching" || kind === "workflow" || kind === "studentWorkflow")
+    return record.date;
   if (kind === "growth" || kind === "attendance") return record.happenedAt;
   if (kind === "pickup") return record.happenedAt;
   if (kind === "research") return record.startAt;
@@ -201,6 +213,15 @@ function recordStatus(kind: BusinessKind, record: BusinessRecord) {
       (item: BusinessRecord) => item.checked,
     ).length;
     return `${checked ?? 0}/${record.steps?.length ?? 0} 已完成`;
+  }
+  if (kind === "studentWorkflow") {
+    const summary = record.summary ?? {};
+    const processed =
+      Number(summary.completed || 0) +
+      Number(summary.skipped || 0) +
+      Number(summary.exception || 0) +
+      Number(summary.absent || 0);
+    return `${processed}/${Number(summary.total || 0)} 已处理${summary.exception ? ` · ⚠ ${summary.exception} 异常` : ""}`;
   }
   return statusLabels[record.status] ?? record.status ?? "-";
 }
@@ -315,7 +336,9 @@ export function BusinessPanel({
       render: (_: unknown, record: BusinessRecord) => (
         <Tag
           color={
-            record.status === "cancelled" || record.isException
+            record.status === "cancelled" ||
+            record.isException ||
+            (kind === "studentWorkflow" && record.summary?.exception)
               ? "red"
               : "green"
           }
@@ -434,7 +457,10 @@ export function BusinessPanel({
                 style={{ width: 130 }}
                 options={statusOptions[kind]?.map((value) => ({
                   value,
-                  label: statusLabels[value] ?? value,
+                  label:
+                    kind === "studentWorkflow"
+                      ? studentWorkflowStatusLabel(value)
+                      : (statusLabels[value] ?? value),
                 }))}
               />
             </Form.Item>
@@ -579,6 +605,49 @@ export function BusinessPanel({
                 </Descriptions.Item>
               </>
             ) : null}
+            {kind === "studentWorkflow" ? (
+              <Descriptions.Item label="完整步骤">
+                <Space
+                  direction="vertical"
+                  size="small"
+                  style={{ width: "100%" }}
+                >
+                  {(selected.steps ?? []).map((step: BusinessRecord) => (
+                    <div key={step.id}>
+                      <Space wrap>
+                        <Tag
+                          color={
+                            step.effectiveStatus === "exception"
+                              ? "red"
+                              : step.effectiveStatus === "completed"
+                                ? "green"
+                                : "default"
+                          }
+                        >
+                          {studentWorkflowStatusLabel(step.effectiveStatus)}
+                        </Tag>
+                        <Typography.Text strong>{step.name}</Typography.Text>
+                        <Typography.Text type="secondary">
+                          {step.completedAt
+                            ? formatDate(step.completedAt)
+                            : step.timeRange}
+                        </Typography.Text>
+                      </Space>
+                      {step.remark ? (
+                        <Typography.Paragraph style={{ margin: "4px 0 0 0" }}>
+                          说明：{step.remark}
+                        </Typography.Paragraph>
+                      ) : null}
+                      {step.photoUrls?.length ? (
+                        <Typography.Text type="secondary">
+                          个人凭证：{step.photoUrls.length} 张
+                        </Typography.Text>
+                      ) : null}
+                    </div>
+                  ))}
+                </Space>
+              </Descriptions.Item>
+            ) : null}
             <Descriptions.Item label="记录编号">
               {selected.id}
             </Descriptions.Item>
@@ -586,5 +655,19 @@ export function BusinessPanel({
         ) : null}
       </Drawer>
     </Space>
+  );
+}
+
+function studentWorkflowStatusLabel(status?: string) {
+  return (
+    {
+      pending: "待处理",
+      completed: "已完成",
+      skipped: "已跳过",
+      exception: "异常",
+      absent: "缺勤",
+    }[status ?? ""] ??
+    status ??
+    "-"
   );
 }

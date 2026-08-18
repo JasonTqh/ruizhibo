@@ -268,6 +268,11 @@ export class AdminController {
     return this.adminService.listWorkflowSessions(query);
   }
 
+  @Get("business/student-workflows")
+  listStudentWorkflows(@Query() query: BusinessQueryDto) {
+    return this.adminService.listStudentWorkflows(query);
+  }
+
   @Get("business/lesson-plans")
   listLessonPlans(@Query() query: BusinessQueryDto) {
     return this.adminService.listLessonPlans(query);

@@ -6,37 +6,39 @@
 
 CP-32 后续更新（2026-08-17）：workflow 图片安全与发布门禁的代码部分已完成；真实 HTTPS、微信公众平台合法域名和体验版真机验收仍为 `WAITING_FOR_EXTERNAL_ACCEPTANCE`。当时尚未进入 CP-33；后续授权见下一条更新。
 
-CP-33 后续更新（2026-08-17）：用户已单独授权执行最新重新定义的 **CP-33 安全接送与到离店闭环**。代码、数据库 migration、三端页面和专属回归已完成；验收反馈中的请假跨端一致性、家长首页经办教师、具体送达人、教师异常标签、后台班级/占位时间、重复点击和放学高峰批量操作也已回补。微信真机与真实门店交接验收仍为 `WAITING_FOR_EXTERNAL_ACCEPTANCE`。历史同编号“发布流水线与回滚演练”已被替代，本轮不进入 CP-34。
+CP-33 后续更新（2026-08-17）：用户已单独授权执行最新重新定义的 **CP-33 安全接送与到离店闭环**。代码、数据库 migration、三端页面和专属回归已完成；验收反馈中的请假跨端一致性、家长首页经办教师、具体送达人、教师异常标签、后台班级/占位时间、重复点击和放学高峰批量操作也已回补。微信真机与真实门店交接验收仍为 `WAITING_FOR_EXTERNAL_ACCEPTANCE`。历史同编号“发布流水线与回滚演练”已被替代；该轮当时未进入 CP-34，后续授权见 CP-34 更新。
 
-CP-33.1 后续更新（2026-08-17）：安全审查发现 CP-33 将历史监护关系默认扩权为 `canPickup=true`，且缺勤与已开始接送链可能形成冲突事实。代码修复已将监护人接送权改为显式授权，并通过新 migration 收紧历史自动授权；缺勤/接送增加服务事务检查及数据库 trigger/advisory lock 双向互斥。历史冲突责任数据不会自动删除，后台默认值和真机接送人刷新仍待人工确认。本轮不进入 CP-34。
+CP-33.1 后续更新（2026-08-17）：安全审查发现 CP-33 将历史监护关系默认扩权为 `canPickup=true`，且缺勤与已开始接送链可能形成冲突事实。代码修复已将监护人接送权改为显式授权，并通过新 migration 收紧历史自动授权；缺勤/接送增加服务事务检查及数据库 trigger/advisory lock 双向互斥。历史冲突责任数据不会自动删除，后台默认值和真机接送人刷新仍待人工确认。该轮当时未进入 CP-34，后续已获单独授权。
+
+CP-34 后续更新（2026-08-17）：用户已单独授权 **CP-34 学生级一日托管流程**。代码在保留班级 Workflow 体系的基础上新增 `StudentWorkflowStep`，完成单人/批量处理、缺勤动态合成、家长今日进度、管理端只读查询、GrowthRecord 停写与 24 场景专属回归；代码和本地/隔离环境自动验证已完成，真机高频操作与个人图片体验仍为 `WAITING_FOR_EXTERNAL_ACCEPTANCE`。本轮不进入 CP-35。
 
 ## 1. 执行摘要
 
 当前项目已经从“原型”进入“可封闭验证的内测系统”阶段。后端、管理后台、教师端、家长端四端已经围绕基础资料、教师/家长登录、通知回执、作业提交批阅、成长记录、教案教研、消息图片、文件存储、审计日志、部署检查和回归脚本形成了较完整的闭环。
 
-但它还不应被判断为“真实门店可长期运营系统”。安全接送的代码责任链已经补齐，但仍需微信真机和真实门店交接验收；学生级日流程、生活记录、每日托管报告、续费/收费与经营指标仍不完整。当前 workflow 仍是班级级别，不能表达每个孩子独立的流程完成、缺勤与异常事实。
+但它还不应被判断为“真实门店可长期运营系统”。安全接送和学生级日流程的代码责任链已经补齐，但仍需微信真机、真实门店交接与高频操作验收；生活记录、每日托管报告、续费/收费与经营指标仍不完整。当前 workflow 已能在保留班级模板的同时表达每个孩子独立的完成、跳过、异常和动态缺勤事实。
 
 总体判断：
 
 | 维度 | 当前成熟度 | 判断 |
 | --- | ---: | --- |
 | 工程基础 | 78% | 架构清晰，脚本和部署意识较好，但缺 CI、真实端验收和部分安全加固 |
-| 后端业务闭环 | 76% | 基础业务与安全接送事实链可用；学生级流程和生活/日报不足 |
-| 管理后台 | 77% | 基础管理、接送追溯和业务查询可用；缺经营看板与招生收费 |
-| 教师端 | 74% | 工作台与今日接送已成形；缺学生级完整流程和生活记录 |
-| 家长端 | 71% | 今日接送、历史、作业、成长、通知、消息可用；缺每日可读报告 |
+| 后端业务闭环 | 82% | 安全接送与学生级流程事实链可用；生活记录和日报不足 |
+| 管理后台 | 80% | 基础管理、接送追溯、学生流程只读查询可用；缺经营看板与招生收费 |
+| 教师端 | 81% | 今日接送与学生级批量/例外流程已成形；缺生活记录 |
+| 家长端 | 76% | 今日接送、托管进度、作业、成长、通知、消息可用；缺每日可读报告 |
 | 部署/验收 | 74% | Docker、Caddy、备份、发布验证脚本已具备；真实 HTTPS/微信体验版仍待验收 |
 | 业务可上线性 | 64% | 接送代码责任链已具备，真实微信和门店规程验收前仍只适合小范围内测 |
 
-当前不自动选择下一开发 CP。应先完成 CP-32 的真实 HTTPS/微信体验版验收，以及 CP-33 的真机和门店接送责任链验收；学生级流程必须等待新的明确授权。
+当前不自动选择下一开发 CP。应先完成 CP-32 的真实 HTTPS/微信体验版验收、CP-33 的真机和门店接送责任链验收，以及 CP-34 的真机学生流程与高频批量操作验收；不得自动进入 CP-35。
 
 ## 2. 当前代码与分支状态
 
 当前分支状态：
 
 - 当前分支：`main`
-- 远程同步状态：`main` 与 `origin/main` 已对齐
-- 最新提交：`146e128 test: add admin regression script and acceptance report`
+- 远程基线：`d8db809 fix: tighten pickup authorization and attendance consistency`
+- 当前 CP-34 修改尚未提交
 - 最近开发节奏：从基础端到端流程、通知/作业/消息，再到管理后台、数据安全、部署验证、备份恢复、观测、正式管理员登录、发布验证门禁和回归验收，提交历史连续且方向清晰。
 
 最近关键提交说明：
@@ -134,9 +136,8 @@ CP-33.1 后续更新（2026-08-17）：安全审查发现 CP-33 将历史监护�
 
 关键不足：
 
-- 日流程是班级级别，不是学生级别。
 - 没有生活记录，例如饮水、用餐、午休、情绪、异常。
-- 今日接送已有学生级高密度列表，但完整日流程仍是班级级。
+- 学生级流程虽已支持批量正常处理和单人例外，但尚未完成真机 20 人高频操作验收。
 
 ### 3.4 家长端小程序能力
 
@@ -210,12 +211,12 @@ flowchart LR
 | 教案教研 | 已完成 MVP | 教师创建、更新、状态流转，管理端可查询 |
 | 审计与部署检查 | 已完成 MVP | 审计日志、发布验证、备份恢复已具备 |
 | 安全接送 | 代码已完成，待外部验收 | 学校接到、到店、授权/临时/异常离店、家长查看与管理端追溯已闭环 |
+| 学生级托管流程 | 代码已完成，待外部验收 | 每名学生独立状态、批量正常处理、家长进度与管理端只读查询已闭环 |
 
 ### 仍未形成真实闭环的链路
 
 | 链路 | 当前状态 | 风险 |
 | --- | --- | --- |
-| 学生级托管流程 | 当前是班级级流程 | 无法记录单个孩子的未完成、缺勤、异常 |
 | 生活照护记录 | 缺失 | 无法满足托管场景高频家长反馈 |
 | 每日托管报告 | 缺失 | 家长价值感不足，需要分散查看多处信息 |
 | 招生/报名/套餐/收费/续费 | 缺失 | 无法支撑商业运营闭环 |
@@ -234,7 +235,7 @@ flowchart LR
 - 学生与家长：`Student`、`StudentGuardian`
 - 考勤：`AttendanceEvent`
 - 安全接送：`AuthorizedPickupPerson`、`PickupRecord`、接送事件/到店方式/交接状态枚举
-- 流程：`WorkflowTemplate`、`WorkflowTemplateStep`、`WorkflowSession`、`WorkflowStep`
+- 流程：`WorkflowTemplate`、`WorkflowTemplateStep`、`WorkflowSession`、`WorkflowStep`、`StudentWorkflowStep`
 - 作业：`HomeworkAssignment`、`HomeworkSubmission`
 - 教学与成长：`TeachingRecord`、`GrowthRecord`
 - 教案与教研：`LessonPlan`、`ResearchActivity`、`ResearchParticipant`
@@ -249,6 +250,7 @@ flowchart LR
 - `StudentGuardian` 已包含接收通知、提交作业、查看成长等权限位，适合后续扩展监护人能力差异。
 - `StudentGuardian.canPickup` 复用账号型家长，`AuthorizedPickupPerson` 只承载非账号型接送人，避免重复父母资料。
 - `PickupRecord` 使用事实事件、接送人快照、审计、唯一约束和中国业务日，适合责任追溯。
+- `StudentWorkflowStep` 在班级步骤下保存学生独立终态，缺勤由考勤动态合成；唯一约束、事务和条件更新阻止重复处理。
 - `HomeworkSubmission` 对作业和学生做唯一约束，避免重复提交。
 - `Conversation` 按学生、家长、教师唯一，契合真实家校沟通。
 - `FileAsset` 抽象了存储驱动与文件归属，为本地/S3 切换打好了基础。
@@ -258,7 +260,7 @@ flowchart LR
 
 | 等级 | 问题 | 影响 |
 | --- | --- | --- |
-| P0 | `WorkflowSession`/`WorkflowStep` 是班级级流程 | 无法表达每个学生的托管状态，真实运营中会产生事实不准确 |
+| 已解决 | 班级级 Workflow 无法表达学生差异 | CP-34 在保留班级结构下新增 `StudentWorkflowStep`，支持独立状态、时间、备注和照片 |
 | 已解决 | 安全接送模型缺失 | CP-33 新增接送事实与授权模型，并事务同步 `AttendanceEvent` |
 | P1 | 接送历史尚无更正/冲正机制 | 当前禁止修改删除；真实纠错需要保留原值、原因和更正人 |
 | P1 | 缺少生活记录模型 | 饮水、用餐、午休、情绪、身体异常无法结构化沉淀 |
@@ -271,7 +273,7 @@ flowchart LR
 
 下一阶段不建议大拆现有模型，而应增量补齐：
 
-- 新增学生级流程执行模型，例如 `StudentWorkflowSession` / `StudentWorkflowStepCheck`，保留当前班级模板。
+- 学生级流程已由 CP-34 以 `StudentWorkflowStep` 增量补齐，不新增平行 session；后续如需更正只增加显式冲正，不覆盖终态。
 - 接送模型已由 CP-33 增量补齐；后续如需纠错，只增加显式冲正，不覆盖原始事实。
 - 新增轻量生活记录模型，例如 `CareRecord`，字段先覆盖餐食、饮水、午休、情绪、异常。
 - 新增每日报告聚合模型，例如 `DailyReport`，由考勤、学生级流程、作业、成长和生活记录生成。
@@ -411,6 +413,7 @@ flowchart LR
 | P0 | 真实微信登录和手机号绑定体验版验收 | 使用微信开发者工具 + 真机 + 体验版完成 |
 | P0 | CP-33 真实接送责任链尚未真机/门店验收 | 用两个微信账号和真实老师按学校接到、到店、授权/异常离店验收 |
 | 已完成 | workflow 图片归属/scene 自动回归 | `verify:workflow-image-policy`、`verify:workflow-images` 已加入，并接入 `verify:all` / release gate |
+| P0 | CP-34 学生级流程尚未真机高频验收 | 用真实微信与脱敏 20 人班验证批量正常处理、例外处理、家长隔离和个人图片 |
 | P1 | 没有 CI/CD 门禁 | 至少增加 typecheck/build/verify 脚本的流水线 |
 | P1 | 小程序端类型检查有效性不足 | 移除关键路径 `ts-nocheck` 后再纳入门禁 |
 | P1 | 强删除和恢复流程缺少真实演练记录 | 每次试运营前做一次备份恢复演练 |
@@ -446,17 +449,17 @@ flowchart LR
 | `docs/regression-acceptance-2026-08-14.md` | 验收版本为 `ac40fbc`，当前 HEAD 为 `146e128` | 标注该报告是 `ac40fbc` 的验收证据，下一次发布重新生成 |
 | `docs/release-verification.md` | CP-32 已纳入 workflow 图片归属校验与生产配置审计 | 已同步，无待处理漂移 |
 | `docs/api.md` | 消息枚举包含 file/system，但当前消息输入实际只开放 text/image | 明确“当前开放类型”为 text/image |
-| `docs/database.md` | 已补 CP-33 接送模型及 workflow 班级级限制 | 已同步 |
+| `docs/database.md` | 已补 CP-33 接送模型及 CP-34 学生流程模型/状态语义 | 已同步 |
 | `docs/development.md` | 小程序 `ts-nocheck` 与类型检查限制需说明 | 防止开发者误判 typecheck 覆盖度 |
 
-结论：CP-33 文档已同步。主要风险转为真实微信/门店验收、学生级流程和接送历史纠错机制；本轮不提前进入 CP-34。
+结论：CP-34 文档已同步。主要风险转为真实微信/门店验收、学生流程高频真机验收、生活记录和接送/流程历史纠错机制；本轮不进入 CP-35。
 
 ## 10. 风险清单
 
 ### P0：上线前必须处理
 
 1. 真实微信登录、手机号绑定、合法域名和 HTTPS 体验版验收尚未完成。
-2. 班级级 workflow 不能支撑真实学生级托管事实，不能作为正式托管记录依据。
+2. 学生级 workflow 代码已完成，但未经真机高频操作和真实班级试运行前不能作为唯一托管事实依据。
 3. 安全接送结构化代码已完成，但未经真实门店流程验收前不能作为唯一离店责任依据。
 
 已解决的原 P0：教师 workflow 打卡图片 FileAsset 归属和 scene 校验已在 CP-32 完成代码修复与自动回归。
@@ -583,7 +586,7 @@ flowchart LR
 
 编号说明：这是 2026-08-17 最新路线重新定义的业务 CP-33，替代历史同编号“发布流水线与回滚演练”。旧提案不再是 CP-33 的任务来源，CI/CD 也不在本轮范围。
 
-实现状态：**代码已完成；真实微信与门店交接为 `WAITING_FOR_EXTERNAL_ACCEPTANCE`；完成后停止，不进入 CP-34。**
+实现状态：**代码已完成；真实微信与门店交接为 `WAITING_FOR_EXTERNAL_ACCEPTANCE`；该轮完成后曾停止，CP-34 后续另行授权。**
 
 数据与后端：
 
@@ -623,7 +626,7 @@ flowchart LR
 
 #### CP-33.1 安全接送审查修复
 
-实现状态：**代码已完成；管理后台与真机授权展示为 `WAITING_FOR_EXTERNAL_ACCEPTANCE`；不进入 CP-34。**
+实现状态：**代码已完成；管理后台与真机授权展示为 `WAITING_FOR_EXTERNAL_ACCEPTANCE`；CP-34 后续另行授权。**
 
 - `StudentGuardian.canPickup` 默认改为 `false`，后台新建绑定默认关闭，后端在字段缺失时也不会授权。
 - 新 migration 不改动已发布的 CP-33 migration，统一撤销缺少明确证据的历史自动授权；管理员需要重新逐位确认。
@@ -637,41 +640,27 @@ flowchart LR
 
 #### CP-34 学生级一日托管流程
 
-目标：
+实现状态：**代码已完成；真机与真实高频操作为 `WAITING_FOR_EXTERNAL_ACCEPTANCE`；完成后停止，不进入 CP-35。**
 
-- 从班级级 workflow 升级为学生级 workflow 执行。
-- 支持每个学生独立状态、完成时间、异常说明和照片。
+已完成：
 
-数据库变更：
+- 保留 `WorkflowTemplate`、`WorkflowTemplateStep`、`WorkflowSession`、`WorkflowStep`；新增 `StudentWorkflowStep`，不创建平行的学生 session。
+- 支持每名学生独立 `pending/completed/skipped/exception`，缺勤由当天 `AttendanceEvent.absence` 动态合成为 `absent`，缺勤学生禁止执行流程。
+- 学生记录在当天 session 首次加载时按 active 学生幂等补齐；历史已完成且尚无学生事实的当天步骤首次补齐为 completed，旧 migration 和旧历史不删除。
+- `WorkflowStep.checked` 表示所有 active、非缺勤学生均已处理；完成、跳过、异常均离开 pending，Dashboard 未完成步骤统计保持兼容。
+- 新增单学生完成、跳过、异常与可选 `studentIds` 的批量完成 API；旧 `/check` 保持全班批量兼容。批量事务化，非法列表整批失败，已处理状态不被覆盖。
+- 单人操作只允许 pending 进入终态；跳过/异常原因必填，重复操作和终态改写返回 `409`；教师跨班、step/session 不匹配和学生越权均被拒绝。
+- 班级照片与个人照片分别保存在 `WorkflowStep.photoUrls` / `StudentWorkflowStep.photoUrls`，都复用当前教师 owner、`scene=workflow`、图片类型和文件存在验证。
+- 教师端以步骤为中心提供汇总、快捷筛选、批量完成、学生轻量详情、接送上下文与今日时间线；家长首页展示自己的今日托管进度、备注和个人照片。
+- 管理端新增日期、班级、教师、学生、状态筛选及完整步骤详情，仅查询，不提供修改/删除历史事实。
+- 普通 workflow 操作不再批量创建 `GrowthRecord`，旧记录保留；后续日报可以直接聚合学生流程事实。
+- 新增 migration `20260817210000_add_student_workflow_steps` 和 `verify:student-workflow`；24 个规定场景通过，并已接入 `verify:all`。
 
-- 新增学生级流程 session/check 模型，或在现有 workflow 下增加 student 维度记录。
-- 保留班级模板作为流程定义。
+`WAITING_FOR_EXTERNAL_ACCEPTANCE`：
 
-后端 API：
-
-- 教师获取今日班级下每个学生流程状态。
-- 教师批量/单个完成学生步骤。
-- 教师标记缺勤、跳过、异常。
-- 家长查询孩子今日流程摘要。
-
-教师端：
-
-- 增加“今日学生状态”视图。
-- 支持按学生快速打卡、批量打卡和异常备注。
-
-家长端：
-
-- 在首页展示今日关键状态。
-
-管理后台：
-
-- 查询班级/学生日流程记录。
-
-验收标准：
-
-- 同一班级中不同学生可以有不同流程状态。
-- 一个学生缺勤不会影响其他学生流程。
-- 家长只能看到自己孩子的数据。
+- 真机准备 completed、skipped、exception、absent 各一人，确认步骤 checked、教师视图、家长隔离和个人图片链路。
+- 20 名脱敏学生执行“批量完成 17 人 + 1 跳过 + 1 异常 + 1 缺勤”，确认滚动、反馈和耗时适合放学高峰。
+- 管理后台人工确认筛选、完整步骤和只读边界。
 
 #### 历史 CP-35 安全接送提案（已被替代）
 
@@ -836,7 +825,7 @@ flowchart LR
 1. **真实微信/HTTPS/体验版验收**：先证明系统能在真实环境打开、登录、绑定和请求 API。
 2. **workflow 图片安全加固（代码已完成）**：儿童图片已禁止引用他人文件或错误业务场景文件，待真实 HTTPS/真机复验。
 3. **CP-33 安全接送外部验收**：代码已结构化到店、离店、接送人、经办教师和异常，必须用真机与真实交接流程复验。
-4. **学生级日流程**：这是托管业务从演示变成真实运营的关键分界线，但本轮未进入。
+4. **CP-34 学生级日流程外部验收**：代码已完成，必须补做 20 人批量/例外操作、家长隔离和个人图片真机验证。
 5. **每日托管报告**：把分散数据变成家长每天能感知的价值。
 
 ## 14. Top 5 暂缓事项
@@ -849,7 +838,7 @@ flowchart LR
 
 ## 15. 推荐下一个变更提案
 
-推荐先完成：**CP-32 真实环境外部验收 + CP-33 安全接送真机/门店验收**。CP-33 代码部分已完成，本报告不授权或进入 CP-34。
+推荐先完成：**CP-32 真实环境外部验收 + CP-33 安全接送真机/门店验收 + CP-34 学生流程真机高频验收**。CP-34 代码部分已完成，本报告不授权或进入 CP-35。
 
 选择理由：
 
@@ -862,7 +851,7 @@ flowchart LR
 
 - 从“本地可用”推进到“真实体验版可用”。
 - 从“功能闭环”推进到“上线前安全可控”。
-- 为后续是否启动学生级托管流程提供可信验收证据；是否进入 CP-34 需另行授权。
+- 为后续是否启动生活记录或日报等新提案提供可信验收证据；是否进入 CP-35 或其他后续 CP 需另行授权。
 
 建议验收顺序：
 
@@ -897,24 +886,26 @@ flowchart LR
 16. 教师登记学校接到、安全到店，再选择授权人办理离店。
 17. 用另一名学生验证家长送达、临时/异常接送和必填保护。
 18. 家长查看今日状态与历史时间线，管理员筛选未到店、未离店和异常记录。
-19. 执行备份。
-20. 在测试环境验证恢复。
+19. 教师按步骤批量完成正常学生，并分别记录跳过、异常与缺勤学生。
+20. 家长查看自己的今日托管进度，管理员只读查询学生步骤。
+21. 执行备份。
+22. 在测试环境验证恢复。
 
 当前不建议作为正式验收的路径：
 
 - 安全接送作为唯一正式责任台账（代码已完成，外部验收前仍不可替代门店现行交接制度）。
-- 学生级日流程。
+- 学生级日流程作为正式事实来源（代码已完成，真机高频验收前仍需与线下记录并行）。
 - 生活记录。
 - 每日报告。
 - 收费续费。
 
-除已完成代码的安全接送外，其余应作为后续独立提案；本轮不进入 CP-34。
+安全接送与学生级日流程的代码均已完成但仍需外部验收；生活记录、日报和收费续费应作为后续独立提案，本轮不进入 CP-35。
 
 ## 17. 结论
 
 锐之博托管中心系统当前已经完成了一个质量不错的内测基础版本。它不是空壳，也不是只停留在页面展示；后端权限、四端业务、文件、审计、部署验证都有真实实现。
 
-但是，从托管行业业务看，真正决定能否被门店长期使用的不是“是否能建学生和发通知”，而是“每天每个孩子从到店到离店是否被准确记录，家长是否能放心，店长是否能追责和复盘”。CP-33 已完成这条责任链的代码基础，但真机、真实账号和门店交接规程尚未验收，因此仍不能直接替代线下安全制度。
+但是，从托管行业业务看，真正决定能否被门店长期使用的不是“是否能建学生和发通知”，而是“每天每个孩子从到店到离店是否被准确记录，家长是否能放心，店长是否能追责和复盘”。CP-33 已完成接送责任链，CP-34 已完成学生级步骤事实的代码基础；真机、真实账号、门店交接规程与高频流程尚未验收，因此仍不能直接替代线下安全制度和纸质记录。
 
 因此下一阶段路线应该是：
 
@@ -931,10 +922,9 @@ flowchart LR
 ```text
 Project audit completed.
 Branch: main
-Remote sync: main aligned with origin/main at audit start
-Latest commit: 146e128 test: add admin regression script and acceptance report
-Code changes: CP-33 safe pickup backend, migration, teacher/parent miniapps, admin and verification implemented in working tree
+Base commit: d8db809 fix: tighten pickup authorization and attendance consistency
+Code changes: CP-34 student-level workflow backend, migration, teacher/parent miniapps, admin and verification implemented in working tree
 Report updated: docs/project-audit-and-next-roadmap.md
-Current status: CP-33 code complete; CP-32 and CP-33 external acceptance still pending
-Recommended next action: finish real HTTPS/WeChat and safe-pickup device/store acceptance; do not enter CP-34 without authorization
+Current status: CP-34 code complete; CP-32, CP-33 and CP-34 external acceptance still pending
+Recommended next action: finish real HTTPS/WeChat, safe-pickup device/store and student-workflow high-frequency acceptance; do not enter CP-35 without authorization
 ```

@@ -9,6 +9,7 @@ import { AuditService } from "../audit/audit.service";
 import { assertOwnedFileAssetUrls } from "../files/file-asset-policy";
 import { prepareMessageInput } from "../messages/message-input";
 import { PrismaService } from "../prisma/prisma.service";
+import { StudentWorkflowService } from "../workflow/student-workflow.service";
 import { SendParentMessageDto } from "./dto/send-parent-message.dto";
 import { SubmitHomeworkDto } from "./dto/submit-homework.dto";
 
@@ -17,6 +18,7 @@ export class ParentService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly studentWorkflow: StudentWorkflowService,
   ) {}
 
   async children(parentId: string) {
@@ -96,6 +98,10 @@ export class ParentService {
     });
 
     return { data: events };
+  }
+
+  workflowToday(parentId: string, studentId: string) {
+    return this.studentWorkflow.parentToday(parentId, studentId);
   }
 
   async homework(parentId: string, studentId: string) {

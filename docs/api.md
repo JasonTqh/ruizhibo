@@ -193,6 +193,10 @@ GET  /api/teacher/classes/:classId/students
 
 GET  /api/teacher/workflow/today
 POST /api/teacher/workflow/:sessionId/steps/:stepId/check
+POST /api/teacher/workflow/:sessionId/steps/:stepId/batch-complete
+POST /api/teacher/workflow/:sessionId/steps/:stepId/students/:studentId/complete
+POST /api/teacher/workflow/:sessionId/steps/:stepId/students/:studentId/skip
+POST /api/teacher/workflow/:sessionId/steps/:stepId/students/:studentId/exception
 
 GET  /api/teacher/pickup/today
 POST /api/teacher/pickup/batch/picked-up
@@ -272,7 +276,7 @@ Authorization: Bearer <teacher-token>
 ```
 
 如果当天没有流程实例，后端会使用激活的流程模板为老师负责的班级创建今日实例。
-每个步骤会返回 `requirePhoto`、`checkedAt` 和 `photoUrls`，前端据此展示照片要求、完成时间和已上传凭证。
+每个步骤会返回 `requirePhoto`、`checkedAt`、班级 `photoUrls`、`studentSummary` 和 `students`。学生项包含持久状态、动态 `effectiveStatus`、处理时间、经办教师、个人照片、备注，以及由 CP-33 接送事实聚合出的到店状态。缺勤来自当天 `AttendanceEvent.absence`，不会重复写入 workflow enum。
 
 ```http
 POST /api/teacher/workflow/:sessionId/steps/:stepId/check
@@ -286,7 +290,41 @@ Content-Type: application/json
 
 - `photoUrls` 最多包含 3 张图片。
 - 当步骤的 `requirePhoto` 为 `true` 时，未提供照片会返回 `400`，不会写入打卡结果。
-- 已完成步骤再次提交会返回 `409`，用于阻止重复打卡和重复生成成长记录。
+- 旧 `/check` 保持兼容，重新解释为批量完成所有 active、非缺勤且仍为 `pending` 的学生；不会覆盖已完成、跳过或异常事实。
+- `WorkflowStep.checked` 表示所有需要处理的学生均已离开 `pending`，每次操作后自动同步；普通流程不再自动生成 `GrowthRecord`。
+
+学生级操作：
+
+```http
+POST /api/teacher/workflow/:sessionId/steps/:stepId/batch-complete
+POST /api/teacher/workflow/:sessionId/steps/:stepId/students/:studentId/complete
+POST /api/teacher/workflow/:sessionId/steps/:stepId/students/:studentId/skip
+POST /api/teacher/workflow/:sessionId/steps/:stepId/students/:studentId/exception
+Authorization: Bearer <teacher-token>
+```
+
+- `batch-complete` 可选传 `studentIds`；不传表示当前步骤全部 eligible + pending 学生。整批在同一事务完成，非法学生或显式包含缺勤学生时整批失败。
+- 单人只允许 `pending → completed|skipped|exception`。重复处理或试图改写终态返回 `409`；`skip`、`exception` 的 `remark` 必填。
+- 个人 `photoUrls` 最多 3 张，去重后必须属于当前教师、`scene=workflow` 且是图片；个人操作不机械继承班级 `requirePhoto`。
+- 所有写接口验证 session、step、负责教师、学生班级与 active 状态，拒绝跨班 IDOR；当天缺勤学生返回 `409`。
+
+家长今日托管进度：
+
+```http
+GET /api/parent/children/:studentId/workflow/today
+Authorization: Bearer <parent-token>
+```
+
+仅 active `StudentGuardian` 可读取。响应聚合“安全到店”和学生流程步骤，展示 `completed`、`pending`、`skipped`、`exception`、`absent`、老师备注及个人照片；跨家庭读取返回 `404`。响应只返回家长页面需要的展示字段，不返回其他学生、内部 Workflow 记录编号、教师编号或 `FileAsset` 存储元数据。
+
+管理端只读查询：
+
+```http
+GET /api/admin/business/student-workflows?from=<date>&to=<date>&classId=<id>&teacherId=<id>&studentId=<id>&status=<status>
+Authorization: Bearer <admin-token>
+```
+
+支持按日期、班级、教师、学生和 `pending|completed|skipped|exception|absent` 筛选，返回学生日汇总与完整步骤。未提供日期时只查询当前中国业务日；只提供一侧日期时按该单日查询；显式日期范围最多 31 天，避免将全部历史记录加载到内存。CP-34 不提供修改、删除或重置历史事实的管理端接口。
 
 ### 安全接送与到离店
 
@@ -845,14 +883,14 @@ Content-Type: application/json
 
 常见错误码：
 
-| HTTP 状态 | code                    | 场景                               |
-| --------- | ----------------------- | ---------------------------------- |
-| 400       | `BAD_REQUEST`           | 参数格式错误、DTO 校验失败         |
-| 401       | `UNAUTHORIZED`          | 缺少 token、token 无效、用户已禁用 |
-| 403       | `FORBIDDEN`             | 当前角色无权访问                   |
-| 404       | `NOT_FOUND`             | 资源不存在                         |
+| HTTP 状态 | code                    | 场景                                   |
+| --------- | ----------------------- | -------------------------------------- |
+| 400       | `BAD_REQUEST`           | 参数格式错误、DTO 校验失败             |
+| 401       | `UNAUTHORIZED`          | 缺少 token、token 无效、用户已禁用     |
+| 403       | `FORBIDDEN`             | 当前角色无权访问                       |
+| 404       | `NOT_FOUND`             | 资源不存在                             |
 | 409       | `CONFLICT`              | 重复事实、绑定冲突、受保护历史阻止删除 |
-| 500       | `INTERNAL_SERVER_ERROR` | 未预期服务端错误                   |
+| 500       | `INTERNAL_SERVER_ERROR` | 未预期服务端错误                       |
 
 ## 7. 本地验证
 
@@ -922,6 +960,16 @@ pnpm --filter @ruizhibo/api verify:pickup
 
 脚本创建隔离的教师、班级、家长、学生和授权接送人，覆盖学校接到、到店、授权离店、家长读取、教师跨班拒绝、家长跨家庭拒绝、停用接送人拒绝、非法学生、重复到店/离店、临时异常交接、管理员异常筛选、`AttendanceEvent` 兼容以及接送历史阻止强制删除。验收回归还覆盖请假在教师/家长/后台三端一致、请假学生不进入“今日未到店”、具体送达人快照及跨学生引用拒绝、批量学校接到/安全到店的原子写入与幂等、后台班级数据层级和无虚假事件时间。结束时只停用测试主体，不删除不可变的接送事实，因此仅可在开发或专用测试数据库运行。
 
+### 学生级一日流程自动验证
+
+在本地或专用测试数据库运行：
+
+```powershell
+pnpm --filter @ruizhibo/api verify:student-workflow
+```
+
+脚本创建隔离主体并覆盖 CP-34 的 24 个场景：初始化、单人三种终态、缺勤保护、跨教师/跨班/跨家庭拒绝、重复与终态改写拒绝、图片 owner/scene、部分与全班批量原子性、旧 `/check` 与 `requirePhoto` 兼容、家长今日时间线、管理端只读查询、停止生成 `GrowthRecord` 和 Dashboard `uncheckedStepCount` 一致性。脚本结束会停用测试教师、家长和学生，不得对生产数据库运行。
+
 需要验证完整写入闭环时显式追加 `-IncludeWrites`：
 
 ```powershell
@@ -940,13 +988,13 @@ pnpm --filter @ruizhibo/api verify:parent -- -ParentPhone <parent-phone> -Teache
 
 统一验证也支持环境变量 `VERIFY_API_BASE_URL`、`VERIFY_ADMIN_PHONE`、`VERIFY_TEACHER_PHONE`、`VERIFY_PARENT_PHONE`。这适合联调库已修改测试手机号，但仍希望一次运行全部只读检查的场景。
 
-部署到使用 seed 数据的测试环境后，可一次运行现有 API 回归与 CP-33 接送写入验证：
+部署到使用 seed 数据的测试环境后，可一次运行现有 API 回归、CP-34 学生流程和 CP-33 接送写入验证：
 
 ```powershell
 pnpm --filter @ruizhibo/api verify:all
 ```
 
-`verify:all` 现已包含 `verify:pickup`，会写入并保留已停用的隔离接送验证记录；不要对生产数据库运行。
+`verify:all` 现已包含 `verify:student-workflow` 与 `verify:pickup`，会写入并保留已停用的隔离验证主体及不可变业务事实；不要对生产数据库运行。
 
 ## 8. 微信登录
 

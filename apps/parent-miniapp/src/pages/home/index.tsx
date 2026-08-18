@@ -1,8 +1,9 @@
 // @ts-nocheck
 import React, { useRef, useState } from "react";
-import { Text, View } from "@tarojs/components";
+import { Image, Text, View } from "@tarojs/components";
 import Taro, { useDidShow } from "@tarojs/taro";
 import { parentRequest } from "../../api";
+import { resolveApiAssetUrl } from "../../config";
 import "./index.scss";
 
 const h = React.createElement;
@@ -16,6 +17,7 @@ export default function HomePage() {
   const [notices, setNotices] = useState([]);
   const [conversations, setConversations] = useState([]);
   const [pickup, setPickup] = useState(null);
+  const [workflow, setWorkflow] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const requestSequence = useRef(0);
@@ -44,6 +46,7 @@ export default function HomePage() {
         nextNotices,
         nextConversations,
         nextPickup,
+        nextWorkflow,
       ] = await Promise.all([
         nextChild
           ? parentRequest(`/parent/children/${nextChild.id}/timeline`)
@@ -56,6 +59,9 @@ export default function HomePage() {
         nextChild
           ? parentRequest(`/parent/children/${nextChild.id}/pickup/today`)
           : Promise.resolve(null),
+        nextChild
+          ? parentRequest(`/parent/children/${nextChild.id}/workflow/today`)
+          : Promise.resolve(null),
       ]);
       if (sequence !== requestSequence.current) return;
       setRecords(nextRecords);
@@ -63,6 +69,7 @@ export default function HomePage() {
       setNotices(nextNotices);
       setConversations(nextConversations);
       setPickup(nextPickup);
+      setWorkflow(nextWorkflow);
       syncCommunicationBadge(nextNotices, nextConversations);
     } catch (loadError) {
       if (sequence === requestSequence.current)
@@ -86,15 +93,18 @@ export default function HomePage() {
     setLoading(true);
     setError("");
     try {
-      const [nextRecords, nextHomework, nextPickup] = await Promise.all([
-        parentRequest(`/parent/children/${childId}/timeline`),
-        parentRequest(`/parent/children/${childId}/homework`),
-        parentRequest(`/parent/children/${childId}/pickup/today`),
-      ]);
+      const [nextRecords, nextHomework, nextPickup, nextWorkflow] =
+        await Promise.all([
+          parentRequest(`/parent/children/${childId}/timeline`),
+          parentRequest(`/parent/children/${childId}/homework`),
+          parentRequest(`/parent/children/${childId}/pickup/today`),
+          parentRequest(`/parent/children/${childId}/workflow/today`),
+        ]);
       if (sequence !== requestSequence.current) return;
       setRecords(nextRecords);
       setHomework(nextHomework);
       setPickup(nextPickup);
+      setWorkflow(nextWorkflow);
     } catch (loadError) {
       if (sequence === requestSequence.current)
         setError("切换孩子失败，请重试。");
@@ -215,6 +225,7 @@ export default function HomePage() {
           Taro.navigateTo({ url: `/pages/pickup/index?studentId=${child.id}` }),
         )
       : null,
+    child ? workflowTodayCard(workflow, loading) : null,
     h(
       View,
       { className: "parent-quick-grid" },
@@ -404,6 +415,102 @@ function pickupStatusCard(pickup, onClick) {
   );
 }
 
+function workflowTodayCard(workflow, loading) {
+  const timeline = workflow?.timeline || [];
+  const summary = workflow?.summary || {};
+  return h(
+    View,
+    { className: "home-workflow" },
+    h(
+      View,
+      { className: "home-workflow__heading" },
+      h(
+        View,
+        null,
+        h(Text, { className: "home-workflow__eyebrow" }, "今日托管进度"),
+        h(
+          Text,
+          { className: "home-workflow__title" },
+          workflow?.isAbsent
+            ? "今日已登记缺勤"
+            : `${Number(summary.completed || 0)} 项已完成`,
+        ),
+      ),
+      h(
+        Text,
+        { className: "home-workflow__count" },
+        `${Number(summary.completed || 0)}/${Number(summary.total || 0)}`,
+      ),
+    ),
+    timeline.length
+      ? h(
+          View,
+          { className: "home-workflow__timeline" },
+          ...timeline.map((item) =>
+            h(
+              View,
+              { className: "home-workflow__item", key: item.id },
+              h(
+                Text,
+                {
+                  className: `home-workflow__icon home-workflow__icon--${item.effectiveStatus}`,
+                },
+                workflowStatusIcon(item.effectiveStatus),
+              ),
+              h(
+                View,
+                { className: "home-workflow__main" },
+                h(Text, { className: "home-workflow__name" }, item.name),
+                item.remark
+                  ? h(Text, { className: "home-workflow__remark" }, item.remark)
+                  : null,
+                item.photoUrls?.length
+                  ? h(
+                      View,
+                      { className: "home-workflow__photos" },
+                      ...item.photoUrls.map((url) =>
+                        h(Image, {
+                          className: "home-workflow__photo",
+                          key: url,
+                          src: resolveApiAssetUrl(url),
+                          mode: "aspectFill",
+                          onClick: () =>
+                            Taro.previewImage({
+                              current: resolveApiAssetUrl(url),
+                              urls: item.photoUrls.map(resolveApiAssetUrl),
+                            }),
+                        }),
+                      ),
+                    )
+                  : null,
+              ),
+              h(
+                View,
+                { className: "home-workflow__result" },
+                h(
+                  Text,
+                  { className: "home-workflow__status" },
+                  workflowStatusLabel(item.effectiveStatus),
+                ),
+                item.completedAt
+                  ? h(
+                      Text,
+                      { className: "home-workflow__time" },
+                      timeText(item.completedAt),
+                    )
+                  : null,
+              ),
+            ),
+          ),
+        )
+      : h(
+          Text,
+          { className: "home-workflow__empty" },
+          loading ? "正在加载今日托管进度…" : "今天暂无托管流程记录",
+        ),
+  );
+}
+
 function quickItem(icon, title, description, tone, onClick) {
   return h(
     View,
@@ -525,4 +632,28 @@ function timeText(value) {
   if (!value) return "今日";
   const date = new Date(value);
   return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+function workflowStatusLabel(status) {
+  return (
+    {
+      pending: "待处理",
+      completed: "已完成",
+      skipped: "已跳过",
+      exception: "异常",
+      absent: "缺勤",
+    }[status] || "待处理"
+  );
+}
+
+function workflowStatusIcon(status) {
+  return (
+    {
+      pending: "○",
+      completed: "✓",
+      skipped: "—",
+      exception: "!",
+      absent: "休",
+    }[status] || "○"
+  );
 }

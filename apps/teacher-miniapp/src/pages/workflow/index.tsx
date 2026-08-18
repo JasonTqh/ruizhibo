@@ -1,6 +1,6 @@
 // @ts-nocheck
 import React, { useState } from "react";
-import { Button, Image, Text, View } from "@tarojs/components";
+import { Button, Image, Text, Textarea, View } from "@tarojs/components";
 import Taro, { useDidShow } from "@tarojs/taro";
 import { teacherRequest } from "../../api";
 import { resolveApiAssetUrl } from "../../config";
@@ -15,6 +15,9 @@ export default function WorkflowPage() {
   const [loading, setLoading] = useState(true);
   const [checkingKey, setCheckingKey] = useState("");
   const [selectedPhotos, setSelectedPhotos] = useState({});
+  const [studentFilters, setStudentFilters] = useState({});
+  const [expandedStudentKey, setExpandedStudentKey] = useState("");
+  const [studentRemarks, setStudentRemarks] = useState({});
   const [error, setError] = useState("");
 
   async function load(showLoading = true) {
@@ -33,8 +36,7 @@ export default function WorkflowPage() {
     }
   }
 
-  async function choosePhotos(sessionId, stepId) {
-    const key = stepKey(sessionId, stepId);
+  async function choosePhotos(key) {
     const current = selectedPhotos[key] || [];
     if (current.length >= MAX_PHOTO_COUNT) {
       Taro.showToast({
@@ -74,8 +76,7 @@ export default function WorkflowPage() {
     }
   }
 
-  function removePhoto(sessionId, stepId, path) {
-    const key = stepKey(sessionId, stepId);
+  function removePhoto(key, path) {
     setSelectedPhotos((current) => ({
       ...current,
       [key]: (current[key] || []).filter((item) => item !== path),
@@ -90,9 +91,9 @@ export default function WorkflowPage() {
     });
   }
 
-  async function check(session, step) {
+  async function batchComplete(session, step) {
     if (checkingKey || step.checked) return;
-    const key = stepKey(session.id, step.id);
+    const key = classPhotoKey(session.id, step.id);
     const localPhotos = selectedPhotos[key] || [];
     if (step.requirePhoto && localPhotos.length === 0) {
       Taro.showToast({ title: "请先上传打卡照片", icon: "none" });
@@ -113,30 +114,49 @@ export default function WorkflowPage() {
           );
         }
       }
-      const updatedStep = await teacherRequest(
-        `/teacher/workflow/${session.id}/steps/${step.id}/check`,
+      await teacherRequest(
+        `/teacher/workflow/${session.id}/steps/${step.id}/batch-complete`,
         { method: "POST", data: { photoUrls } },
       );
-      setSessions((current) =>
-        current.map((item) =>
-          item.id === session.id
-            ? {
-                ...item,
-                steps: item.steps.map((candidate) =>
-                  candidate.id === step.id
-                    ? { ...candidate, ...updatedStep }
-                    : candidate,
-                ),
-              }
-            : item,
-        ),
-      );
       setSelectedPhotos((current) => ({ ...current, [key]: [] }));
-      Taro.showToast({ title: "打卡成功", icon: "success" });
+      await load(false);
+      Taro.showToast({ title: "批量完成成功", icon: "success" });
     } catch (checkError) {
       setError(
         errorMessage(checkError, "打卡失败，照片和输入已保留，请重试。"),
       );
+    } finally {
+      setCheckingKey("");
+    }
+  }
+
+  async function resolveStudent(session, step, student, status) {
+    if (checkingKey || student.effectiveStatus !== "pending") return;
+    const key = studentStepKey(session.id, step.id, student.id);
+    const remark = String(studentRemarks[key] || "").trim();
+    if (["skip", "exception"].includes(status) && !remark) {
+      Taro.showToast({ title: "请填写处理原因", icon: "none" });
+      return;
+    }
+    setCheckingKey(key);
+    setError("");
+    try {
+      const photoUrls = [];
+      for (const path of selectedPhotos[key] || []) {
+        const asset = await uploadWorkflowImage(path);
+        photoUrls.push(asset.url);
+      }
+      await teacherRequest(
+        `/teacher/workflow/${session.id}/steps/${step.id}/students/${student.id}/${status}`,
+        { method: "POST", data: { remark: remark || undefined, photoUrls } },
+      );
+      setSelectedPhotos((current) => ({ ...current, [key]: [] }));
+      setStudentRemarks((current) => ({ ...current, [key]: "" }));
+      setExpandedStudentKey("");
+      await load(false);
+      Taro.showToast({ title: "处理成功", icon: "success" });
+    } catch (actionError) {
+      setError(errorMessage(actionError, "学生流程处理失败，请重试。"));
     } finally {
       setCheckingKey("");
     }
@@ -303,7 +323,22 @@ export default function WorkflowPage() {
               onChoosePhotos: choosePhotos,
               onRemovePhoto: removePhoto,
               onPreviewPhotos: previewPhotos,
-              onCheck: check,
+              onBatchComplete: batchComplete,
+              onResolveStudent: resolveStudent,
+              studentFilters,
+              onFilterChange: (stepId, filter) =>
+                setStudentFilters((current) => ({
+                  ...current,
+                  [stepId]: filter,
+                })),
+              expandedStudentKey,
+              onToggleStudent: (key) =>
+                setExpandedStudentKey((current) =>
+                  current === key ? "" : key,
+                ),
+              studentRemarks,
+              onRemarkChange: (key, value) =>
+                setStudentRemarks((current) => ({ ...current, [key]: value })),
             }),
           ),
   );
@@ -316,7 +351,14 @@ function SessionCard({
   onChoosePhotos,
   onRemovePhoto,
   onPreviewPhotos,
-  onCheck,
+  onBatchComplete,
+  onResolveStudent,
+  studentFilters,
+  onFilterChange,
+  expandedStudentKey,
+  onToggleStudent,
+  studentRemarks,
+  onRemarkChange,
 }) {
   const summary = workflowSummary([session]);
   const currentStep = findSessionCurrentStep(session);
@@ -377,7 +419,7 @@ function SessionCard({
               ),
             ),
             group.steps.map((step) => {
-              const key = stepKey(session.id, step.id);
+              const key = classPhotoKey(session.id, step.id);
               const localPhotos = selectedPhotos[key] || [];
               const checking = checkingKey === key;
               const current = currentStep?.id === step.id && !step.checked;
@@ -442,18 +484,17 @@ function SessionCard({
                         step.checked ||
                         Boolean(checkingKey) ||
                         (step.requirePhoto && localPhotos.length === 0),
-                      onClick: () => onCheck(session, step),
+                      onClick: () => onBatchComplete(session, step),
                     },
-                    step.checked ? "已完成" : checking ? "提交中" : "打卡",
+                    step.checked ? "已处理" : checking ? "提交中" : "批量完成",
                   ),
                 ),
                 step.requirePhoto && !step.checked
                   ? h(PhotoEvidenceEditor, {
                       paths: localPhotos,
                       disabled: Boolean(checkingKey),
-                      onChoose: () => onChoosePhotos(session.id, step.id),
-                      onRemove: (path) =>
-                        onRemovePhoto(session.id, step.id, path),
+                      onChoose: () => onChoosePhotos(key),
+                      onRemove: (path) => onRemovePhoto(key, path),
                       onPreview: (path) => onPreviewPhotos(localPhotos, path),
                     })
                   : null,
@@ -464,6 +505,22 @@ function SessionCard({
                         onPreviewPhotos(step.photoUrls, path),
                     })
                   : null,
+                h(StudentStepPanel, {
+                  session,
+                  step,
+                  checkingKey,
+                  selectedPhotos,
+                  filter: studentFilters[step.id] || "all",
+                  onFilterChange: (filter) => onFilterChange(step.id, filter),
+                  expandedStudentKey,
+                  onToggleStudent,
+                  studentRemarks,
+                  onRemarkChange,
+                  onChoosePhotos,
+                  onRemovePhoto,
+                  onPreviewPhotos,
+                  onResolveStudent,
+                }),
               );
             }),
           ),
@@ -471,9 +528,305 @@ function SessionCard({
   );
 }
 
+function StudentStepPanel({
+  session,
+  step,
+  checkingKey,
+  selectedPhotos,
+  filter,
+  onFilterChange,
+  expandedStudentKey,
+  onToggleStudent,
+  studentRemarks,
+  onRemarkChange,
+  onChoosePhotos,
+  onRemovePhoto,
+  onPreviewPhotos,
+  onResolveStudent,
+}) {
+  const students = step.students || [];
+  const filters = [
+    ["all", "全部"],
+    ["pending", "待处理"],
+    ["completed", "已完成"],
+    ["exception", "异常"],
+    ["skipped", "跳过"],
+  ];
+  const visible = students.filter(
+    (student) => filter === "all" || student.effectiveStatus === filter,
+  );
+  const summary = step.studentSummary || {};
+
+  return h(
+    View,
+    { className: "student-workflow" },
+    h(
+      View,
+      { className: "student-workflow__summary" },
+      summaryItem("已完成", summary.completed, "completed"),
+      summaryItem("待处理", summary.pending, "pending"),
+      summaryItem("跳过", summary.skipped, "skipped"),
+      summaryItem("异常", summary.exception, "exception"),
+      summaryItem("缺勤", summary.absent, "absent"),
+    ),
+    h(
+      View,
+      { className: "student-workflow__filters" },
+      ...filters.map(([value, label]) =>
+        h(
+          View,
+          {
+            className: `student-filter${filter === value ? " student-filter--active" : ""}`,
+            key: value,
+            onClick: () => onFilterChange(value),
+          },
+          h(Text, null, label),
+        ),
+      ),
+    ),
+    visible.length
+      ? visible.map((student) => {
+          const key = studentStepKey(session.id, step.id, student.id);
+          const expanded = expandedStudentKey === key;
+          return h(
+            View,
+            {
+              className: `student-row student-row--${student.effectiveStatus}`,
+              key: student.id,
+            },
+            h(
+              View,
+              {
+                className: "student-row__heading",
+                onClick: () => onToggleStudent(key),
+              },
+              h(
+                Text,
+                {
+                  className: `student-row__status student-row__status--${student.effectiveStatus}`,
+                },
+                workflowStatusIcon(student.effectiveStatus),
+              ),
+              h(
+                View,
+                { className: "student-row__main" },
+                h(Text, { className: "student-row__name" }, student.name),
+                h(
+                  Text,
+                  { className: "student-row__pickup" },
+                  pickupStatusLabel(student.pickupStatus),
+                ),
+              ),
+              h(
+                View,
+                { className: "student-row__result" },
+                h(
+                  Text,
+                  { className: "student-row__result-label" },
+                  workflowStatusLabel(student.effectiveStatus),
+                ),
+                student.completedAt
+                  ? h(
+                      Text,
+                      { className: "student-row__time" },
+                      formatCheckedTime(student.completedAt),
+                    )
+                  : null,
+              ),
+              h(
+                Text,
+                { className: "student-row__arrow" },
+                expanded ? "⌃" : "›",
+              ),
+            ),
+            expanded
+              ? h(StudentDetail, {
+                  session,
+                  step,
+                  student,
+                  keyValue: key,
+                  checking: checkingKey === key,
+                  disabled: Boolean(checkingKey),
+                  paths: selectedPhotos[key] || [],
+                  remark: studentRemarks[key] || "",
+                  onRemarkChange,
+                  onChoosePhotos,
+                  onRemovePhoto,
+                  onPreviewPhotos,
+                  onResolveStudent,
+                })
+              : null,
+          );
+        })
+      : h(Text, { className: "student-workflow__empty" }, "当前筛选下没有学生"),
+  );
+}
+
+function StudentDetail({
+  session,
+  step,
+  student,
+  keyValue,
+  checking,
+  disabled,
+  paths,
+  remark,
+  onRemarkChange,
+  onChoosePhotos,
+  onRemovePhoto,
+  onPreviewPhotos,
+  onResolveStudent,
+}) {
+  const pending = student.effectiveStatus === "pending";
+  return h(
+    View,
+    { className: "student-detail" },
+    h(
+      Text,
+      { className: "student-detail__title" },
+      `${student.name} · 今日托管`,
+    ),
+    h(StudentTodayTimeline, { session, studentId: student.id }),
+    student.remark
+      ? h(
+          View,
+          { className: "student-detail__saved-remark" },
+          h(Text, null, `处理说明：${student.remark}`),
+        )
+      : null,
+    student.photoUrls?.length
+      ? h(PhotoEvidencePreview, {
+          paths: student.photoUrls,
+          onPreview: (path) => onPreviewPhotos(student.photoUrls, path),
+        })
+      : null,
+    pending
+      ? h(
+          React.Fragment,
+          null,
+          h(Textarea, {
+            className: "student-detail__remark",
+            value: remark,
+            maxlength: 500,
+            placeholder: "跳过或异常时必须填写原因",
+            disabled,
+            onInput: (event) => onRemarkChange(keyValue, event.detail.value),
+          }),
+          h(PhotoEvidenceEditor, {
+            paths,
+            disabled,
+            title: "个人凭证（可选）",
+            tip: "仅在需要时为该学生上传",
+            onChoose: () => onChoosePhotos(keyValue),
+            onRemove: (path) => onRemovePhoto(keyValue, path),
+            onPreview: (path) => onPreviewPhotos(paths, path),
+          }),
+          h(
+            View,
+            { className: "student-detail__actions" },
+            h(
+              Button,
+              {
+                className: "student-action student-action--complete",
+                loading: checking,
+                disabled,
+                onClick: () =>
+                  onResolveStudent(session, step, student, "complete"),
+              },
+              "完成",
+            ),
+            h(
+              Button,
+              {
+                className: "student-action student-action--skip",
+                disabled,
+                onClick: () => onResolveStudent(session, step, student, "skip"),
+              },
+              "跳过",
+            ),
+            h(
+              Button,
+              {
+                className: "student-action student-action--exception",
+                disabled,
+                onClick: () =>
+                  onResolveStudent(session, step, student, "exception"),
+              },
+              "异常",
+            ),
+          ),
+        )
+      : null,
+  );
+}
+
+function StudentTodayTimeline({ session, studentId }) {
+  const students = (session.steps || []).map((step) => ({
+    step,
+    student: (step.students || []).find((item) => item.id === studentId),
+  }));
+  const selected = students.find((item) => item.student)?.student;
+  const rows = [
+    {
+      id: "pickup-arrival",
+      name: "安全到店",
+      effectiveStatus:
+        selected?.pickupStatus === "in_care" ||
+        selected?.pickupStatus === "left"
+          ? "completed"
+          : selected?.pickupStatus === "absent"
+            ? "absent"
+            : "pending",
+      completedAt: selected?.pickupArrivedAt,
+    },
+    ...students.map(({ step, student }) => ({
+      id: step.id,
+      name: step.name,
+      effectiveStatus: student?.effectiveStatus || "pending",
+      completedAt: student?.completedAt,
+    })),
+  ];
+  return h(
+    View,
+    { className: "student-timeline" },
+    ...rows.map((row) =>
+      h(
+        View,
+        { className: "student-timeline__row", key: row.id },
+        h(
+          Text,
+          {
+            className: `student-timeline__icon student-timeline__icon--${row.effectiveStatus}`,
+          },
+          workflowStatusIcon(row.effectiveStatus),
+        ),
+        h(Text, { className: "student-timeline__name" }, row.name),
+        h(
+          Text,
+          { className: "student-timeline__value" },
+          row.completedAt
+            ? formatCheckedTime(row.completedAt)
+            : workflowStatusLabel(row.effectiveStatus),
+        ),
+      ),
+    ),
+  );
+}
+
+function summaryItem(label, value = 0, status) {
+  return h(
+    View,
+    { className: `student-summary student-summary--${status}` },
+    h(Text, { className: "student-summary__value" }, String(value || 0)),
+    h(Text, { className: "student-summary__label" }, label),
+  );
+}
+
 function PhotoEvidenceEditor({
   paths,
   disabled,
+  title = "打卡凭证",
+  tip = "请拍摄现场照片后再打卡",
   onChoose,
   onRemove,
   onPreview,
@@ -484,8 +837,8 @@ function PhotoEvidenceEditor({
     h(
       View,
       { className: "workflow-photo-heading" },
-      h(Text, { className: "workflow-photo-title" }, "打卡凭证"),
-      h(Text, { className: "workflow-photo-tip" }, "请拍摄现场照片后再打卡"),
+      h(Text, { className: "workflow-photo-title" }, title),
+      h(Text, { className: "workflow-photo-tip" }, tip),
     ),
     h(
       View,
@@ -626,14 +979,59 @@ function removeCheckedSelections(current, sessions) {
   const next = { ...current };
   sessions.forEach((session) => {
     (session.steps || []).forEach((step) => {
-      if (step.checked) delete next[stepKey(session.id, step.id)];
+      if (step.checked) delete next[classPhotoKey(session.id, step.id)];
+      (step.students || []).forEach((student) => {
+        if (student.effectiveStatus !== "pending") {
+          delete next[studentStepKey(session.id, step.id, student.id)];
+        }
+      });
     });
   });
   return next;
 }
 
-function stepKey(sessionId, stepId) {
-  return `${sessionId}:${stepId}`;
+function classPhotoKey(sessionId, stepId) {
+  return `class:${sessionId}:${stepId}`;
+}
+
+function studentStepKey(sessionId, stepId, studentId) {
+  return `student:${sessionId}:${stepId}:${studentId}`;
+}
+
+function workflowStatusLabel(status) {
+  return (
+    {
+      pending: "待处理",
+      completed: "已完成",
+      skipped: "已跳过",
+      exception: "异常",
+      absent: "缺勤",
+    }[status] || status
+  );
+}
+
+function workflowStatusIcon(status) {
+  return (
+    {
+      pending: "○",
+      completed: "✓",
+      skipped: "—",
+      exception: "!",
+      absent: "休",
+    }[status] || "○"
+  );
+}
+
+function pickupStatusLabel(status) {
+  return (
+    {
+      waiting_pickup: "等待接送",
+      picked_up: "接送途中",
+      in_care: "已安全到店",
+      left: "已安全离店",
+      absent: "今日缺勤",
+    }[status] || "接送状态待更新"
+  );
 }
 
 async function uploadWorkflowImage(path) {

@@ -102,6 +102,154 @@
   color: #6f7a75;
   font-size: 18px;
 }
+
+.home-workflow {
+  margin-top: 18px;
+  padding: 21px 22px;
+  background: #ffffff;
+  border: 1px solid #e4dfd8;
+  border-radius: 18px;
+  box-shadow: 0 5px 18px rgba(26, 46, 40, 0.05);
+}
+
+.home-workflow__heading,
+.home-workflow__item {
+  display: flex;
+  align-items: center;
+}
+
+.home-workflow__heading {
+  justify-content: space-between;
+}
+
+.home-workflow__eyebrow,
+.home-workflow__title,
+.home-workflow__count,
+.home-workflow__name,
+.home-workflow__remark,
+.home-workflow__status,
+.home-workflow__time,
+.home-workflow__empty {
+  display: block;
+}
+
+.home-workflow__eyebrow {
+  color: #87908c;
+  font-size: 16px;
+}
+
+.home-workflow__title {
+  margin-top: 3px;
+  color: #24463a;
+  font-size: 23px;
+  font-weight: 800;
+}
+
+.home-workflow__count {
+  padding: 7px 12px;
+  color: #286b55;
+  background: #e4f3ec;
+  border-radius: 999px;
+  font-size: 18px;
+  font-weight: 750;
+}
+
+.home-workflow__timeline {
+  margin-top: 14px;
+}
+
+.home-workflow__item {
+  align-items: flex-start;
+  min-height: 66px;
+  padding: 12px 0;
+  border-top: 1px solid #eeeae4;
+}
+
+.home-workflow__icon {
+  display: flex;
+  flex: 0 0 34px;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  margin-right: 13px;
+  color: #ffffff;
+  background: #c5ceca;
+  border-radius: 50%;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.home-workflow__icon--completed {
+  background: #2f8064;
+}
+
+.home-workflow__icon--exception {
+  background: #cf6758;
+}
+
+.home-workflow__icon--skipped,
+.home-workflow__icon--absent {
+  color: #5f6864;
+  background: #dfe4e1;
+}
+
+.home-workflow__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.home-workflow__name {
+  color: #2c3e38;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.home-workflow__remark {
+  margin-top: 4px;
+  color: #8b5844;
+  font-size: 17px;
+  line-height: 1.4;
+}
+
+.home-workflow__result {
+  flex-shrink: 0;
+  margin-left: 10px;
+  text-align: right;
+}
+
+.home-workflow__status {
+  color: #587067;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.home-workflow__time {
+  margin-top: 3px;
+  color: #969d99;
+  font-size: 15px;
+}
+
+.home-workflow__photos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.home-workflow__photo {
+  width: 76px;
+  height: 76px;
+  background: #e9eeeb;
+  border-radius: 10px;
+}
+
+.home-workflow__empty {
+  padding: 24px 0 5px;
+  color: #89918d;
+  font-size: 18px;
+  text-align: center;
+}
 .home-pickup__handler {
   margin-top: 5px;
   color: #49645a;

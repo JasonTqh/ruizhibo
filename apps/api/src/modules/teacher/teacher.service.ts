@@ -17,9 +17,10 @@ import {
   UserStatus,
 } from "@prisma/client";
 import { AuditService } from "../audit/audit.service";
-import { assertOwnedFileAssetUrls } from "../files/file-asset-policy";
+import { chinaBusinessDate } from "../common/business-date";
 import { prepareMessageInput } from "../messages/message-input";
 import { PrismaService } from "../prisma/prisma.service";
+import { StudentWorkflowService } from "../workflow/student-workflow.service";
 import { CheckWorkflowStepDto } from "./dto/check-workflow-step.dto";
 import { CreateGrowthFeedbackDto } from "./dto/create-growth-feedback.dto";
 import { CreateHomeworkDto } from "./dto/create-homework.dto";
@@ -28,6 +29,10 @@ import { CreateNoticeDto } from "./dto/create-notice.dto";
 import { CreateResearchActivityDto } from "./dto/create-research-activity.dto";
 import { CreateTeachingRecordDto } from "./dto/create-teaching-record.dto";
 import { SendTeacherMessageDto } from "./dto/send-teacher-message.dto";
+import {
+  CompleteStudentWorkflowStepDto,
+  ResolveStudentWorkflowStepDto,
+} from "./dto/student-workflow-action.dto";
 import { UpdateHomeworkSubmissionDto } from "./dto/update-homework-submission.dto";
 import { UpdateLessonPlanDto } from "./dto/update-lesson-plan.dto";
 import { UpdateLessonPlanStatusDto } from "./dto/update-lesson-plan-status.dto";
@@ -52,6 +57,7 @@ export class TeacherService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly studentWorkflow: StudentWorkflowService,
   ) {}
 
   async dashboard(teacherId: string) {
@@ -65,7 +71,7 @@ export class TeacherService {
       orderBy: { createdAt: "asc" },
     });
 
-    const today = this.today();
+    const today = chinaBusinessDate();
     const sessions = await this.prisma.workflowSession.findMany({
       where: {
         teacherId,
@@ -141,62 +147,7 @@ export class TeacherService {
   }
 
   async workflowToday(teacherId: string) {
-    const classes = await this.prisma.class.findMany({
-      where: { teacherId },
-      select: { id: true, name: true },
-      orderBy: { createdAt: "asc" },
-    });
-
-    if (!classes.length) {
-      return { data: [] };
-    }
-
-    const template = await this.prisma.workflowTemplate.findFirst({
-      where: { isActive: true },
-      orderBy: [{ version: "desc" }, { updatedAt: "desc" }],
-      include: {
-        steps: { orderBy: { sortOrder: "asc" } },
-      },
-    });
-
-    if (!template) {
-      throw new NotFoundException("Active workflow template not found");
-    }
-
-    const today = this.today();
-    const sessions = [];
-    for (const klass of classes) {
-      const session = await this.prisma.workflowSession.upsert({
-        where: {
-          classId_date: {
-            classId: klass.id,
-            date: today,
-          },
-        },
-        update: {
-          teacherId,
-        },
-        create: {
-          classId: klass.id,
-          teacherId,
-          templateId: template.id,
-          date: today,
-          steps: {
-            create: template.steps.map((step) => ({
-              stepKey: step.stepKey,
-              name: step.name,
-              timeRange: step.timeRange,
-              sortOrder: step.sortOrder,
-              requirePhoto: step.requirePhoto,
-            })),
-          },
-        },
-        select: this.workflowSessionSelect(),
-      });
-      sessions.push(session);
-    }
-
-    return { data: sessions };
+    return this.studentWorkflow.teacherToday(teacherId);
   }
 
   async checkWorkflowStep(
@@ -205,110 +156,74 @@ export class TeacherService {
     stepId: string,
     dto: CheckWorkflowStepDto,
   ) {
-    const session = await this.prisma.workflowSession.findUnique({
-      where: { id: sessionId },
-      include: {
-        class: { select: { id: true, name: true, teacherId: true } },
-        steps: {
-          where: { id: stepId },
-          select: {
-            id: true,
-            name: true,
-            requirePhoto: true,
-            checked: true,
-          },
-        },
-      },
-    });
+    return this.studentWorkflow.batchComplete(
+      teacherId,
+      sessionId,
+      stepId,
+      dto,
+    );
+  }
 
-    if (!session || session.steps.length === 0) {
-      throw new NotFoundException("Workflow step not found");
-    }
+  completeStudentWorkflowStep(
+    teacherId: string,
+    sessionId: string,
+    stepId: string,
+    studentId: string,
+    dto: CompleteStudentWorkflowStepDto,
+  ) {
+    return this.studentWorkflow.completeStudent(
+      teacherId,
+      sessionId,
+      stepId,
+      studentId,
+      dto,
+    );
+  }
 
-    if (session.class.teacherId !== teacherId) {
-      throw new ForbiddenException(
-        "Cannot check workflow for another teacher class",
-      );
-    }
+  skipStudentWorkflowStep(
+    teacherId: string,
+    sessionId: string,
+    stepId: string,
+    studentId: string,
+    dto: ResolveStudentWorkflowStepDto,
+  ) {
+    return this.studentWorkflow.skipStudent(
+      teacherId,
+      sessionId,
+      stepId,
+      studentId,
+      dto,
+    );
+  }
 
-    const step = session.steps[0];
-    const photoUrls = Array.from(new Set(dto.photoUrls ?? []));
-    if (step.checked) {
-      throw new ConflictException("该流程环节已经完成，请勿重复打卡");
-    }
-    if (step.requirePhoto && photoUrls.length === 0) {
-      throw new BadRequestException("该流程环节需要先上传照片凭证");
-    }
+  exceptionStudentWorkflowStep(
+    teacherId: string,
+    sessionId: string,
+    stepId: string,
+    studentId: string,
+    dto: ResolveStudentWorkflowStepDto,
+  ) {
+    return this.studentWorkflow.markStudentException(
+      teacherId,
+      sessionId,
+      stepId,
+      studentId,
+      dto,
+    );
+  }
 
-    await assertOwnedFileAssetUrls(this.prisma, {
-      ownerId: teacherId,
-      scene: "workflow",
-      urls: photoUrls,
-      imageOnly: true,
-      invalidMessage: "流程图片无效、不属于当前教师或文件场景不是 workflow",
-    });
-
-    const checkedAt = new Date();
-    const updateResult = await this.prisma.workflowStep.updateMany({
-      where: { id: stepId, checked: false },
-      data: {
-        checked: true,
-        checkedAt,
-        teacherId,
-        photoUrls,
-      },
-    });
-    if (updateResult.count === 0) {
-      throw new ConflictException("该流程环节已经完成，请勿重复打卡");
-    }
-
-    const updatedStep = await this.prisma.workflowStep.findUniqueOrThrow({
-      where: { id: stepId },
-      select: {
-        id: true,
-        stepKey: true,
-        name: true,
-        timeRange: true,
-        sortOrder: true,
-        requirePhoto: true,
-        checked: true,
-        checkedAt: true,
-        photoUrls: true,
-      },
-    });
-
-    if (!step.checked) {
-      const students = await this.prisma.student.findMany({
-        where: { classId: session.classId },
-        select: { id: true, name: true },
-      });
-
-      if (students.length) {
-        await this.prisma.growthRecord.createMany({
-          data: students.map((student) => ({
-            studentId: student.id,
-            teacherId,
-            type: GrowthRecordType.workflow,
-            title: `${step.name}已完成`,
-            content: `${session.class.name} ${student.name} 的${step.name}已由老师确认。`,
-            happenedAt: checkedAt,
-          })),
-        });
-      }
-    }
-
-    await this.audit.log({
-      userId: teacherId,
-      action: "teacher.workflowStep.check",
-      targetType: "WorkflowStep",
-      targetId: updatedStep.id,
-      detail: {
-        sessionId,
-        photoCount: updatedStep.photoUrls.length,
-      },
-    });
-
-    return { data: updatedStep };
+  batchCompleteStudentWorkflowStep(
+    teacherId: string,
+    sessionId: string,
+    stepId: string,
+    dto: CheckWorkflowStepDto,
+  ) {
+    return this.studentWorkflow.batchComplete(
+      teacherId,
+      sessionId,
+      stepId,
+      dto,
+    );
   }
 
   async teachingRecords(teacherId: string) {
@@ -1459,11 +1374,6 @@ export class TeacherService {
     };
   }
 
-  private today() {
-    const now = new Date();
-    return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
-  }
-
   private classSelect() {
     return {
       id: true,
@@ -1486,34 +1396,4 @@ export class TeacherService {
     } satisfies Prisma.ClassSelect;
   }
 
-  private workflowSessionSelect() {
-    return {
-      id: true,
-      classId: true,
-      teacherId: true,
-      templateId: true,
-      date: true,
-      status: true,
-      class: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
-      steps: {
-        orderBy: { sortOrder: "asc" },
-        select: {
-          id: true,
-          stepKey: true,
-          name: true,
-          timeRange: true,
-          sortOrder: true,
-          requirePhoto: true,
-          checked: true,
-          checkedAt: true,
-          photoUrls: true,
-        },
-      },
-    } satisfies Prisma.WorkflowSessionSelect;
-  }
 }

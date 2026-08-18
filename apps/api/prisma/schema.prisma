@@ -62,6 +62,13 @@ enum PickupHandoffStatus {
   exception
 }
 
+enum StudentWorkflowStepStatus {
+  pending
+  completed
+  skipped
+  exception
+}
+
 enum HomeworkStatus {
   pending
   submitted
@@ -131,6 +138,7 @@ model User {
   attendanceLogs         AttendanceEvent[]     @relation("AttendanceTeacher")
   workflowSessions       WorkflowSession[]
   workflowChecks         WorkflowStep[]        @relation("WorkflowStepTeacher")
+  studentWorkflowSteps   StudentWorkflowStep[] @relation("StudentWorkflowStepTeacher")
   homeworkAssigned       HomeworkAssignment[]
   teachingRecords        TeachingRecord[]
   lessonPlans            LessonPlan[]
@@ -196,6 +204,7 @@ model Student {
   noticeReceipts         NoticeReceipt[]
   authorizedPickupPeople AuthorizedPickupPerson[]
   pickupRecords          PickupRecord[]
+  workflowSteps          StudentWorkflowStep[]
 }
 
 model StudentGuardian {
@@ -353,8 +362,30 @@ model WorkflowStep {
 
   session WorkflowSession @relation(fields: [sessionId], references: [id])
   teacher User?           @relation("WorkflowStepTeacher", fields: [teacherId], references: [id])
+  studentSteps StudentWorkflowStep[]
 
   @@unique([sessionId, stepKey])
+}
+
+model StudentWorkflowStep {
+  id             String                    @id @default(cuid())
+  workflowStepId String
+  studentId      String
+  status         StudentWorkflowStepStatus @default(pending)
+  completedAt    DateTime?
+  teacherId      String?
+  photoUrls      String[]                  @default([])
+  remark         String?
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+
+  workflowStep WorkflowStep @relation(fields: [workflowStepId], references: [id], onDelete: Restrict)
+  student      Student      @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  teacher      User?        @relation("StudentWorkflowStepTeacher", fields: [teacherId], references: [id], onDelete: SetNull)
+
+  @@unique([workflowStepId, studentId])
+  @@index([studentId, status])
+  @@index([status])
 }
 
 model HomeworkAssignment {

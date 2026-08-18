@@ -93,8 +93,8 @@ try {
   $workflow = Invoke-Api -Method "GET" -Path "/teacher/workflow/today" -Token $teacherToken
   $session = @($workflow.Body.data | Where-Object { $_.class.id -eq $classId }) | Select-Object -First 1
   Assert-True ($null -ne $session) "Isolated workflow session was not created"
-  $step = @($session.steps | Where-Object { -not $_.checked }) | Select-Object -First 1
-  Assert-True ($null -ne $step) "Isolated workflow session has no unchecked step"
+  $step = @($session.steps) | Select-Object -First 1
+  Assert-True ($null -ne $step) "Isolated workflow session has no step"
 
   $pngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
   $ownerWorkflowAsset = Invoke-Api -Method "POST" -Path "/files" -Token $teacherToken -Body @{
