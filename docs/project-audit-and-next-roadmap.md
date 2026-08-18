@@ -682,7 +682,7 @@ flowchart LR
 
 - 新增统一 `StudentCareRecord`，以 `meal/water/rest/mood/exception` 五种类型及受控字段保存生活事实，不使用万能 JSON，也不扩展成医疗系统。
 - 用餐按 `snack/dinner` 餐次记录 `good/normal/little/refused`；主要休息每天一条，饮水和情绪允许多条，异常只追加。PostgreSQL partial unique index 保护用餐与休息唯一性。
-- 教师只能操作自己负责班级的 active 学生；当天缺勤全部拒绝，离店后的普通记录按发生时间限制。全部时间继续使用 Asia/Shanghai 业务日工具。
+- 教师只能操作自己负责班级的 active 学生；当天缺勤全部拒绝。所有照护类型（含异常）均以 `happenedAt` 校验离店边界，离店后可补录发生于离店前的历史事实。全部时间继续使用 Asia/Shanghai 业务日工具。
 - 单学生按类型拆分 DTO；批量用餐、饮水、休息必须显式传学生列表，在同一事务中预检并全部提交。批量用餐/休息只补齐缺失项，不覆盖已有例外。
 - 新增 `scene=care`，照片保存前统一验证当前教师 owner、scene、图片 MIME 和文件存在；家长响应只返回安全 URL，不泄露 FileAsset 元数据。
 - 教师端新增按班级组织的“今日照护”和单学生操作；家长首页新增“今日生活”并突出需要关注的全部异常；管理后台新增默认今日、最长 31 天、数据库分页的只读查询与快捷筛选。

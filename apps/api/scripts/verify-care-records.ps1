@@ -112,7 +112,7 @@ try {
   } -ExpectedStatus 201
 
   $students = @{}
-  foreach ($label in @("main", "batch-a", "batch-b", "exception-meal", "batch-new", "absent", "inactive", "detail", "atomic", "history")) {
+  foreach ($label in @("main", "batch-a", "batch-b", "exception-meal", "batch-new", "absent", "inactive", "detail", "atomic", "history", "checkout")) {
     $student = Invoke-Api -Method "POST" -Path "/admin/students" -Token $adminToken -Body @{
       classId = $classA.Body.data.id
       name = "verify-care-$label-$suffix"
@@ -335,7 +335,36 @@ try {
   Assert-True ($pickupAfter.Body.data.total -eq $pickupBefore.Body.data.total) "Case 30 changed PickupRecord rows"
   Assert-True ($workflowAfter.Body.data.total -eq $workflowBefore.Body.data.total) "Case 30 changed WorkflowSession rows"
 
-  Write-Host "Care record API verification passed (Cases 1-30, including file policy, privacy and query boundaries)."
+  Write-Step "Cases 31-32: checkout boundary uses happenedAt for exceptions"
+  Invoke-Api -Method "POST" -Path "/teacher/pickup/students/$($students.checkout.id)/arrived" -Token $teacherAToken -Body @{
+    arrivalMethod = "self_arrived"
+  } -ExpectedStatus 201 | Out-Null
+  $checkout = Invoke-Api -Method "POST" -Path "/teacher/pickup/students/$($students.checkout.id)/left" -Token $teacherAToken -Body @{
+    status = "temporary_authorization"
+    temporaryName = "CP-35.1 test pickup"
+    temporaryRelationship = "other"
+    temporaryPhone = "13800000000"
+    resolution = "verification only"
+  } -ExpectedStatus 201
+  $checkoutAt = [DateTimeOffset]::Parse([string]$checkout.Body.data.happenedAt)
+  $afterCheckout = $checkoutAt.AddSeconds(1).ToString("o")
+  $beforeCheckout = $checkoutAt.AddSeconds(-1).ToString("o")
+
+  Invoke-Api -Method "POST" -Path "/teacher/students/$($students.checkout.id)/care-records/exception" -Token $teacherAToken -Body @{
+    happenedAt = $afterCheckout
+    needsAttention = $true
+    remark = "Exception after checkout must be rejected"
+  } -ExpectedStatus 409 | Out-Null
+
+  $historicalException = Invoke-Api -Method "POST" -Path "/teacher/students/$($students.checkout.id)/care-records/exception" -Token $teacherAToken -Body @{
+    happenedAt = $beforeCheckout
+    needsAttention = $true
+    remark = "Historical exception before checkout is allowed"
+  } -ExpectedStatus 201
+  $historicalHappenedAt = [DateTimeOffset]::Parse([string]$historicalException.Body.data.happenedAt)
+  Assert-True ($historicalHappenedAt -lt $checkoutAt) "Case 32 did not preserve the historical happenedAt"
+
+  Write-Host "Care record API verification passed (Cases 1-32, including checkout boundary, file policy, privacy and query boundaries)."
 } finally {
   Disable-VerificationData
 }

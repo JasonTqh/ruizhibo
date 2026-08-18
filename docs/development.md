@@ -384,7 +384,7 @@ pnpm --filter @ruizhibo/api verify:observability
 - 新增统一 `StudentCareRecord`，受控记录 `meal`、`water`、`rest`、`mood`、`exception`；不用 JSON 承载业务语义，也不拆成五张表。
 - migration `20260818130000_add_student_care_records` 创建模型、约束、索引和安全外键；`20260818131000_require_care_exception_remark` 在数据库层明确禁止空异常备注，均已成功应用。
 - 用餐按 `snack/dinner` 餐次保存 `good/normal/little/refused`；同学生、同业务日、同餐次只保留一条可更新普通事实。主要休息每天一条，饮水与情绪允许多次，异常只新增不覆盖。
-- 继续使用 Asia/Shanghai 业务日；教师只能记录自己负责班级的 active、非缺勤学生。学生离店后，晚于离店时间的普通照护记录会被拒绝。
+- 继续使用 Asia/Shanghai 业务日；教师只能记录自己负责班级的 active、非缺勤学生。所有照护类型（含异常）均以 `happenedAt` 校验离店边界：晚于离店时间的记录会被拒绝，离店后仍可补录发生于离店前的历史事实。
 - 批量用餐、饮水和休息必须显式传递学生 ID，并在同一事务中全部成功或全部失败；批量用餐/休息只补齐未处理学生，不覆盖已有少量、未进食等例外。
 - 图片统一上传为 `scene=care`，保存前校验文件存在、当前教师 owner、scene 和图片 MIME；家长接口只返回安全 URL，不返回 `FileAsset` 内部字段。
 - 教师端新增“今日照护”班级页和单学生编辑；家长首页新增“今日生活”摘要并突出 `needsAttention` 异常；管理后台新增默认今日、最大 31 天、数据库分页的只读筛选。
@@ -410,7 +410,7 @@ pnpm --filter @ruizhibo/api verify:all
 - 用 20 名脱敏学生验证“17 正常 + 1 少量 + 1 未进食 + 1 缺勤”，确认批量 normal 不覆盖例外或缺勤，且操作达到 10 秒级目标。
 - 家长真机确认用餐、饮水次数、休息、最新情绪和全部异常正确展示，`needsAttention=true` 有明显提示。
 - 模拟“17:20 学生表示头疼”，确认教师可记录事实与处理、家长可见、管理后台“今日异常/需要关注”均能筛出。
-- 真机验证 `scene=care` 图片上传、预览、失败反馈及离店后普通记录限制。
+- 真机验证 `scene=care` 图片上传、预览、失败反馈，以及所有照护类型的离店时间边界与离店前历史事实补录。
 
 ## 7. 给 Codex 的任务模板
 

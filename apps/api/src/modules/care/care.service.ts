@@ -170,7 +170,6 @@ export class CareService {
         studentId,
         prepared.serviceDate,
         prepared.happenedAt,
-        true,
       );
       const existing = await tx.studentCareRecord.findFirst({
         where: {
@@ -239,7 +238,6 @@ export class CareService {
         studentId,
         prepared.serviceDate,
         prepared.happenedAt,
-        true,
       );
       const existing = await tx.studentCareRecord.findFirst({
         where: {
@@ -587,7 +585,6 @@ export class CareService {
         studentId,
         prepared.serviceDate,
         prepared.happenedAt,
-        input.type !== StudentCareRecordType.exception,
       );
       const record = await tx.studentCareRecord.create({
         data: {
@@ -726,7 +723,6 @@ export class CareService {
     studentId: string,
     serviceDate: Date,
     happenedAt: Date,
-    blockAfterLeave: boolean,
   ) {
     const [absence, leave] = await Promise.all([
       client.attendanceEvent.findFirst({
@@ -737,17 +733,15 @@ export class CareService {
         },
         select: { id: true },
       }),
-      blockAfterLeave
-        ? client.pickupRecord.findFirst({
-            where: {
-              studentId,
-              serviceDate,
-              type: PickupEventType.left_center,
-            },
-            orderBy: { happenedAt: "asc" },
-            select: { happenedAt: true },
-          })
-        : Promise.resolve(null),
+      client.pickupRecord.findFirst({
+        where: {
+          studentId,
+          serviceDate,
+          type: PickupEventType.left_center,
+        },
+        orderBy: { happenedAt: "asc" },
+        select: { happenedAt: true },
+      }),
     ]);
     if (absence) {
       throw new ConflictException(
