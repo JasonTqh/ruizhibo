@@ -17,7 +17,7 @@
 - CP-01 到 CP-20 的核心业务代码主线已落地。
 - CP-21、CP-22 与 UI-01 至 UI-09 已完成，并通过微信开发者工具与真机主链路验收。
 - CP-23 至 CP-31 的生产化能力已完成代码实现和本地/隔离环境验证，覆盖微信登录、自动验证脚本、测试环境部署配置、local/S3 文件存储、图片消息、备份恢复、观测性、管理后台正式登录和发布门禁。
-- CP-32 代码加固、最新重新定义的 CP-33/CP-33.1 安全接送、CP-34 学生级一日托管流程，以及 CP-35 生活照护与异常记录代码闭环已完成；仍有真实 HTTPS、微信体验版、真机与门店业务验收项。
+- CP-32 代码加固、最新重新定义的 CP-33/CP-33.1 安全接送、CP-34 学生级一日托管流程、CP-35 生活照护，以及 CP-36 每日托管报告代码闭环已完成；仍有真实 HTTPS、微信体验版、真机与门店业务验收项。
 - 额外已完成家长提交作业与独立聊天页：
   - 家长端 `POST /api/parent/homework-submissions/:submissionId/submit`
   - 家长小程序 `homework` 页面提交作业
@@ -28,7 +28,7 @@
   - 家长端 `GET /api/parent/notices`
   - 家长端 `POST /api/parent/notice-receipts/:receiptId/view`
   - 家长端 `POST /api/parent/notice-receipts/:receiptId/confirm`
-- 当前优先事项是接入真实 HTTPS 测试域名、微信公众平台合法域名和正式 AppSecret，执行 `verify:release`、备份恢复演练、体验版真机绑定，以及 CP-33 接送、CP-34 学生流程和 CP-35 生活照护的小范围业务试运行。
+- 当前优先事项是接入真实 HTTPS 测试域名、微信公众平台合法域名和正式 AppSecret，执行 `verify:release`、备份恢复演练、体验版真机绑定，以及 CP-33 至 CP-36 的小范围业务试运行。
 
 ## 阶段 1：后端基础能力补齐
 
@@ -1330,7 +1330,7 @@ pnpm build
 
 ### CP-35 生活照护与异常记录
 
-状态：**代码已完成；真实微信、20 人班高频操作及跨端展示为 `WAITING_FOR_EXTERNAL_ACCEPTANCE`；完成后停止，不进入 CP-36。**
+状态：**代码已完成；真实微信、20 人班高频操作及跨端展示为 `WAITING_FOR_EXTERNAL_ACCEPTANCE`；CP-36 后续已另行授权。**
 
 目标与模型：
 
@@ -1355,7 +1355,7 @@ API 与安全：
 
 数据语义与边界：
 
-- `StudentCareRecord` 是日常事实，不自动写 `GrowthRecord`，不复制或修改 Pickup/Workflow；后续每日托管报告只做查询聚合。
+- `StudentCareRecord` 是日常事实，不自动写 `GrowthRecord`，不复制或修改 Pickup/Workflow；CP-36 每日托管报告只做查询聚合。
 - 本 CP 不做医疗诊断、用药、每日/周报、AI、复杂营养或其他后续业务。
 
 自动验收：
@@ -1375,6 +1375,42 @@ pnpm build
 - 真机确认家长今日生活摘要、异常关注提示、照护图片上传/预览/失败反馈和离店后的操作限制。
 - 模拟 17:20 学生表示头疼，验证教师记录、家长查看及管理端“今日异常/需要关注”筛选一致。
 
+### CP-36 每日托管报告
+
+状态：**代码已完成；真实微信、真实儿童数据及 20 人班体验为 `WAITING_FOR_EXTERNAL_ACCEPTANCE`；完成后停止，不进入 CP-37。**
+
+架构与语义：
+
+- 新增共享 `DailyReportModule` / `DailyReportService`，按 Asia/Shanghai 业务日实时聚合现有 Pickup/Attendance、StudentWorkflowStep、StudentCareRecord、HomeworkSubmission 和家长可见 GrowthRecord。
+- 不建立日报事实快照，不复制或改写底层事实；报告 GET 严格零写入。唯一持久化新增是教师文本寄语 `StudentDailyReportNote`。
+- 总体状态优先级为 `absence > left_center > arrived_at_center > picked_up_from_school > waiting_pickup`；缺勤使用专用模式，不把无数据解释为失败或异常。
+- 流程区分 completed、skipped、exception、pending，生活照护区分“无记录”和正常；接送使用历史快照且 Attendance 只作不重复 fallback。
+- 作业按明确业务日规则归属并只出现一次；GrowthRecord 只包含当天 `visibleToParent=true` 的记录。关注项按接送安全、Care needsAttention、其他 Care exception、Workflow exception、Homework overdue 排序。
+
+API 与安全：
+
+- 家长日报仅 active 监护关系可访问，默认今天、历史最多 90 天，跨家庭返回 `404`；不返回草稿、其他学生、内部记录 ID、电话或 FileAsset 元数据。
+- 教师列表、详情与寄语接口只允许本人负责班级，列表摘要/详情分离，历史查看最多 31 天，寄语只允许编辑当前业务日。
+- 管理端列表/详情只读，一次查询一个业务日；筛选、计数和候选学生分页在数据库完成，再批量聚合当前页。
+- `StudentDailyReportNote` 以学生+业务日唯一，学生外键 `RESTRICT`、教师外键 `SET NULL`；保存、发布、取消发布均审计，家长只看 `publishedAt != null` 的寄语。
+
+三端界面：
+
+- 教师工作台新增“今日报告”，支持班级/状态/关注筛选、摘要、学生完整预览和寄语草稿/发布，并阻止重复提交。
+- 家长首页新增今日摘要入口，完整报告支持上一天、下一天和日期选择，明确展示缺勤、无记录、异常和个人图片。
+- 管理后台业务面板新增每日托管报告，支持校区、班级、教师、学生、状态、异常、关注、发布及分页筛选，详情只读。
+
+自动验收：
+
+- 新增 `verify:daily-report` 80 场景并接入 `verify:all`，覆盖聚合规则、历史日期、权限、隐私、零副作用、实时刷新、分页和无数据语义。
+- API、教师端、家长端和管理端 typecheck/build、Prisma validate/migration status 作为完成门禁。
+
+外部验收项（`WAITING_FOR_EXTERNAL_ACCEPTANCE`）：
+
+- 真实 20 人班教师日报列表操作速度、异常识别与信息密度。
+- 真实微信教师/家长日报、历史日期切换、个人图片/失败反馈、临时授权接送和寄语草稿/发布。
+- 使用脱敏的真实业务样例核对儿童数据最小化及三端事实一致性。
+
 ## 推荐执行顺序
 
 严格建议按以下顺序推进：
@@ -1388,13 +1424,13 @@ CP-13 -> CP-14 -> CP-15 -> CP-16
 CP-17 -> CP-18 -> CP-19 -> CP-20
 CP-21 -> CP-22
 UI-01 -> UI-02 -> UI-03 -> UI-04 -> UI-05 -> UI-06 -> UI-07 -> UI-08 -> UI-09
-CP-23 -> CP-24 -> CP-25 -> CP-26 -> CP-27 -> CP-28 -> CP-29 -> CP-30 -> CP-31 -> CP-32 -> CP-33（安全接送） -> CP-33.1 -> CP-34（学生级流程） -> CP-35（生活照护）
+CP-23 -> CP-24 -> CP-25 -> CP-26 -> CP-27 -> CP-28 -> CP-29 -> CP-30 -> CP-31 -> CP-32 -> CP-33（安全接送） -> CP-33.1 -> CP-34（学生级流程） -> CP-35（生活照护） -> CP-36（每日托管报告）
 ```
 
 当前建议优先执行：
 
 ```text
-CP-32 外部验收、CP-33 接送真机/真实门店验收、CP-34 学生流程与 CP-35 生活照护真机高频验收；不自动进入 CP-36
+CP-32 外部验收、CP-33 接送真机/真实门店验收、CP-34 学生流程、CP-35 生活照护及 CP-36 日报真机高频验收；不自动进入 CP-37
 ```
 
 ## 每个提案的完成定义

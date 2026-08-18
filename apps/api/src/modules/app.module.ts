@@ -4,6 +4,7 @@ import { AdminModule } from "./admin/admin.module";
 import { AuditModule } from "./audit/audit.module";
 import { AuthModule } from "./auth/auth.module";
 import { CareModule } from "./care/care.module";
+import { DailyReportModule } from "./daily-report/daily-report.module";
 import { FilesModule } from "./files/files.module";
 import { HealthModule } from "./health/health.module";
 import { ParentModule } from "./parent/parent.module";
@@ -21,6 +22,7 @@ import { TeacherModule } from "./teacher/teacher.module";
     AuditModule,
     AuthModule,
     CareModule,
+    DailyReportModule,
     AdminModule,
     TeacherModule,
     ParentModule,

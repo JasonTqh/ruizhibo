@@ -170,6 +170,7 @@ const classReferenceLabels = {
   studentNoticeReceipts: "学生通知回执",
   studentAuthorizedPickupPeople: "学生授权接送人",
   studentPickupRecords: "学生安全接送记录",
+  studentDailyReportNotes: "学生日报寄语",
 };
 
 const studentReferenceLabels = {
@@ -181,6 +182,8 @@ const studentReferenceLabels = {
   noticeReceipts: "通知回执",
   authorizedPickupPeople: "授权接送人",
   pickupRecords: "安全接送记录",
+  careRecords: "生活照护记录",
+  dailyReportNotes: "日报寄语",
 };
 
 const parentReferenceLabels = {
@@ -205,6 +208,8 @@ const teacherReferenceLabels = {
   notices: "通知/任务",
   conversations: "家校会话",
   pickupRecords: "安全接送责任记录",
+  careRecords: "生活照护记录",
+  dailyReportNotes: "日报寄语",
 };
 
 function referenceTotal(counts: ReferenceCounts) {
@@ -1356,12 +1361,13 @@ function ClassesPanel({
       const total = referenceTotal(counts);
       if (
         (counts.pickupRecords ?? 0) > 0 ||
-        (counts.studentPickupRecords ?? 0) > 0
+        (counts.studentPickupRecords ?? 0) > 0 ||
+        (counts.studentDailyReportNotes ?? 0) > 0
       ) {
         Modal.warning({
           title: "不能删除班级",
           content:
-            "该班级或班内学生已有安全接送责任记录。历史记录必须保留，不能执行强制删除。",
+            "该班级或班内学生已有必须保留的历史接送或日报寄语，不能执行强制删除。",
         });
         return;
       }
@@ -1621,7 +1627,11 @@ function PickupPeopleManager({
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="relationship" label="关系" rules={[{ required: true }]}>
+              <Form.Item
+                name="relationship"
+                label="关系"
+                rules={[{ required: true }]}
+              >
                 <Select options={pickupRelationshipOptions} />
               </Form.Item>
             </Col>
@@ -1629,7 +1639,12 @@ function PickupPeopleManager({
               <Form.Item
                 name="phone"
                 label="联系电话"
-                rules={[{ pattern: /^[0-9+\-() ]{6,30}$/, message: "请输入有效联系电话" }]}
+                rules={[
+                  {
+                    pattern: /^[0-9+\-() ]{6,30}$/,
+                    message: "请输入有效联系电话",
+                  },
+                ]}
               >
                 <Input maxLength={30} />
               </Form.Item>
@@ -1641,7 +1656,9 @@ function PickupPeopleManager({
           <Form.Item name="isActive" valuePropName="checked">
             <Switch checkedChildren="启用" unCheckedChildren="停用" />
           </Form.Item>
-          <Button type="primary" htmlType="submit">添加授权人</Button>
+          <Button type="primary" htmlType="submit">
+            添加授权人
+          </Button>
         </Form>
       </Card>
       <Table
@@ -1655,13 +1672,23 @@ function PickupPeopleManager({
           {
             title: "关系",
             render: (_, item) =>
-              pickupRelationshipOptions.find((option) => option.value === item.relationship)?.label ?? item.relationship,
+              pickupRelationshipOptions.find(
+                (option) => option.value === item.relationship,
+              )?.label ?? item.relationship,
           },
-          { title: "电话", dataIndex: "phone", render: (value) => value || "-" },
+          {
+            title: "电话",
+            dataIndex: "phone",
+            render: (value) => value || "-",
+          },
           {
             title: "状态",
             render: (_, item) =>
-              item.isActive ? <Tag color="green">已授权</Tag> : <Tag>已停用</Tag>,
+              item.isActive ? (
+                <Tag color="green">已授权</Tag>
+              ) : (
+                <Tag>已停用</Tag>
+              ),
           },
           {
             title: "操作",
@@ -1727,11 +1754,15 @@ function StudentsPanel({
         `/admin/students/${record.id}/references`,
       );
       const total = referenceTotal(counts);
-      if ((counts.pickupRecords ?? 0) > 0) {
+      if (
+        (counts.pickupRecords ?? 0) > 0 ||
+        (counts.careRecords ?? 0) > 0 ||
+        (counts.dailyReportNotes ?? 0) > 0
+      ) {
         Modal.warning({
           title: "不能删除学生",
           content:
-            "该学生已有安全接送责任记录。请将状态设为停用或结业，历史记录不能删除。",
+            "该学生已有必须保留的历史接送、生活照护或日报寄语。请将状态设为停用或结业，历史记录不能删除。",
         });
         return;
       }
@@ -1866,7 +1897,10 @@ function StudentsPanel({
                 <Button type="link" onClick={() => setManagingId(record.id)}>
                   管理家长
                 </Button>
-                <Button type="link" onClick={() => setPickupManagingId(record.id)}>
+                <Button
+                  type="link"
+                  onClick={() => setPickupManagingId(record.id)}
+                >
                   授权接送人
                 </Button>
                 <Button

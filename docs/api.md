@@ -367,6 +367,52 @@ Authorization: Bearer <admin-token>
 
 未提供日期时只查当前中国业务日，显式日期范围最多 31 天；筛选与分页均在数据库执行。接口只读，不提供修改、删除或异常覆盖能力。
 
+### 每日托管报告
+
+CP-36 使用统一 `DailyReportService` 实时聚合现有事实，不创建完整日报快照。所有报告 GET 均只读，不写入 Pickup、Attendance、Workflow、Care、Homework、Growth 或 AuditLog。
+
+家长完整日报：
+
+```http
+GET /api/parent/students/:studentId/daily-report?date=YYYY-MM-DD
+Authorization: Bearer <parent-token>
+```
+
+必须存在 active `StudentGuardian`；跨家庭和无效学生统一返回 `404`。默认今天，最多查询最近 90 天。响应只包含当前学生的展示字段、教师姓名及安全图片 URL，不返回其他学生、内部记录 ID、教师 ID、电话、FileAsset 元数据或未发布寄语。
+
+教师班级摘要、学生详情和寄语：
+
+```http
+GET /api/teacher/daily-reports?date=YYYY-MM-DD&classId=<id>&status=<status>&needsAttention=<boolean>
+GET /api/teacher/students/:studentId/daily-report?date=YYYY-MM-DD
+PUT /api/teacher/students/:studentId/daily-report-note
+Authorization: Bearer <teacher-token>
+```
+
+教师只可访问自己负责班级中的 active 学生；跨班学生和不属于自己的 `classId` 返回 `404`。列表只返回状态、关注数、流程/照护/作业摘要和寄语发布状态，详情才加载备注、个人图片、附件与成长内容。教师报告最多查询最近 31 天；寄语第一版只允许当前业务日，正文最多 500 字：
+
+```json
+{
+  "date": "2026-08-18",
+  "comment": "今天整体状态平稳。",
+  "publish": true
+}
+```
+
+`publish=false` 保存草稿或取消发布，`publish=true` 要求非空正文。每次保存、发布或取消发布均写 AuditLog；同一学生同一业务日只保留一条当前寄语。草稿仅教师与管理员可见。
+
+管理端只读日报：
+
+```http
+GET /api/admin/business/daily-reports?date=YYYY-MM-DD&campusId=<id>&classId=<id>&teacherId=<id>&studentId=<id>&status=<status>&hasException=<boolean>&needsAttention=<boolean>&published=<boolean>&page=<n>&pageSize=<1..50>
+GET /api/admin/business/daily-reports/:studentId?date=YYYY-MM-DD
+Authorization: Bearer <admin-token>
+```
+
+管理端一次只查询一个业务日，默认今天；候选学生的筛选、计数和分页在数据库完成，再对当前页 studentIds 批量查询各类事实。详情只读，可查看寄语草稿/发布状态，但没有修改任何日报或底层事实的接口。
+
+三端日期统一为严格 `YYYY-MM-DD` 和 Asia/Shanghai 业务日；非法日期和未来日期返回 `400`。总体状态实时按 `absence > left_center > arrived_at_center > picked_up_from_school > waiting_pickup` 推导。缺勤进入专用模式，不把没有门店事实推断为流程失败、未进食或异常；`processed` 明确包含 completed、skipped、exception，且不等于 completed。
+
 ### 安全接送与到离店
 
 CP-33 使用事实事件而不是可覆盖的单一状态：
@@ -1021,6 +1067,16 @@ pnpm --filter @ruizhibo/api verify:care-records
 
 脚本创建隔离教师、班级、家长和学生，覆盖 CP-35 规定的 30 个场景：五类记录及字段校验、用餐更新、饮水累计、批量原子性和例外保护、跨教师/跨班/跨家庭拒绝、缺勤保护、`scene=care` 图片 owner/scene、家长安全投影、管理端默认今日/31 天上限/异常筛选，以及不生成 `GrowthRecord`、不修改 Pickup/Workflow。脚本结束停用验证主体，但保留照护事实，因此不得在生产数据库运行。
 
+### 每日托管报告自动验证
+
+在本地或专用测试数据库运行：
+
+```powershell
+pnpm --filter @ruizhibo/api verify:daily-report
+```
+
+脚本创建隔离教师、班级、家长和 20 名学生，覆盖 CP-36 的 80 个场景：总体状态和缺勤模式、接送时间线/快照/Attendance fallback、学生流程五态与个人照片、照护无数据语义和实时刷新、作业日期归属/当前状态、成长可见性、GET 零副作用、寄语草稿/发布/唯一性/Audit、家长与教师隔离、严格日期、管理端数据库分页及筛选。脚本会写入隔离测试事实并在结束时停用验证主体，不得对生产数据库运行。
+
 需要验证完整写入闭环时显式追加 `-IncludeWrites`：
 
 ```powershell
@@ -1039,13 +1095,13 @@ pnpm --filter @ruizhibo/api verify:parent -- -ParentPhone <parent-phone> -Teache
 
 统一验证也支持环境变量 `VERIFY_API_BASE_URL`、`VERIFY_ADMIN_PHONE`、`VERIFY_TEACHER_PHONE`、`VERIFY_PARENT_PHONE`。这适合联调库已修改测试手机号，但仍希望一次运行全部只读检查的场景。
 
-部署到使用 seed 数据的测试环境后，可一次运行现有 API 回归、CP-33 接送、CP-34 学生流程和 CP-35 生活照护写入验证：
+部署到使用 seed 数据的测试环境后，可一次运行现有 API 回归、CP-33 接送、CP-34 学生流程、CP-35 生活照护和 CP-36 每日报告验证：
 
 ```powershell
 pnpm --filter @ruizhibo/api verify:all
 ```
 
-`verify:all` 现已包含 `verify:pickup`、`verify:student-workflow` 与 `verify:care-records`，会写入并保留已停用的隔离验证主体及业务事实；不要对生产数据库运行。
+`verify:all` 现已包含 `verify:pickup`、`verify:student-workflow`、`verify:care-records` 与 `verify:daily-report`，会写入并保留已停用的隔离验证主体及业务事实；不要对生产数据库运行。
 
 ## 8. 微信登录
 

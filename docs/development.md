@@ -1,6 +1,6 @@
 # 开发状态与下一步计划
 
-本项目已经从“核心业务链路可联调”推进到“测试环境上线前验收”阶段。正式 Taro 小程序、管理后台、后端生产化能力、发布门禁、CP-33 安全接送、CP-34 学生级一日托管流程，以及 CP-35 生活照护与异常记录代码闭环均已实现；当前重点是接入真实 HTTPS 测试域名、微信公众平台配置、体验版真机绑定、接送/学生流程/生活照护真机验收、备份恢复演练和小范围业务试运行。
+本项目已经从“核心业务链路可联调”推进到“测试环境上线前验收”阶段。正式 Taro 小程序、管理后台、后端生产化能力、发布门禁、CP-33 安全接送、CP-34 学生级一日托管流程、CP-35 生活照护，以及 CP-36 每日托管报告代码闭环均已实现；当前重点是接入真实 HTTPS 测试域名、微信公众平台配置、体验版真机绑定、接送/学生流程/生活照护/日报真机验收、备份恢复演练和小范围业务试运行。
 
 ## 1. 当前正式工程
 
@@ -32,6 +32,7 @@ archive/apps/website
 - 家长端孩子列表、成长时间线、出勤、作业查询。
 - 安全接送事实链：学校接到、安全到店、正常/临时/异常离店、授权接送人快照、家长历史查询与考勤兼容。
 - 生活照护事实：按餐次用餐、可累计饮水、主要休息、情绪和不可覆盖异常，支持班级批量记录、家长今日摘要与管理端只读查询。
+- 每日托管报告：按 Asia/Shanghai 业务日实时聚合接送、学生流程、生活照护、作业和家长可见成长反馈；支持教师寄语草稿/发布、家长历史查看及管理端分页只读查询。
 - 家校会话、聊天详情、文本/图片消息、未读数和读取后已读。
 - 教师发布通知/家长任务，家长查看与确认，教师查看逐位回执。
 - JSON/base64 文件上传、local/S3 兼容存储、`FileAsset` 元数据记录。
@@ -39,9 +40,9 @@ archive/apps/website
 
 前端：
 
-- 管理后台已接入真实 API，可正式登录、维护基础数据和流程模板、配置家长与接送权限、维护非账号型授权接送人、执行引用检查，并只读查询接送/异常、学生托管步骤及生活照护记录。
-- 教师小程序已接入工作台、今日接送、今日照护、备课、教研、教学记录、学生级流程、作业、通知/任务、消息列表和聊天详情；今日照护支持班级批量用餐/饮水/休息及单学生情绪、例外和异常记录。
-- 家长小程序已接入首页今日接送状态、今日托管进度、今日生活、接送历史、作业提交、成长、“我的”、通知/任务确认、消息列表和聊天详情；今日生活会突出需要关注的异常。
+- 管理后台已接入真实 API，可正式登录、维护基础数据和流程模板、配置家长与接送权限、维护非账号型授权接送人、执行引用检查，并只读查询接送/异常、学生托管步骤、生活照护及每日托管报告。
+- 教师小程序已接入工作台、今日接送、今日照护、今日报告、备课、教研、教学记录、学生级流程、作业、通知/任务、消息列表和聊天详情；今日报告支持班级摘要、学生详情以及老师寄语草稿/发布。
+- 家长小程序已接入首页今日接送状态、今日托管进度、今日生活、每日托管报告摘要/完整历史报告、接送历史、作业提交、成长、“我的”、通知/任务确认、消息列表和聊天详情。
 - 教师端、家长端已按历史原型方向完成首轮真实 API 页面迁移，不再保留底部导航占位页。
 
 文档和工具：
@@ -159,7 +160,7 @@ pnpm --filter @ruizhibo/parent-miniapp build
 
 ## 6. 下一阶段优先级
 
-CP-21、CP-22、UI-01 至 UI-09、CP-23 至 CP-31、最新路线图定义的 CP-32 代码部分、重新定义的 CP-33/CP-33.1 安全接送、CP-34 学生级一日托管流程，以及 CP-35 生活照护与异常记录均已完成本地/隔离环境自动验证。CP-32 外部项、CP-33 门店接送、CP-34 学生流程高频操作，以及 CP-35 生活照护真机与 20 人班业务操作仍为 `WAITING_FOR_EXTERNAL_ACCEPTANCE`；本轮完成后不自动进入 CP-36。
+CP-21、CP-22、UI-01 至 UI-09、CP-23 至 CP-31、最新路线图定义的 CP-32 代码部分、重新定义的 CP-33/CP-33.1 安全接送、CP-34 学生级一日托管流程、CP-35 生活照护，以及 CP-36 每日托管报告均已完成本地/隔离环境自动验证。CP-32 外部项及 CP-33 至 CP-36 的真实微信、门店、高频和儿童数据展示验收仍为 `WAITING_FOR_EXTERNAL_ACCEPTANCE`；本轮完成后不自动进入 CP-37。
 
 建议优先顺序：
 
@@ -379,7 +380,7 @@ pnpm --filter @ruizhibo/api verify:observability
 
 ### CP-35 生活照护与异常记录
 
-**代码已完成；真机与真实班级业务验收为 `WAITING_FOR_EXTERNAL_ACCEPTANCE`；不进入 CP-36。**
+**代码已完成；真机与真实班级业务验收为 `WAITING_FOR_EXTERNAL_ACCEPTANCE`；后续 CP-36 已另行授权并记录于下一节。**
 
 - 新增统一 `StudentCareRecord`，受控记录 `meal`、`water`、`rest`、`mood`、`exception`；不用 JSON 承载业务语义，也不拆成五张表。
 - migration `20260818130000_add_student_care_records` 创建模型、约束、索引和安全外键；`20260818131000_require_care_exception_remark` 在数据库层明确禁止空异常备注，均已成功应用。
@@ -389,7 +390,7 @@ pnpm --filter @ruizhibo/api verify:observability
 - 图片统一上传为 `scene=care`，保存前校验文件存在、当前教师 owner、scene 和图片 MIME；家长接口只返回安全 URL，不返回 `FileAsset` 内部字段。
 - 教师端新增“今日照护”班级页和单学生编辑；家长首页新增“今日生活”摘要并突出 `needsAttention` 异常；管理后台新增默认今日、最大 31 天、数据库分页的只读筛选。
 - 异常只记录观察事实、非医疗处理和是否需要家长关注，不提供诊断、用药、删除或覆盖能力。
-- `StudentCareRecord` 不自动创建 `GrowthRecord`，也不复制或修改 Pickup/Workflow 事实；后续每日托管报告可按需聚合。
+- `StudentCareRecord` 不自动创建 `GrowthRecord`，也不复制或修改 Pickup/Workflow 事实；CP-36 每日托管报告只读聚合这些事实。
 - 新增 `verify:care-records` 30 场景专项回归并接入 `verify:all`，覆盖权限、缺勤、批量原子性、例外保护、图片策略、家长隔离、管理端范围和跨模块不写入。
 
 本地验证：
@@ -411,6 +412,39 @@ pnpm --filter @ruizhibo/api verify:all
 - 家长真机确认用餐、饮水次数、休息、最新情绪和全部异常正确展示，`needsAttention=true` 有明显提示。
 - 模拟“17:20 学生表示头疼”，确认教师可记录事实与处理、家长可见、管理后台“今日异常/需要关注”均能筛出。
 - 真机验证 `scene=care` 图片上传、预览、失败反馈，以及所有照护类型的离店时间边界与离店前历史事实补录。
+
+### CP-36 每日托管报告
+
+**代码已完成；真实微信、20 人班列表与真实儿童数据展示仍为 `WAITING_FOR_EXTERNAL_ACCEPTANCE`；不进入 CP-37。**
+
+- 新增统一 `DailyReportModule` / `DailyReportService`，三端共享同一套实时查询聚合；不建立日报事实快照，所有 GET 均不写入 Pickup、Attendance、Workflow、Care、Homework、Growth 或 Audit。
+- 报告以 Asia/Shanghai 业务日为唯一边界。家长可查最近 90 天，教师可查最近 31 天，未来和非法日期返回 `400`；老师寄语第一版只允许编辑当前业务日。
+- 总体状态按 `absence > left_center > arrived_at_center > picked_up_from_school > waiting_pickup` 推导；缺勤进入专用模式，不把无门店事实误报为流程失败、未进食或异常。
+- 接送以 `PickupRecord` 为主，Attendance 仅作不重复的 arrive/leave 兼容；离店展示历史责任快照和经办教师姓名，不返回电话或内部 ID。
+- 流程严格区分 `completed/skipped/exception/pending`，`processed=completed+skipped+exception`；已离店 pending 不自动改写，只展示个人流程照片，不返回班级步骤照片。
+- 生活照护明确区分“无记录”和正常：无饮水记录返回 `hasRecord=false,count=null`；情绪取当天 happenedAt 最新一条，饮水按 quantity 求和，异常保持事实性原文。
+- 作业按“当天 dueAt，或 dueAt 为空且当天创建，或当前学生当天提交/批阅”归属且只出现一次；状态使用当前持久化状态。成长反馈仅聚合当天 `visibleToParent=true` 的记录。
+- 新增 `StudentDailyReportNote`，同一学生/业务日唯一；学生外键 `RESTRICT`、教师外键 `SET NULL`。草稿仅教师和管理员可见，发布后家长可见，保存/发布/取消发布写 AuditLog。
+- 教师端新增班级摘要、状态/关注筛选、学生详情和寄语编辑；家长首页新增摘要入口及完整历史日报；管理后台新增按单业务日数据库分页、当前页批量聚合的只读日报查询。
+- 新增 `verify:daily-report` 并接入 `verify:all`，覆盖 80 个聚合、权限、日期、零副作用、隐私、筛选、分页、实时刷新和无数据语义场景。
+
+本地验证：
+
+```powershell
+pnpm --filter @ruizhibo/api verify:daily-report
+pnpm --filter @ruizhibo/api verify:all
+pnpm --filter @ruizhibo/api exec prisma validate
+pnpm --filter @ruizhibo/api exec prisma migrate status
+pnpm typecheck
+pnpm build
+```
+
+**WAITING_FOR_EXTERNAL_ACCEPTANCE**
+
+- 真实 20 人班教师日报列表操作速度与异常学生识别。
+- 真实微信教师端、家长端完整日报和历史日期切换。
+- 真实儿童数据脱敏、异常展示、个人图片加载/失败反馈和临时授权接送展示。
+- 老师寄语草稿、发布、重新发布及家长不可见/可见切换的真机操作。
 
 ## 7. 给 Codex 的任务模板
 

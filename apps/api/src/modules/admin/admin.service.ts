@@ -130,6 +130,7 @@ export class AdminService {
       conversations,
       pickupRecords,
       careRecords,
+      dailyReportNotes,
     ] = await Promise.all([
       this.prisma.class.count({ where: { teacherId: id } }),
       this.prisma.attendanceEvent.count({ where: { teacherId: id } }),
@@ -148,6 +149,7 @@ export class AdminService {
         where: { OR: [{ teacherId: id }, { createdById: id }] },
       }),
       this.prisma.studentCareRecord.count({ where: { teacherId: id } }),
+      this.prisma.studentDailyReportNote.count({ where: { teacherId: id } }),
     ]);
     return {
       data: {
@@ -166,6 +168,7 @@ export class AdminService {
         conversations,
         pickupRecords,
         careRecords,
+        dailyReportNotes,
       },
     };
   }
@@ -331,13 +334,13 @@ export class AdminService {
     await this.assertUserWithRoleExists(id, UserRole.parent, "Parent");
     const [guardianships, noticeReceipts, conversations, pickupRecords] =
       await Promise.all([
-      this.prisma.studentGuardian.count({ where: { parentId: id } }),
-      this.prisma.noticeReceipt.count({ where: { parentId: id } }),
-      this.prisma.conversation.count({ where: { parentId: id } }),
-      this.prisma.pickupRecord.count({
-        where: { studentGuardian: { parentId: id } },
-      }),
-    ]);
+        this.prisma.studentGuardian.count({ where: { parentId: id } }),
+        this.prisma.noticeReceipt.count({ where: { parentId: id } }),
+        this.prisma.conversation.count({ where: { parentId: id } }),
+        this.prisma.pickupRecord.count({
+          where: { studentGuardian: { parentId: id } },
+        }),
+      ]);
     return {
       data: { guardianships, noticeReceipts, conversations, pickupRecords },
     };
@@ -500,6 +503,7 @@ export class AdminService {
       noticeReceipts,
       authorizedPickupPeople,
       pickupRecords,
+      dailyReportNotes,
     ] = await Promise.all([
       this.prisma.class.findUniqueOrThrow({
         where: { id },
@@ -533,6 +537,9 @@ export class AdminService {
         where: { student: { classId: id } },
       }),
       this.prisma.pickupRecord.count({ where: { classId: id } }),
+      this.prisma.studentDailyReportNote.count({
+        where: { student: { classId: id } },
+      }),
     ]);
     return {
       data: {
@@ -545,6 +552,7 @@ export class AdminService {
         studentNoticeReceipts: noticeReceipts,
         studentAuthorizedPickupPeople: authorizedPickupPeople,
         studentPickupRecords: pickupRecords,
+        studentDailyReportNotes: dailyReportNotes,
       },
     };
   }
@@ -555,10 +563,11 @@ export class AdminService {
       const references = (await this.classReferences(id)).data;
       if (
         references.pickupRecords > 0 ||
-        references.studentPickupRecords > 0
+        references.studentPickupRecords > 0 ||
+        references.studentDailyReportNotes > 0
       ) {
         throw new ConflictException(
-          "该班级关联历史安全接送责任记录，必须保留历史，不能强制删除",
+          "该班级关联必须保留的历史接送或日报寄语，不能强制删除",
         );
       }
     }
@@ -703,6 +712,7 @@ export class AdminService {
             authorizedPickupPeople: true,
             pickupRecords: true,
             careRecords: true,
+            dailyReportNotes: true,
           },
         },
       },
@@ -723,9 +733,13 @@ export class AdminService {
     }
     if (force) {
       const references = (await this.studentReferences(id)).data;
-      if (references.pickupRecords > 0 || references.careRecords > 0) {
+      if (
+        references.pickupRecords > 0 ||
+        references.careRecords > 0 ||
+        references.dailyReportNotes > 0
+      ) {
         throw new ConflictException(
-          "该学生已有历史接送或生活照护责任记录，必须保留历史；请停用或结业，不能强制删除",
+          "该学生已有历史接送、生活照护或日报寄语，必须保留历史；请停用或结业，不能强制删除",
         );
       }
     }

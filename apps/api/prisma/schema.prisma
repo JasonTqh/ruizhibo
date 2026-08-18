@@ -154,24 +154,25 @@ model User {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
-  teachingClasses        Class[]               @relation("ClassTeacher")
+  teachingClasses        Class[]                  @relation("ClassTeacher")
   guardianships          StudentGuardian[]
-  attendanceLogs         AttendanceEvent[]     @relation("AttendanceTeacher")
+  attendanceLogs         AttendanceEvent[]        @relation("AttendanceTeacher")
   workflowSessions       WorkflowSession[]
-  workflowChecks         WorkflowStep[]        @relation("WorkflowStepTeacher")
-  studentWorkflowSteps   StudentWorkflowStep[] @relation("StudentWorkflowStepTeacher")
+  workflowChecks         WorkflowStep[]           @relation("WorkflowStepTeacher")
+  studentWorkflowSteps   StudentWorkflowStep[]    @relation("StudentWorkflowStepTeacher")
   homeworkAssigned       HomeworkAssignment[]
   teachingRecords        TeachingRecord[]
   lessonPlans            LessonPlan[]
-  researchActivities     ResearchActivity[]    @relation("ResearchActivityOrganizer")
+  researchActivities     ResearchActivity[]       @relation("ResearchActivityOrganizer")
   researchParticipations ResearchParticipant[]
   growthRecords          GrowthRecord[]
   sentMessages           Message[]
-  publishedNotices       Notice[]              @relation("NoticeTeacher")
-  noticeReceipts         NoticeReceipt[]       @relation("NoticeReceiptParent")
-  handledPickupRecords   PickupRecord[]        @relation("PickupRecordTeacher")
-  createdPickupRecords   PickupRecord[]        @relation("PickupRecordCreator")
-  careRecords            StudentCareRecord[]   @relation("StudentCareRecordTeacher")
+  publishedNotices       Notice[]                 @relation("NoticeTeacher")
+  noticeReceipts         NoticeReceipt[]          @relation("NoticeReceiptParent")
+  handledPickupRecords   PickupRecord[]           @relation("PickupRecordTeacher")
+  createdPickupRecords   PickupRecord[]           @relation("PickupRecordCreator")
+  careRecords            StudentCareRecord[]      @relation("StudentCareRecordTeacher")
+  dailyReportNotes       StudentDailyReportNote[] @relation("DailyReportNoteTeacher")
   auditLogs              AuditLog[]
 }
 
@@ -228,6 +229,7 @@ model Student {
   pickupRecords          PickupRecord[]
   workflowSteps          StudentWorkflowStep[]
   careRecords            StudentCareRecord[]
+  dailyReportNotes       StudentDailyReportNote[]
 }
 
 model StudentGuardian {
@@ -437,6 +439,24 @@ model StudentCareRecord {
   @@index([type, serviceDate])
   @@index([teacherId, serviceDate])
   @@index([needsAttention, serviceDate])
+}
+
+model StudentDailyReportNote {
+  id          String    @id @default(cuid())
+  studentId   String
+  serviceDate DateTime
+  teacherId   String?
+  comment     String?
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  teacher User?   @relation("DailyReportNoteTeacher", fields: [teacherId], references: [id], onDelete: SetNull)
+
+  @@unique([studentId, serviceDate])
+  @@index([serviceDate])
+  @@index([teacherId, serviceDate])
 }
 
 model HomeworkAssignment {

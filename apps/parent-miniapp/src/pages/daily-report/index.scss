@@ -1,0 +1,188 @@
+.parent-report-page {
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: 20px 24px calc(44px + env(safe-area-inset-bottom));
+  background: #f5f0eb;
+}
+.parent-report-datebar,
+.parent-report-section__heading,
+.parent-report-row {
+  display: flex;
+  align-items: center;
+}
+.parent-report-datebar {
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  background: #fff;
+  border: 1px solid #e7e1da;
+  border-radius: 16px;
+}
+.parent-report-day {
+  color: #2f8064;
+  font-size: 17px;
+  font-weight: 750;
+}
+.parent-report-day--disabled {
+  color: #c0c5c2;
+}
+.parent-report-picker {
+  padding: 7px 12px;
+  color: #344a42;
+  background: #edf5f1;
+  border-radius: 999px;
+  font-size: 18px;
+  font-weight: 750;
+}
+.parent-report-error {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding: 16px 18px;
+  color: #9b4138;
+  background: #fff0ed;
+  border: 1px solid #f1cbc5;
+  border-radius: 13px;
+  font-size: 18px;
+}
+.parent-report-error__retry {
+  color: #2f8064;
+  font-weight: 750;
+}
+.parent-report-empty {
+  padding: 42px;
+  color: #818a86;
+  background: #fff;
+  border-radius: 18px;
+  text-align: center;
+}
+.parent-report-overview {
+  padding: 28px;
+  color: #fff;
+  background: linear-gradient(135deg, #286f57, #459779);
+  border-radius: 23px;
+  box-shadow: 0 10px 25px rgba(47, 128, 100, 0.17);
+}
+.parent-report-overview--absence {
+  background: linear-gradient(135deg, #914e45, #bd7063);
+}
+.parent-report-overview__eyebrow,
+.parent-report-overview__name,
+.parent-report-overview__status,
+.parent-report-overview__meta,
+.parent-report-section__title,
+.parent-report-section__badge,
+.parent-report-row__title,
+.parent-report-row__copy,
+.parent-report-row__time,
+.parent-report-absence__copy,
+.parent-report-muted {
+  display: block;
+}
+.parent-report-overview__eyebrow {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 18px;
+}
+.parent-report-overview__name {
+  margin-top: 7px;
+  font-size: 31px;
+  font-weight: 850;
+}
+.parent-report-overview__status {
+  margin-top: 18px;
+  font-size: 25px;
+  font-weight: 800;
+}
+.parent-report-overview__meta {
+  margin-top: 6px;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 18px;
+}
+.parent-report-section {
+  margin-top: 16px;
+  padding: 21px;
+  background: #fff;
+  border: 1px solid #e8e2db;
+  border-radius: 18px;
+  box-shadow: 0 4px 15px rgba(26, 46, 40, 0.04);
+}
+.parent-report-section__heading {
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.parent-report-section__title {
+  font-size: 23px;
+  font-weight: 850;
+}
+.parent-report-section__badge {
+  padding: 5px 9px;
+  color: #2f8064;
+  background: #e6f3ed;
+  border-radius: 999px;
+  font-size: 16px;
+}
+.parent-report-row {
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 14px 0;
+  border-top: 1px solid #eeeae4;
+}
+.parent-report-row:first-of-type {
+  border-top: 0;
+}
+.parent-report-row__main {
+  flex: 1;
+  min-width: 0;
+}
+.parent-report-row__title {
+  color: #30433c;
+  font-size: 20px;
+  font-weight: 750;
+}
+.parent-report-row__copy {
+  margin-top: 4px;
+  color: #717c77;
+  font-size: 17px;
+  line-height: 1.45;
+}
+.parent-report-row__time {
+  flex-shrink: 0;
+  margin-left: 12px;
+  color: #959c98;
+  font-size: 16px;
+}
+.parent-report-row--danger .parent-report-row__title,
+.parent-report-row--exception .parent-report-row__title {
+  color: #a34a40;
+}
+.parent-report-row--ok .parent-report-row__title {
+  color: #2f8064;
+}
+.parent-report-row--empty {
+  color: #8b938f;
+}
+.parent-report-row--skipped .parent-report-row__title {
+  color: #8c6e31;
+}
+.parent-report-photos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.parent-report-photo {
+  width: 86px;
+  height: 86px;
+  background: #edf0ee;
+  border-radius: 10px;
+}
+.parent-report-absence__copy {
+  margin-top: 10px;
+  color: #684e45;
+  font-size: 20px;
+}
+.parent-report-muted {
+  margin-top: 8px;
+  color: #88918d;
+  font-size: 17px;
+}

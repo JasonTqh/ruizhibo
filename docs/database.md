@@ -124,7 +124,19 @@ CP-35 新增统一 `StudentCareRecord`，不为用餐、饮水、休息、情绪
 
 学生外键使用 `ON DELETE RESTRICT` 保留历史事实；教师外键使用 `ON DELETE SET NULL`，教师被停用或移除后仍保留原始照护记录。常用查询在学生/日期、类型/日期、教师/日期和关注状态/日期上建索引。管理端删除学生时也会把已有照护事实作为历史引用阻止强制删除。
 
-`StudentCareRecord` 不关联或复制 `PickupRecord`、`StudentWorkflowStep`，也不自动生成 `GrowthRecord`。接送、日流程、生活照护仍是三类独立事实，后续每日托管报告通过查询聚合。
+`StudentCareRecord` 不关联或复制 `PickupRecord`、`StudentWorkflowStep`，也不自动生成 `GrowthRecord`。接送、日流程、生活照护仍是三类独立事实，CP-36 每日托管报告通过查询聚合。
+
+### 每日托管报告寄语
+
+CP-36 的日报主体不落库，不复制接送、流程、照护、作业或成长事实；`DailyReportService` 每次读取时按业务日实时聚合。数据库只新增教师人工填写的 `StudentDailyReportNote`：
+
+- `studentId + serviceDate` 唯一，保证同一学生同一业务日只有一份寄语。
+- `comment` 可为空以支持清空草稿，`publishedAt` 为空表示草稿，非空表示家长可见；不保存复杂版本历史。
+- `teacherId` 记录最后编辑教师，教师删除时 `ON DELETE SET NULL`，历史寄语保留。
+- `studentId` 使用 `ON DELETE RESTRICT`，防止删除学生时破坏历史寄语；管理端引用检查同步阻止强制删除。
+- `serviceDate`、`teacherId + serviceDate` 建索引；日期键由应用层 Asia/Shanghai 业务日工具生成。
+
+迁移 `20260818170000_add_student_daily_report_notes` 只创建上述表、唯一约束、索引和安全外键，不创建日报事实快照，也不修改现有业务事实。
 
 ## 5. 作业
 
@@ -217,5 +229,6 @@ CP-34 起，普通一日流程完成、跳过或异常只写 `StudentWorkflowSte
 - 教师登记学校接到、安全到店、正常/临时/异常离店
 - 教师创建单学生生活照护/异常记录；异常必须审计
 - 教师批量记录用餐、饮水或休息；每次批量请求只写一条汇总审计
+- 教师保存、发布或取消发布每日托管报告寄语
 
 这对托管机构运营很重要。

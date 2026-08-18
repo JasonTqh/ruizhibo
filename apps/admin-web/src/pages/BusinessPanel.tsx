@@ -46,6 +46,7 @@ type BusinessKind =
   | "attendance"
   | "pickup"
   | "care"
+  | "dailyReport"
   | "workflow"
   | "studentWorkflow"
   | "lesson"
@@ -62,6 +63,9 @@ interface FilterValues {
   to?: string;
   quickFilter?: string;
   needsAttention?: string;
+  date?: string;
+  hasException?: string;
+  published?: string;
 }
 
 const businessKinds: Array<{
@@ -91,6 +95,11 @@ const businessKinds: Array<{
     label: "生活照护",
     endpoint: "/admin/business/care-records",
   },
+  {
+    key: "dailyReport",
+    label: "每日托管报告",
+    endpoint: "/admin/business/daily-reports",
+  },
   { key: "workflow", label: "一日流程", endpoint: "/admin/business/workflows" },
   {
     key: "studentWorkflow",
@@ -112,6 +121,7 @@ const statusOptions: Partial<Record<BusinessKind, string[]>> = {
   lesson: ["draft", "published", "archived"],
   research: ["draft", "open", "completed", "cancelled"],
   pickup: ["normal", "temporary_authorization", "exception"],
+  dailyReport: ["waiting_pickup", "picked_up", "in_care", "left", "absence"],
 };
 
 const typeOptions: Partial<Record<BusinessKind, string[]>> = {
@@ -141,6 +151,10 @@ const statusLabels: Record<string, string> = {
   missing_leave: "今日未离店",
   skipped: "已跳过",
   absent: "缺勤",
+  waiting_pickup: "待接",
+  picked_up: "已接到",
+  in_care: "托管中",
+  left: "已安全离店",
 };
 
 const typeLabels: Record<string, string> = {
@@ -183,6 +197,8 @@ function formatDate(value?: string) {
 }
 
 function recordTitle(kind: BusinessKind, record: BusinessRecord) {
+  if (kind === "dailyReport")
+    return `${record.student?.name ?? "学生"} · 托管日报`;
   if (kind === "pickup") {
     return record.type
       ? `${record.student?.name ?? "学生"} · ${typeLabels[record.type] ?? record.type}`
@@ -200,6 +216,7 @@ function recordTitle(kind: BusinessKind, record: BusinessRecord) {
 }
 
 function recordTime(kind: BusinessKind, record: BusinessRecord) {
+  if (kind === "dailyReport") return record.date;
   if (kind === "lesson") return record.lessonDate;
   if (kind === "teaching" || kind === "workflow" || kind === "studentWorkflow")
     return record.date;
@@ -218,10 +235,19 @@ function recordScope(record: BusinessRecord) {
 }
 
 function recordOwner(record: BusinessRecord) {
-  return record.teacher?.name ?? record.organizer?.name ?? "-";
+  return (
+    record.teacher?.name ??
+    record.teacherNote?.teacher?.name ??
+    record.organizer?.name ??
+    "-"
+  );
 }
 
 function recordStatus(kind: BusinessKind, record: BusinessRecord) {
+  if (kind === "dailyReport") {
+    const workflow = record.workflow?.summary;
+    return `${record.statusLabel ?? statusLabels[record.status] ?? record.status}${workflow ? ` · 流程 ${workflow.processed}/${workflow.total} 已处理` : ""}${record.attention?.count ? ` · ⚠ ${record.attention.count}` : ""}`;
+  }
   if (kind === "pickup") {
     if (record.isException)
       return `⚠ ${statusLabels[record.status] ?? record.status}`;
@@ -343,6 +369,27 @@ export function BusinessPanel({
     }
   }
 
+  async function openDetails(record: BusinessRecord) {
+    if (kind !== "dailyReport") {
+      setSelected(record);
+      return;
+    }
+    try {
+      setLoading(true);
+      setError("");
+      const detail = await request<BusinessRecord>(
+        `/admin/business/daily-reports/${record.student.id}?date=${encodeURIComponent(record.date)}`,
+      );
+      setSelected(detail);
+    } catch (nextError) {
+      setError(
+        nextError instanceof Error ? nextError.message : "日报详情加载失败",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
   const columns = [
     {
       title: "记录",
@@ -376,6 +423,7 @@ export function BusinessPanel({
             record.isException ||
             (kind === "care" &&
               (record.type === "exception" || record.needsAttention)) ||
+            (kind === "dailyReport" && record.attention?.count) ||
             (kind === "studentWorkflow" && record.summary?.exception)
               ? "red"
               : "green"
@@ -396,7 +444,7 @@ export function BusinessPanel({
       key: "actions",
       render: (_: unknown, record: BusinessRecord) => (
         <Space>
-          <Button size="small" onClick={() => setSelected(record)}>
+          <Button size="small" onClick={() => openDetails(record)}>
             详情
           </Button>
           {kind === "lesson" || kind === "research" ? (
@@ -457,7 +505,7 @@ export function BusinessPanel({
               }))}
             />
           </Form.Item>
-          {kind === "pickup" ? (
+          {kind === "pickup" || kind === "dailyReport" ? (
             <Form.Item name="campusId" label="校区">
               <Select allowClear style={{ width: 160 }} options={campuses} />
             </Form.Item>
@@ -540,7 +588,7 @@ export function BusinessPanel({
               />
             </Form.Item>
           ) : null}
-          {kind === "care" ? (
+          {kind === "care" || kind === "dailyReport" ? (
             <Form.Item name="needsAttention" label="需关注">
               <Select
                 allowClear
@@ -552,12 +600,42 @@ export function BusinessPanel({
               />
             </Form.Item>
           ) : null}
-          <Form.Item name="from" label="开始">
-            <Input type="date" style={{ width: 145 }} />
-          </Form.Item>
-          <Form.Item name="to" label="结束">
-            <Input type="date" style={{ width: 145 }} />
-          </Form.Item>
+          {kind === "dailyReport" ? (
+            <>
+              <Form.Item name="hasException" label="有异常">
+                <Select
+                  allowClear
+                  style={{ width: 110 }}
+                  options={[
+                    { value: "true", label: "是" },
+                    { value: "false", label: "否" },
+                  ]}
+                />
+              </Form.Item>
+              <Form.Item name="published" label="寄语">
+                <Select
+                  allowClear
+                  style={{ width: 120 }}
+                  options={[
+                    { value: "true", label: "已发布" },
+                    { value: "false", label: "未发布" },
+                  ]}
+                />
+              </Form.Item>
+              <Form.Item name="date" label="业务日期">
+                <Input type="date" style={{ width: 145 }} />
+              </Form.Item>
+            </>
+          ) : (
+            <>
+              <Form.Item name="from" label="开始">
+                <Input type="date" style={{ width: 145 }} />
+              </Form.Item>
+              <Form.Item name="to" label="结束">
+                <Input type="date" style={{ width: 145 }} />
+              </Form.Item>
+            </>
+          )}
           <Form.Item>
             <Space>
               <Button type="primary" htmlType="submit">
@@ -605,7 +683,9 @@ export function BusinessPanel({
         open={Boolean(selected)}
         onClose={() => setSelected(null)}
       >
-        {selected ? (
+        {selected && kind === "dailyReport" ? (
+          <DailyReportDetails report={selected} />
+        ) : selected ? (
           <Descriptions bordered column={1} size="small">
             <Descriptions.Item label="记录名称">
               {recordTitle(kind, selected)}
@@ -763,6 +843,225 @@ export function BusinessPanel({
           </Descriptions>
         ) : null}
       </Drawer>
+    </Space>
+  );
+}
+
+function DailyReportDetails({ report }: { report: BusinessRecord }) {
+  const workflow = report.workflow?.summary;
+  const note = report.teacherNote;
+  return (
+    <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+      <Card size="small">
+        <Typography.Title level={4} style={{ marginTop: 0 }}>
+          {report.student?.name} · {report.date} 托管日报
+        </Typography.Title>
+        <Space wrap>
+          <Tag
+            color={
+              report.isAbsent
+                ? "red"
+                : report.status === "left"
+                  ? "blue"
+                  : "green"
+            }
+          >
+            {report.statusLabel ?? statusLabels[report.status] ?? report.status}
+          </Tag>
+          <Typography.Text type="secondary">
+            {report.class?.name} / {report.campus?.name}
+          </Typography.Text>
+        </Space>
+      </Card>
+      {report.isAbsent ? (
+        <Alert
+          type="warning"
+          showIcon
+          message="今日请假 / 缺勤"
+          description={report.absence?.remark ?? "今日无门店托管记录"}
+        />
+      ) : (
+        <>
+          <Card
+            size="small"
+            title={`需要关注（${report.attention?.count ?? 0}）`}
+          >
+            {report.attention?.items?.length ? (
+              <Space direction="vertical">
+                {report.attention.items.map(
+                  (item: BusinessRecord, index: number) => (
+                    <Space key={`${item.source}:${item.happenedAt ?? index}`}>
+                      <Tag
+                        color={
+                          item.level === "high"
+                            ? "red"
+                            : item.level === "medium"
+                              ? "orange"
+                              : "gold"
+                        }
+                      >
+                        {item.level === "high"
+                          ? "优先"
+                          : item.level === "medium"
+                            ? "留意"
+                            : "提醒"}
+                      </Tag>
+                      <Typography.Text>{item.label}</Typography.Text>
+                      <Typography.Text type="secondary">
+                        {formatDate(item.happenedAt)}
+                      </Typography.Text>
+                    </Space>
+                  ),
+                )}
+              </Space>
+            ) : (
+              <Typography.Text type="secondary">暂无已记录异常</Typography.Text>
+            )}
+          </Card>
+          <Card size="small" title="安全接送">
+            <Space direction="vertical">
+              {(report.pickup?.events ?? []).map(
+                (item: BusinessRecord, index: number) => (
+                  <div key={`${item.type}:${item.happenedAt ?? index}`}>
+                    <Typography.Text strong>
+                      {typeLabels[item.type] ?? item.type}
+                    </Typography.Text>
+                    <Typography.Text type="secondary">
+                      {` · ${formatDate(item.happenedAt)} · 经办：${item.teacher?.name ?? "未记录"}${item.pickupPersonName ? ` · ${item.relationship ?? ""} ${item.pickupPersonName}` : ""}`}
+                    </Typography.Text>
+                  </div>
+                ),
+              )}
+              {!report.pickup?.events?.length ? (
+                <Typography.Text type="secondary">暂无接送记录</Typography.Text>
+              ) : null}
+            </Space>
+          </Card>
+          <Card
+            size="small"
+            title={`托管流程${workflow ? ` · ${workflow.processed}/${workflow.total} 已处理` : ""}`}
+          >
+            <Space direction="vertical">
+              {(report.workflow?.steps ?? []).map((step: BusinessRecord) => (
+                <div key={`workflow:${step.stepKey}`}>
+                  <Tag
+                    color={
+                      step.status === "exception"
+                        ? "red"
+                        : step.status === "completed"
+                          ? "green"
+                          : "default"
+                    }
+                  >
+                    {studentWorkflowStatusLabel(step.status)}
+                  </Tag>
+                  <Typography.Text strong>{step.name}</Typography.Text>
+                  <Typography.Text type="secondary">
+                    {step.remark ? ` · ${step.remark}` : ""}
+                  </Typography.Text>
+                  {step.photoUrls?.length ? (
+                    <Typography.Text type="secondary">
+                      {" "}
+                      · 个人凭证 {step.photoUrls.length} 张
+                    </Typography.Text>
+                  ) : null}
+                </div>
+              ))}
+              {!report.workflow?.steps?.length ? (
+                <Typography.Text type="secondary">暂无流程记录</Typography.Text>
+              ) : null}
+            </Space>
+          </Card>
+          <Card size="small" title="今日生活">
+            <Descriptions column={1} size="small">
+              <Descriptions.Item label="点心">
+                {careValueLabels[report.care?.meal?.snack?.value] ??
+                  report.care?.meal?.snack?.value ??
+                  "暂无记录"}
+              </Descriptions.Item>
+              <Descriptions.Item label="晚餐">
+                {careValueLabels[report.care?.meal?.dinner?.value] ??
+                  report.care?.meal?.dinner?.value ??
+                  "暂无记录"}
+              </Descriptions.Item>
+              <Descriptions.Item label="饮水">
+                {report.care?.water?.hasRecord
+                  ? `${report.care.water.count} 次`
+                  : "暂无记录"}
+              </Descriptions.Item>
+              <Descriptions.Item label="休息">
+                {careValueLabels[report.care?.rest?.value] ??
+                  report.care?.rest?.value ??
+                  "暂无记录"}
+              </Descriptions.Item>
+              <Descriptions.Item label="情绪">
+                {careValueLabels[report.care?.mood?.value] ??
+                  report.care?.mood?.value ??
+                  "暂无记录"}
+              </Descriptions.Item>
+              <Descriptions.Item label="异常记录">
+                {report.care?.exceptions?.length ?? 0} 条
+              </Descriptions.Item>
+            </Descriptions>
+          </Card>
+          <Card size="small" title="今日作业">
+            <Space direction="vertical">
+              {(report.homework?.items ?? []).map(
+                (item: BusinessRecord, index: number) => (
+                  <div key={`${item.title}:${index}`}>
+                    <Tag color={item.status === "overdue" ? "red" : "green"}>
+                      {statusLabels[item.status] ?? item.status}
+                    </Tag>
+                    <Typography.Text strong>{item.title}</Typography.Text>
+                    <Typography.Text type="secondary">
+                      {" "}
+                      · {item.remark ?? item.subject ?? ""}
+                    </Typography.Text>
+                  </div>
+                ),
+              )}
+              {!report.homework?.items?.length ? (
+                <Typography.Text type="secondary">暂无作业记录</Typography.Text>
+              ) : null}
+            </Space>
+          </Card>
+          <Card size="small" title="成长与反馈">
+            <Space direction="vertical">
+              {(report.growth?.items ?? []).map(
+                (item: BusinessRecord, index: number) => (
+                  <div key={`${item.title}:${item.happenedAt ?? index}`}>
+                    <Typography.Text strong>{item.title}</Typography.Text>
+                    <Typography.Paragraph
+                      type="secondary"
+                      style={{ marginBottom: 0 }}
+                    >
+                      {item.content}
+                    </Typography.Paragraph>
+                  </div>
+                ),
+              )}
+              {!report.growth?.items?.length ? (
+                <Typography.Text type="secondary">暂无成长反馈</Typography.Text>
+              ) : null}
+            </Space>
+          </Card>
+        </>
+      )}
+      <Card size="small" title="老师寄语（只读）">
+        <Space direction="vertical">
+          <Tag color={note?.isPublished ? "green" : "gold"}>
+            {note?.isPublished ? "已发布" : "草稿 / 未发布"}
+          </Tag>
+          <Typography.Paragraph>
+            {note?.comment || "暂无寄语"}
+          </Typography.Paragraph>
+          {note?.teacher?.name ? (
+            <Typography.Text type="secondary">
+              编辑教师：{note.teacher.name}
+            </Typography.Text>
+          ) : null}
+        </Space>
+      </Card>
     </Space>
   );
 }

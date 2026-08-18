@@ -19,6 +19,7 @@ export default function HomePage() {
   const [pickup, setPickup] = useState(null);
   const [workflow, setWorkflow] = useState(null);
   const [care, setCare] = useState(null);
+  const [dailyReport, setDailyReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const requestSequence = useRef(0);
@@ -49,6 +50,7 @@ export default function HomePage() {
         nextPickup,
         nextWorkflow,
         nextCare,
+        nextDailyReport,
       ] = await Promise.all([
         nextChild
           ? parentRequest(`/parent/children/${nextChild.id}/timeline`)
@@ -67,6 +69,9 @@ export default function HomePage() {
         nextChild
           ? parentRequest(`/parent/children/${nextChild.id}/care/today`)
           : Promise.resolve(null),
+        nextChild
+          ? parentRequest(`/parent/students/${nextChild.id}/daily-report`)
+          : Promise.resolve(null),
       ]);
       if (sequence !== requestSequence.current) return;
       setRecords(nextRecords);
@@ -76,6 +81,7 @@ export default function HomePage() {
       setPickup(nextPickup);
       setWorkflow(nextWorkflow);
       setCare(nextCare);
+      setDailyReport(nextDailyReport);
       syncCommunicationBadge(nextNotices, nextConversations);
     } catch (loadError) {
       if (sequence === requestSequence.current)
@@ -99,20 +105,28 @@ export default function HomePage() {
     setLoading(true);
     setError("");
     try {
-      const [nextRecords, nextHomework, nextPickup, nextWorkflow, nextCare] =
-        await Promise.all([
-          parentRequest(`/parent/children/${childId}/timeline`),
-          parentRequest(`/parent/children/${childId}/homework`),
-          parentRequest(`/parent/children/${childId}/pickup/today`),
-          parentRequest(`/parent/children/${childId}/workflow/today`),
-          parentRequest(`/parent/children/${childId}/care/today`),
-        ]);
+      const [
+        nextRecords,
+        nextHomework,
+        nextPickup,
+        nextWorkflow,
+        nextCare,
+        nextDailyReport,
+      ] = await Promise.all([
+        parentRequest(`/parent/children/${childId}/timeline`),
+        parentRequest(`/parent/children/${childId}/homework`),
+        parentRequest(`/parent/children/${childId}/pickup/today`),
+        parentRequest(`/parent/children/${childId}/workflow/today`),
+        parentRequest(`/parent/children/${childId}/care/today`),
+        parentRequest(`/parent/students/${childId}/daily-report`),
+      ]);
       if (sequence !== requestSequence.current) return;
       setRecords(nextRecords);
       setHomework(nextHomework);
       setPickup(nextPickup);
       setWorkflow(nextWorkflow);
       setCare(nextCare);
+      setDailyReport(nextDailyReport);
     } catch (loadError) {
       if (sequence === requestSequence.current)
         setError("切换孩子失败，请重试。");
@@ -231,6 +245,13 @@ export default function HomePage() {
     child
       ? pickupStatusCard(pickup, () =>
           Taro.navigateTo({ url: `/pages/pickup/index?studentId=${child.id}` }),
+        )
+      : null,
+    child
+      ? dailyReportCard(dailyReport, loading, () =>
+          Taro.navigateTo({
+            url: `/pages/daily-report/index?studentId=${child.id}`,
+          }),
         )
       : null,
     child ? workflowTodayCard(workflow, loading) : null,
@@ -424,6 +445,66 @@ function pickupStatusCard(pickup, onClick) {
   );
 }
 
+function dailyReportCard(report, loading, onClick) {
+  const workflow = report?.workflow?.summary;
+  const water = report?.care?.water;
+  return h(
+    View,
+    {
+      className: `home-report${report?.attention?.count ? " home-report--attention" : ""}`,
+      onClick,
+    },
+    h(
+      View,
+      { className: "home-report__heading" },
+      h(
+        View,
+        null,
+        h(Text, { className: "home-report__eyebrow" }, "今日托管报告"),
+        h(
+          Text,
+          { className: "home-report__status" },
+          loading && !report
+            ? "正在整理今日报告…"
+            : report?.statusLabel || "查看今日托管情况",
+        ),
+      ),
+      h(Text, { className: "home-report__link" }, "完整报告 ›"),
+    ),
+    report?.isAbsent
+      ? h(
+          Text,
+          { className: "home-report__absence" },
+          report.absence?.remark || "今日无门店托管记录",
+        )
+      : h(
+          View,
+          { className: "home-report__facts" },
+          h(
+            Text,
+            { className: "home-report__fact" },
+            workflow
+              ? `流程 ${workflow.processed}/${workflow.total} 已处理`
+              : "流程暂无记录",
+          ),
+          h(
+            Text,
+            { className: "home-report__fact" },
+            water?.hasRecord ? `饮水 ${water.count} 次` : "饮水暂无记录",
+          ),
+          h(
+            Text,
+            {
+              className: `home-report__fact${report?.attention?.count ? " home-report__fact--danger" : ""}`,
+            },
+            report?.attention?.count
+              ? `⚠ ${report.attention.count} 条需关注`
+              : "无已记录异常",
+          ),
+        ),
+  );
+}
+
 function workflowTodayCard(workflow, loading) {
   const timeline = workflow?.timeline || [];
   const summary = workflow?.summary || {};
@@ -572,11 +653,7 @@ function careTodayCard(care, loading) {
         care?.water?.count ? `${care.water.count} 次` : "未记录",
         care?.water?.lastAt,
       ),
-      careSummaryItem(
-        "休息",
-        restCareText(care?.rest),
-        care?.rest?.happenedAt,
-      ),
+      careSummaryItem("休息", restCareText(care?.rest), care?.rest?.happenedAt),
       careSummaryItem(
         "情绪",
         moodCareText(care?.mood?.value),

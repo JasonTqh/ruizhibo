@@ -9,6 +9,14 @@ const h = React.createElement;
 
 const quickActions = [
   {
+    key: "daily-report",
+    icon: "报",
+    title: "今日报告",
+    description: "预览学生日报并发布寄语",
+    tone: "purple",
+    action: () => Taro.navigateTo({ url: "/pages/daily-report/index" }),
+  },
+  {
     key: "care",
     icon: "护",
     title: "今日照护",
@@ -73,12 +81,13 @@ export default function HomePage() {
     setLoading(true);
     setError("");
     try {
-      const [nextDashboard, nextProfile, nextConversations, nextPickup] = await Promise.all([
-        teacherRequest("/teacher/dashboard"),
-        teacherRequest("/me"),
-        teacherRequest("/teacher/conversations"),
-        teacherRequest("/teacher/pickup/today"),
-      ]);
+      const [nextDashboard, nextProfile, nextConversations, nextPickup] =
+        await Promise.all([
+          teacherRequest("/teacher/dashboard"),
+          teacherRequest("/me"),
+          teacherRequest("/teacher/conversations"),
+          teacherRequest("/teacher/pickup/today"),
+        ]);
       setDashboard(nextDashboard);
       setProfile(nextProfile);
       setConversations(nextConversations);
@@ -132,7 +141,11 @@ export default function HomePage() {
           View,
           { className: "home-error" },
           h(Text, null, error),
-          h(Text, { className: "home-error__retry", onClick: load }, "重新加载"),
+          h(
+            Text,
+            { className: "home-error__retry", onClick: load },
+            "重新加载",
+          ),
         )
       : null,
     h(
@@ -142,7 +155,11 @@ export default function HomePage() {
         View,
         { className: "greeting-card__copy" },
         h(Text, { className: "greeting-card__eyebrow" }, greetingText()),
-        h(Text, { className: "greeting-card__title" }, `${teacherName}，今天也辛苦了`),
+        h(
+          Text,
+          { className: "greeting-card__title" },
+          `${teacherName}，今天也辛苦了`,
+        ),
         h(Text, { className: "greeting-card__date" }, date),
       ),
       h(Text, { className: "greeting-card__mark" }, "RZB"),
@@ -185,7 +202,8 @@ export default function HomePage() {
             : "今日接送状态已更新",
         pickup?.summary?.exceptions
           ? `${pickup.summary.exceptions} 项异常`
-          : pickup?.summary?.left === pickup?.summary?.total && pickup?.summary?.total
+          : pickup?.summary?.left === pickup?.summary?.total &&
+              pickup?.summary?.total
             ? "已完成"
             : "去处理",
         pickup?.summary?.exceptions ? "danger" : "info",
@@ -228,19 +246,29 @@ export default function HomePage() {
               { className: "class-card", key: item.id },
               h(
                 View,
-                { className: `class-card__avatar class-card__avatar--${index % 3}` },
+                {
+                  className: `class-card__avatar class-card__avatar--${index % 3}`,
+                },
                 h(Text, null, item.name.slice(0, 1)),
               ),
               h(
                 View,
                 { className: "class-card__main" },
                 h(Text, { className: "class-card__name" }, item.name),
-                h(Text, { className: "class-card__meta" }, `${item._count?.students || 0} 名学生`),
+                h(
+                  Text,
+                  { className: "class-card__meta" },
+                  `${item._count?.students || 0} 名学生`,
+                ),
               ),
               h(Text, { className: "class-card__status" }, "负责班级"),
             ),
           )
-        : h(Text, { className: "home-empty" }, loading ? "正在加载班级…" : "暂无负责班级"),
+        : h(
+            Text,
+            { className: "home-empty" },
+            loading ? "正在加载班级…" : "暂无负责班级",
+          ),
     ),
   );
 }
@@ -274,7 +302,11 @@ function taskRow(title, description, status, tone, onClick) {
       h(Text, { className: "task-row__title" }, title),
       h(Text, { className: "task-row__description" }, description),
     ),
-    h(Text, { className: `task-row__status task-row__status--${tone}` }, status),
+    h(
+      Text,
+      { className: `task-row__status task-row__status--${tone}` },
+      status,
+    ),
   );
 }
 
@@ -288,6 +320,14 @@ function greetingText() {
 
 function formatDate(value) {
   const date = value ? new Date(value) : new Date();
-  const weekdays = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
+  const weekdays = [
+    "星期日",
+    "星期一",
+    "星期二",
+    "星期三",
+    "星期四",
+    "星期五",
+    "星期六",
+  ];
   return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日 ${weekdays[date.getDay()]}`;
 }
