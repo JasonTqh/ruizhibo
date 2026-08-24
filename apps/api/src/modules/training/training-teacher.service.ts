@@ -206,6 +206,8 @@ export class TrainingTeacherService {
     return {
       data: courses.map((course) => {
         const formal = formalByCourseId.get(course.id);
+        const formalLocked =
+          !formal || formal.status === TrainingCourseStatus.locked;
         return {
           id: course.id,
           code: course.code,
@@ -213,17 +215,16 @@ export class TrainingTeacherService {
           category: course.category,
           summary: course.summary,
           expectedMinutes: course.expectedMinutes,
-          chapters:
-            formal?.status === TrainingCourseStatus.locked
-              ? []
-              : course.chapters,
+          chapters: formalLocked ? [] : course.chapters,
           formalCourseId: formal?.id ?? null,
           formalStatus: formal?.status ?? null,
-          formalLocked: formal?.status === TrainingCourseStatus.locked,
+          formalLocked,
           lockedReason:
-            formal?.status === TrainingCourseStatus.locked
-              ? "请先完成上一门必修课程"
-              : null,
+            !formal
+              ? "课程未包含在当前培训计划中"
+              : formal.status === TrainingCourseStatus.locked
+                ? "请先完成上一门必修课程"
+                : null,
           progressNotice: "资料库查阅不计入正式培训进度",
         };
       }),

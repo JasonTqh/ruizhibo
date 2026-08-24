@@ -30,7 +30,7 @@
     "verify:pickup": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-pickup.ps1",
     "verify:observability": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-observability.ps1",
     "verify:training-media": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-training-media.ps1",
-    "test:training": "tsx --test src/modules/training/training.domain.spec.ts src/modules/training/training-course.sanitizer.spec.ts src/modules/training/training-access.service.spec.ts",
+    "test:training": "tsx --test src/modules/training/training.domain.spec.ts src/modules/training/training-course.sanitizer.spec.ts src/modules/training/training-access.service.spec.ts src/modules/files/files.training-access.spec.ts",
     "verify:training-api": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-training-api.ps1",
     "verify:training-isolation": "node scripts/verify-training-isolation.mjs",
     "verify:training-feature-flag": "node scripts/verify-training-feature-flag.mjs",

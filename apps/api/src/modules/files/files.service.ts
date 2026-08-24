@@ -8,7 +8,7 @@ import {
   ServiceUnavailableException,
 } from "@nestjs/common";
 import {
-  TrainingContentStatus,
+  TrainingCourseStatus,
   TrainingPermission,
   UserRole,
   UserStatus,
@@ -266,74 +266,24 @@ export class FilesService {
       },
       select: {
         courses: {
-          where: { status: { not: "locked" } },
-          select: { snapshot: { select: { payload: true } } },
+          select: {
+            status: true,
+            snapshot: { select: { payload: true } },
+          },
         },
       },
     });
     if (
       activeAssignments.some((assignment) =>
         assignment.courses.some((course) =>
+          course.status !== TrainingCourseStatus.locked &&
           jsonContainsExactValue(course.snapshot.payload, assetId),
         ),
       )
     ) {
       return;
     }
-
-    const enabledCampus = await this.prisma.campus.count({
-      where: {
-        trainingFeatureFlag: { enabled: true },
-        OR: [
-          { classes: { some: { teacherId: userId } } },
-          { trainingAssignments: { some: { teacherId: userId } } },
-        ],
-      },
-    });
-    if (!enabledCampus) throw new ForbiddenException("所属校区暂未开放教师学院");
-    const references = await this.prisma.fileAsset.findUnique({
-      where: { id: assetId },
-      select: {
-        trainingCourseCovers: {
-          where: { status: TrainingContentStatus.enabled },
-          select: { id: true },
-        },
-        trainingChapterMedia: {
-          where: {
-            chapter: { course: { status: TrainingContentStatus.enabled } },
-          },
-          select: { chapter: { select: { courseId: true } } },
-        },
-      },
-    });
-    const referencedCourseIds = [
-      ...new Set([
-        ...(references?.trainingCourseCovers.map((course) => course.id) ?? []),
-        ...(references?.trainingChapterMedia.map(
-          (media) => media.chapter.courseId,
-        ) ?? []),
-      ]),
-    ];
-    if (!referencedCourseIds.length) {
-      throw new ForbiddenException("无权访问该培训素材");
-    }
-    const lockedFormalCourses =
-      await this.prisma.trainingAssignmentCourse.findMany({
-        where: {
-          originalCourseId: { in: referencedCourseIds },
-          status: "locked",
-          assignment: { teacherId: userId, activeSlot: userId },
-        },
-        select: { originalCourseId: true },
-      });
-    const lockedIds = new Set(
-      lockedFormalCourses
-        .map((course) => course.originalCourseId)
-        .filter((courseId): courseId is string => Boolean(courseId)),
-    );
-    if (referencedCourseIds.every((courseId) => lockedIds.has(courseId))) {
-      throw new ForbiddenException("请先完成上一门课程后再访问该培训素材");
-    }
+    throw new ForbiddenException("该素材不属于当前已解锁的培训课程");
   }
 
   private requireTrainingAsset(assetId: string) {
