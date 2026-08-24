@@ -1,4 +1,4 @@
-import { UserStatus } from "@prisma/client";
+import { TeacherEmploymentStatus, UserStatus } from "@prisma/client";
 import {
   IsEnum,
   IsOptional,
@@ -21,4 +21,8 @@ export class UpdateTeacherDto {
   @IsOptional()
   @IsEnum(UserStatus)
   status?: UserStatus;
+
+  @IsOptional()
+  @IsEnum(TeacherEmploymentStatus)
+  employmentStatus?: TeacherEmploymentStatus;
 }

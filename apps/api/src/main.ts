@@ -2,7 +2,7 @@ import "reflect-metadata";
 import { ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { NestExpressApplication } from "@nestjs/platform-express";
-import { json, urlencoded } from "express";
+import { json, type Request, type Response, urlencoded } from "express";
 import { getFileStorageDriver, getLocalUploadDir } from "./config/storage";
 import { AppModule } from "./modules/app.module";
 import { ApiExceptionFilter } from "./modules/common/api-exception.filter";
@@ -45,6 +45,9 @@ async function bootstrap() {
     exposedHeaders: [REQUEST_ID_HEADER],
   });
   if (getFileStorageDriver() === "local") {
+    app.use("/uploads/training-course", (_request: Request, response: Response) => {
+      response.status(404).end();
+    });
     app.useStaticAssets(getLocalUploadDir(), {
       prefix: "/uploads/",
     });

@@ -110,6 +110,21 @@ $jwtSecret = Assert-Configured -Values $config -Name "JWT_SECRET"
 Assert-StrongSecret -Name "JWT_SECRET" -Value $jwtSecret -MinimumLength 32
 Write-Host "[production-config] JWT secret: configured and non-placeholder"
 
+$trainingMediaSecret = Assert-Configured -Values $config -Name "TRAINING_MEDIA_SIGNING_SECRET"
+Assert-StrongSecret -Name "TRAINING_MEDIA_SIGNING_SECRET" -Value $trainingMediaSecret -MinimumLength 32
+if ($trainingMediaSecret -eq $jwtSecret) {
+  throw "TRAINING_MEDIA_SIGNING_SECRET must be independent from JWT_SECRET"
+}
+$trainingMediaUrlSeconds = [int](Assert-Configured -Values $config -Name "TRAINING_MEDIA_URL_SECONDS")
+if ($trainingMediaUrlSeconds -lt 60 -or $trainingMediaUrlSeconds -gt 1800) {
+  throw "TRAINING_MEDIA_URL_SECONDS must be between 60 and 1800"
+}
+$backupRetentionDays = [int](Assert-Configured -Values $config -Name "BACKUP_RETENTION_DAYS")
+if ($backupRetentionDays -lt 30) {
+  throw "BACKUP_RETENTION_DAYS must be at least 30"
+}
+Write-Host "[production-config] Training media signing and 30-day backup retention: configured"
+
 $postgresPassword = Assert-Configured -Values $config -Name "POSTGRES_PASSWORD"
 Assert-StrongSecret -Name "POSTGRES_PASSWORD" -Value $postgresPassword -MinimumLength 12
 $databaseUrl = Assert-Configured -Values $config -Name "DATABASE_URL"
@@ -168,6 +183,10 @@ if ($storageDriver -eq "s3") {
     -Name "S3_PUBLIC_BASE_URL" `
     -Value (Get-ConfigValue -Values $config -Name "S3_PUBLIC_BASE_URL") `
     -HttpsRequired ([bool]$RequireHttps)
+  $trainingBucket = Assert-Configured -Values $config -Name "S3_TRAINING_PRIVATE_BUCKET"
+  if ($trainingBucket -eq (Get-ConfigValue -Values $config -Name "S3_BUCKET")) {
+    throw "S3_TRAINING_PRIVATE_BUCKET must be a separate non-public bucket"
+  }
 }
 Write-Host "[production-config] File storage: configured ($storageDriver)"
 

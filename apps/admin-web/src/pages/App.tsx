@@ -26,6 +26,7 @@ import {
 } from "antd";
 import { API_BASE_URL } from "../config";
 import { BusinessPanel } from "./BusinessPanel";
+import { TrainingPanel } from "./TrainingPanel";
 
 type ApiResult<T> = { data: T };
 type ApiErrorResult = {
@@ -61,6 +62,14 @@ interface UserSummary {
   name: string;
   phone?: string;
   status?: string;
+  employmentStatus?: string;
+}
+
+interface CampusSummary {
+  id: string;
+  name: string;
+  address?: string;
+  phone?: string;
 }
 
 interface ParentSummary extends UserSummary {
@@ -210,6 +219,11 @@ const teacherReferenceLabels = {
   pickupRecords: "安全接送责任记录",
   careRecords: "生活照护记录",
   dailyReportNotes: "日报寄语",
+  trainingAssignments: "本人培训轮次",
+  mentoredTrainingAssignments: "带教培训轮次",
+  trainingPracticalChecks: "实操检查记录",
+  trainingSafetyActions: "安全确认记录",
+  trainingPermissionGrants: "培训权限授权",
 };
 
 function referenceTotal(counts: ReferenceCounts) {
@@ -267,6 +281,7 @@ function workflowFormValues(template?: WorkflowTemplate) {
 const modules = [
   { key: "dashboard", label: "工作台" },
   { key: "teachers", label: "老师管理" },
+  { key: "training", label: "教师学院" },
   { key: "parents", label: "家长管理" },
   { key: "classes", label: "班级管理" },
   { key: "students", label: "学生管理" },
@@ -277,6 +292,7 @@ const modules = [
 
 export function App() {
   const [activeKey, setActiveKey] = useState("dashboard");
+  const [trainingTeacherId, setTrainingTeacherId] = useState<string | null>(null);
   const [token, setToken] = useState(() => {
     localStorage.removeItem("adminToken");
     return sessionStorage.getItem("adminToken") ?? "";
@@ -285,6 +301,7 @@ export function App() {
   const [loginError, setLoginError] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
   const [teachers, setTeachers] = useState<UserSummary[]>([]);
+  const [campuses, setCampuses] = useState<CampusSummary[]>([]);
   const [parents, setParents] = useState<ParentSummary[]>([]);
   const [classes, setClasses] = useState<ClassSummary[]>([]);
   const [students, setStudents] = useState<StudentSummary[]>([]);
@@ -334,6 +351,7 @@ export function App() {
     if (!token) return;
     const [
       nextTeachers,
+      nextCampuses,
       nextParents,
       nextClasses,
       nextStudents,
@@ -341,6 +359,7 @@ export function App() {
       nextAuditLogs,
     ] = await Promise.all([
       request<UserSummary[]>("/admin/teachers"),
+      request<CampusSummary[]>("/admin/campuses"),
       request<ParentSummary[]>("/admin/parents"),
       request<ClassSummary[]>("/admin/classes"),
       request<StudentSummary[]>("/admin/students"),
@@ -348,6 +367,7 @@ export function App() {
       request<any[]>("/admin/audit-logs"),
     ]);
     setTeachers(nextTeachers);
+    setCampuses(nextCampuses);
     setParents(nextParents);
     setClasses(nextClasses);
     setStudents(nextStudents);
@@ -506,7 +526,10 @@ export function App() {
           mode="inline"
           selectedKeys={[activeKey]}
           items={modules}
-          onClick={(item) => setActiveKey(item.key)}
+          onClick={(item) => {
+            if (item.key === "training") setTrainingTeacherId(null);
+            setActiveKey(item.key);
+          }}
         />
       </Layout.Sider>
       <Layout>
@@ -526,8 +549,22 @@ export function App() {
           ) : activeKey === "teachers" ? (
             <TeachersPanel
               teachers={teachers}
+              campuses={campuses}
               request={request}
               refreshAll={refreshAll}
+              openTraining={(teacherId) => {
+                setTrainingTeacherId(teacherId);
+                setActiveKey("training");
+              }}
+            />
+          ) : activeKey === "training" ? (
+            <TrainingPanel
+              request={request}
+              token={token}
+              teachers={teachers}
+              campuses={campuses}
+              focusTeacherId={trainingTeacherId}
+              onClearFocus={() => setTrainingTeacherId(null)}
             />
           ) : activeKey === "parents" ? (
             <ParentsPanel
@@ -607,20 +644,47 @@ function Dashboard({ dashboard }: { dashboard: Record<string, number> }) {
 
 function TeachersPanel({
   teachers,
+  campuses,
   request,
   refreshAll,
+  openTraining,
 }: {
   teachers: UserSummary[];
+  campuses: CampusSummary[];
   request: <T>(path: string, options?: RequestInit) => Promise<T>;
   refreshAll: () => Promise<void>;
+  openTraining: (teacherId: string) => void;
 }) {
   const [form] = Form.useForm();
   const [editForm] = Form.useForm();
+  const [canAssignTraining, setCanAssignTraining] = useState(false);
+  const [trainingSubjects, setTrainingSubjects] = useState<{
+    campuses: CampusSummary[];
+    teachers: UserSummary[];
+    mentors: UserSummary[];
+  }>({ campuses: [], teachers: [], mentors: [] });
   const [editing, setEditing] = useState<UserSummary | null>(null);
   const [referenceTarget, setReferenceTarget] = useState<{
     record: UserSummary;
     counts: ReferenceCounts;
   } | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void request<any>("/admin/training/capabilities")
+      .then(async (capabilities) => {
+        if (!capabilities.trainingManage) return;
+        const subjects = await request<any>("/admin/training/assignment-subjects");
+        if (active) {
+          setCanAssignTraining(true);
+          setTrainingSubjects(subjects);
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
 
   async function loadTeacherReferences(record: UserSummary) {
     await submitChange(async () => {
@@ -683,10 +747,17 @@ function TeachersPanel({
         <Form
           form={form}
           layout="inline"
+          initialValues={{ assignTraining: true }}
           onFinish={async (values) => {
             await request("/admin/teachers", {
               method: "POST",
-              body: JSON.stringify({ ...values, status: "active" }),
+              body: JSON.stringify({
+                ...values,
+                assignTraining: canAssignTraining
+                  ? values.assignTraining !== false
+                  : false,
+                status: "active",
+              }),
             });
             form.resetFields();
             await refreshAll();
@@ -698,6 +769,49 @@ function TeachersPanel({
           <Form.Item name="phone" rules={[{ required: true }]}>
             <Input placeholder="手机号" />
           </Form.Item>
+          {canAssignTraining ? <Form.Item
+            name="assignTraining"
+            label="布置新教师培训"
+            valuePropName="checked"
+          >
+            <Switch />
+          </Form.Item> : null}
+          {canAssignTraining ? <Form.Item noStyle shouldUpdate>
+            {({ getFieldValue }) =>
+              getFieldValue("assignTraining") ? (
+                <>
+                  <Form.Item
+                    name="campusId"
+                    rules={[{ required: true, message: "请选择培训校区" }]}
+                  >
+                    <Select
+                      placeholder="培训校区"
+                      style={{ width: 170 }}
+                      options={trainingSubjects.campuses.map((campus) => ({
+                        value: campus.id,
+                        label: campus.name,
+                      }))}
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    name="mentorId"
+                    rules={[{ required: true, message: "请选择带教负责人" }]}
+                  >
+                    <Select
+                      placeholder="带教负责人"
+                      style={{ width: 170 }}
+                      options={trainingSubjects.mentors
+                        .filter((teacher) => teacher.status === "active")
+                        .map((teacher) => ({
+                          value: teacher.id,
+                          label: teacher.name,
+                        }))}
+                    />
+                  </Form.Item>
+                </>
+              ) : null
+            }
+          </Form.Item> : null}
           <Button type="primary" htmlType="submit">
             创建
           </Button>
@@ -715,9 +829,21 @@ function TeachersPanel({
             render: (value) => <Tag>{value}</Tag>,
           },
           {
+            title: "在职状态",
+            dataIndex: "employmentStatus",
+            render: (value) => (
+              <Tag color={value === "resigned" ? "default" : "green"}>
+                {value === "resigned" ? "已离职" : "在职"}
+              </Tag>
+            ),
+          },
+          {
             title: "操作",
             render: (_, record) => (
               <Space>
+                <Button type="link" onClick={() => openTraining(record.id)}>
+                  培训详情
+                </Button>
                 <Button
                   type="link"
                   onClick={() => loadTeacherReferences(record)}
@@ -776,6 +902,18 @@ function TeachersPanel({
               options={[
                 { label: "启用", value: "active" },
                 { label: "停用", value: "disabled" },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item
+            name="employmentStatus"
+            label="在职状态"
+            rules={[{ required: true }]}
+          >
+            <Select
+              options={[
+                { label: "在职", value: "employed" },
+                { label: "离职", value: "resigned" },
               ]}
             />
           </Form.Item>

@@ -22,11 +22,14 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-ruizhibo}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-ruizhibo-storage-test}
       S3_BUCKET: ${S3_BUCKET:-ruizhibo-files}
+      S3_TRAINING_PRIVATE_BUCKET: ${S3_TRAINING_PRIVATE_BUCKET:-ruizhibo-training-private}
     entrypoint: >-
       /bin/sh -c '
       until mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}"; do sleep 1; done;
       mc mb --ignore-existing "local/$${S3_BUCKET}";
+      mc mb --ignore-existing "local/$${S3_TRAINING_PRIVATE_BUCKET}";
       mc anonymous set download "local/$${S3_BUCKET}";
+      mc anonymous set none "local/$${S3_TRAINING_PRIVATE_BUCKET}";
       '
 
   api:
@@ -35,6 +38,7 @@ services:
       S3_REGION: ${S3_REGION:-us-east-1}
       S3_ENDPOINT: http://minio:9000
       S3_BUCKET: ${S3_BUCKET:-ruizhibo-files}
+      S3_TRAINING_PRIVATE_BUCKET: ${S3_TRAINING_PRIVATE_BUCKET:-ruizhibo-training-private}
       S3_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-ruizhibo}
       S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-ruizhibo-storage-test}
       S3_PUBLIC_BASE_URL: ${S3_PUBLIC_BASE_URL:-http://localhost:9000/ruizhibo-files}

@@ -71,6 +71,7 @@ export default function HomePage() {
   const [profile, setProfile] = useState(null);
   const [conversations, setConversations] = useState([]);
   const [pickup, setPickup] = useState(null);
+  const [training, setTraining] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const loadingRef = useRef(false);
@@ -81,17 +82,19 @@ export default function HomePage() {
     setLoading(true);
     setError("");
     try {
-      const [nextDashboard, nextProfile, nextConversations, nextPickup] =
+      const [nextDashboard, nextProfile, nextConversations, nextPickup, nextTraining] =
         await Promise.all([
           teacherRequest("/teacher/dashboard"),
           teacherRequest("/me"),
           teacherRequest("/teacher/conversations"),
           teacherRequest("/teacher/pickup/today"),
+          teacherRequest("/teacher/training/home"),
         ]);
       setDashboard(nextDashboard);
       setProfile(nextProfile);
       setConversations(nextConversations);
       setPickup(nextPickup);
+      setTraining(nextTraining);
     } catch (err) {
       const message = err instanceof Error ? err.message : "工作台加载失败";
       setError(message);
@@ -171,6 +174,46 @@ export default function HomePage() {
         metric("待批作业", dashboard?.homeworkPending || 0),
       ),
     ),
+    training?.enabled
+      ? h(
+          View,
+          {
+            className: "academy-card",
+            onClick: () => Taro.navigateTo({ url: "/pages/training/index" }),
+          },
+          h(
+            View,
+            { className: "academy-card__icon" },
+            h(Text, null, "学"),
+          ),
+          h(
+            View,
+            { className: "academy-card__main" },
+            h(Text, { className: "academy-card__eyebrow" }, "锐之博教师学院"),
+            h(
+              Text,
+              { className: "academy-card__title" },
+              training.assignment
+                ? training.assignment.currentCourse?.name || "继续当前培训"
+                : "进入课程资料库",
+            ),
+            h(
+              Text,
+              { className: "academy-card__meta" },
+              training.assignment
+                ? `${training.assignment.completedCourses}/${training.assignment.totalCourses} 门 · ${training.assignment.progressPercent}%${training.assignment.deadlineStatus === "overdue" ? " · 已逾期" : training.assignment.deadlineStatus === "due_soon" ? " · 即将到期" : ""}`
+                : `${training.libraryCount || 0} 门课程可查阅`,
+            ),
+          ),
+          training.unreadNotifications
+            ? h(
+                Text,
+                { className: "academy-card__badge" },
+                training.unreadNotifications,
+              )
+            : h(Text, { className: "academy-card__arrow" }, "›"),
+        )
+      : null,
     sectionHeading("快捷工作", "高频事项一步直达"),
     h(
       View,

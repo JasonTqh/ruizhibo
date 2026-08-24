@@ -19,6 +19,7 @@ import { AdminService } from "./admin.service";
 import { BindGuardianDto } from "./dto/bind-guardian.dto";
 import { BusinessQueryDto } from "./dto/business-query.dto";
 import { CreateClassDto } from "./dto/create-class.dto";
+import { CreateParentDto } from "./dto/create-parent.dto";
 import { CreateStudentDto } from "./dto/create-student.dto";
 import { CreateTeacherDto } from "./dto/create-teacher.dto";
 import { CreateWorkflowTemplateDto } from "./dto/create-workflow-template.dto";
@@ -41,6 +42,11 @@ export class AdminController {
   @Get("teachers")
   listTeachers() {
     return this.adminService.listTeachers();
+  }
+
+  @Get("campuses")
+  listCampuses() {
+    return this.adminService.listCampuses();
   }
 
   @Post("teachers")
@@ -77,7 +83,7 @@ export class AdminController {
   }
 
   @Post("parents")
-  createParent(@CurrentUser() user: AuthUser, @Body() dto: CreateTeacherDto) {
+  createParent(@CurrentUser() user: AuthUser, @Body() dto: CreateParentDto) {
     return this.adminService.createParent(user.id, dto);
   }
 

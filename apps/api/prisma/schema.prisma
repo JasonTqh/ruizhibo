@@ -18,6 +18,11 @@ enum UserStatus {
   disabled
 }
 
+enum TeacherEmploymentStatus {
+  employed
+  resigned
+}
+
 enum StudentStatus {
   active
   inactive
@@ -142,38 +147,156 @@ enum ResearchParticipationStatus {
   cancelled
 }
 
-model User {
-  id           String     @id @default(cuid())
-  role         UserRole
-  name         String
-  phone        String?    @unique
-  passwordHash String?
-  wechatOpenid String?    @unique
-  avatarUrl    String?
-  status       UserStatus @default(active)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+enum TrainingCourseCategory {
+  foundation
+  business
+  safety
+  library
+}
 
-  teachingClasses        Class[]                  @relation("ClassTeacher")
+enum TrainingContentStatus {
+  draft
+  enabled
+  disabled
+}
+
+enum TrainingMediaType {
+  image
+  video
+}
+
+enum TrainingQuestionType {
+  single_choice
+  multiple_choice
+  true_false
+}
+
+enum TrainingPermission {
+  training_manage
+  practical_confirm
+  safety_confirm
+}
+
+enum TrainingAssignmentType {
+  onboarding
+  safety_retraining
+}
+
+enum TrainingAssignmentStatus {
+  pending
+  in_progress
+  awaiting_safety
+  completed
+  frozen
+  terminated
+}
+
+enum TrainingCourseStatus {
+  locked
+  available
+  in_progress
+  awaiting_practical
+  awaiting_safety
+  completed
+  exempted
+}
+
+enum TrainingAttemptStatus {
+  available
+  in_progress
+  awaiting_practical
+  awaiting_safety
+  completed
+  superseded
+}
+
+enum TrainingPracticalConclusion {
+  passed
+  retraining_required
+}
+
+enum TrainingSafetyStatus {
+  not_obtained
+  awaiting_confirmation
+  valid
+  expiring
+  retraining_required
+}
+
+enum TrainingSafetyAction {
+  confirmed
+  revoked
+  invalidated
+}
+
+enum TrainingStudyKind {
+  content
+  video
+}
+
+enum TrainingNotificationType {
+  assignment_created
+  deadline_three_days
+  deadline_one_day
+  deadline_today
+  assignment_overdue
+  practical_pending
+  practical_retraining
+  safety_pending
+  safety_expiring
+  safety_retraining
+  assignment_terminated
+}
+
+model User {
+  id               String                  @id @default(cuid())
+  role             UserRole
+  name             String
+  phone            String?                 @unique
+  passwordHash     String?
+  wechatOpenid     String?                 @unique
+  avatarUrl        String?
+  status           UserStatus              @default(active)
+  employmentStatus TeacherEmploymentStatus @default(employed)
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  teachingClasses        Class[]                    @relation("ClassTeacher")
   guardianships          StudentGuardian[]
-  attendanceLogs         AttendanceEvent[]        @relation("AttendanceTeacher")
+  attendanceLogs         AttendanceEvent[]          @relation("AttendanceTeacher")
   workflowSessions       WorkflowSession[]
-  workflowChecks         WorkflowStep[]           @relation("WorkflowStepTeacher")
-  studentWorkflowSteps   StudentWorkflowStep[]    @relation("StudentWorkflowStepTeacher")
+  workflowChecks         WorkflowStep[]             @relation("WorkflowStepTeacher")
+  studentWorkflowSteps   StudentWorkflowStep[]      @relation("StudentWorkflowStepTeacher")
   homeworkAssigned       HomeworkAssignment[]
   teachingRecords        TeachingRecord[]
   lessonPlans            LessonPlan[]
-  researchActivities     ResearchActivity[]       @relation("ResearchActivityOrganizer")
+  researchActivities     ResearchActivity[]         @relation("ResearchActivityOrganizer")
   researchParticipations ResearchParticipant[]
   growthRecords          GrowthRecord[]
   sentMessages           Message[]
-  publishedNotices       Notice[]                 @relation("NoticeTeacher")
-  noticeReceipts         NoticeReceipt[]          @relation("NoticeReceiptParent")
-  handledPickupRecords   PickupRecord[]           @relation("PickupRecordTeacher")
-  createdPickupRecords   PickupRecord[]           @relation("PickupRecordCreator")
-  careRecords            StudentCareRecord[]      @relation("StudentCareRecordTeacher")
-  dailyReportNotes       StudentDailyReportNote[] @relation("DailyReportNoteTeacher")
+  publishedNotices       Notice[]                   @relation("NoticeTeacher")
+  noticeReceipts         NoticeReceipt[]            @relation("NoticeReceiptParent")
+  handledPickupRecords   PickupRecord[]             @relation("PickupRecordTeacher")
+  createdPickupRecords   PickupRecord[]             @relation("PickupRecordCreator")
+  careRecords            StudentCareRecord[]        @relation("StudentCareRecordTeacher")
+  dailyReportNotes       StudentDailyReportNote[]   @relation("DailyReportNoteTeacher")
   auditLogs              AuditLog[]
+  trainingCourseCreates  TrainingCourse[]           @relation("TrainingCourseCreatedBy")
+  trainingCourseUpdates  TrainingCourse[]           @relation("TrainingCourseUpdatedBy")
+  trainingGrants         TrainingPermissionGrant[]  @relation("TrainingGrantUser")
+  trainingGrantsCreated  TrainingPermissionGrant[]  @relation("TrainingGrantCreatedBy")
+  trainingAssignments    TrainingAssignment[]       @relation("TrainingAssignmentTeacher")
+  mentoredAssignments    TrainingAssignment[]       @relation("TrainingAssignmentMentor")
+  assignedTrainings      TrainingAssignment[]       @relation("TrainingAssignmentCreatedBy")
+  trainingExemptions     TrainingAssignmentCourse[] @relation("TrainingCourseExemptedBy")
+  practicalChecks        TrainingPracticalCheck[]   @relation("TrainingPracticalReviewer")
+  safetyCredentials      TrainingSafetyCredential[] @relation("TrainingSafetyTeacher")
+  safetyRecords          TrainingSafetyRecord[]     @relation("TrainingSafetyRecordTeacher")
+  safetyActions          TrainingSafetyRecord[]     @relation("TrainingSafetyActor")
+  trainingFeedback       TrainingFeedback[]
+  trainingNotifications  TrainingNotification[]
+  trainingFlagsUpdated   TrainingFeatureFlag[]      @relation("TrainingFlagUpdatedBy")
+  trainingAuditRecords   TrainingAuditRecord[]      @relation("TrainingAuditActor")
 }
 
 model Campus {
@@ -184,9 +307,15 @@ model Campus {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  classes            Class[]
-  researchActivities ResearchActivity[]
-  pickupRecords      PickupRecord[]
+  classes              Class[]
+  researchActivities   ResearchActivity[]
+  pickupRecords        PickupRecord[]
+  trainingGrants       TrainingPermissionGrant[]
+  trainingAssignments  TrainingAssignment[]
+  safetyCredentials    TrainingSafetyCredential[]
+  safetyRecords        TrainingSafetyRecord[]
+  trainingFeatureFlag  TrainingFeatureFlag?
+  trainingAuditRecords TrainingAuditRecord[]
 }
 
 model Class {
@@ -657,6 +786,9 @@ model FileAsset {
   storageDriver String   @default("local")
   storageKey    String?
   createdAt     DateTime @default(now())
+
+  trainingCourseCovers TrainingCourse[]       @relation("TrainingCourseCover")
+  trainingChapterMedia TrainingChapterMedia[]
 }
 
 model AuditLog {
@@ -669,4 +801,446 @@ model AuditLog {
   createdAt  DateTime @default(now())
 
   user User? @relation(fields: [userId], references: [id])
+}
+
+model TrainingCourse {
+  id                String                 @id @default(cuid())
+  code              String                 @unique
+  name              String
+  category          TrainingCourseCategory
+  summary           String
+  audience          String?
+  expectedMinutes   Int                    @default(0)
+  minimumMinutes    Int                    @default(0)
+  sortOrder         Int                    @default(0)
+  isRequired        Boolean                @default(false)
+  requiresPractical Boolean                @default(false)
+  isSafety          Boolean                @default(false)
+  coverAssetId      String?
+  status            TrainingContentStatus  @default(draft)
+  createdById       String?
+  updatedById       String?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+
+  coverAsset        FileAsset?                      @relation("TrainingCourseCover", fields: [coverAssetId], references: [id], onDelete: SetNull)
+  createdBy         User?                           @relation("TrainingCourseCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy         User?                           @relation("TrainingCourseUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  chapters          TrainingChapter[]
+  quiz              TrainingQuiz?
+  practicalItems    TrainingPracticalTemplateItem[]
+  planLinks         TrainingPlanCourse[]
+  snapshots         TrainingCourseSnapshot[]
+  assignmentCourses TrainingAssignmentCourse[]
+
+  @@index([status, sortOrder])
+  @@index([category, status])
+}
+
+model TrainingChapter {
+  id          String   @id @default(cuid())
+  courseId    String
+  title       String
+  contentHtml String
+  sortOrder   Int
+  isEnabled   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  course TrainingCourse         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  media  TrainingChapterMedia[]
+
+  @@unique([courseId, sortOrder])
+  @@index([courseId, isEnabled])
+}
+
+model TrainingChapterMedia {
+  id              String            @id @default(cuid())
+  chapterId       String
+  fileAssetId     String
+  type            TrainingMediaType
+  caption         String?
+  sortOrder       Int
+  durationSeconds Int?
+  createdAt       DateTime          @default(now())
+
+  chapter   TrainingChapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  fileAsset FileAsset       @relation(fields: [fileAssetId], references: [id], onDelete: Restrict)
+
+  @@unique([chapterId, sortOrder])
+  @@index([fileAssetId])
+}
+
+model TrainingQuiz {
+  id          String   @id @default(cuid())
+  courseId    String   @unique
+  passScore   Int      @default(80)
+  maxAttempts Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  course    TrainingCourse         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  questions TrainingQuizQuestion[]
+}
+
+model TrainingQuizQuestion {
+  id             String               @id @default(cuid())
+  quizId         String
+  type           TrainingQuestionType
+  prompt         String
+  options        Json
+  correctAnswers String[]
+  score          Int
+  explanation    String?
+  sortOrder      Int
+
+  quiz TrainingQuiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@unique([quizId, sortOrder])
+}
+
+model TrainingPracticalTemplateItem {
+  id           String  @id @default(cuid())
+  courseId     String
+  title        String
+  instructions String?
+  isRequired   Boolean @default(true)
+  sortOrder    Int
+
+  course TrainingCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, sortOrder])
+}
+
+model TrainingPlanTemplate {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  courses     TrainingPlanCourse[]
+  assignments TrainingAssignment[]
+}
+
+model TrainingPlanCourse {
+  id        String @id @default(cuid())
+  planId    String
+  courseId  String
+  sortOrder Int
+
+  plan   TrainingPlanTemplate @relation(fields: [planId], references: [id], onDelete: Cascade)
+  course TrainingCourse       @relation(fields: [courseId], references: [id], onDelete: Restrict)
+
+  @@unique([planId, sortOrder])
+  @@unique([planId, courseId])
+}
+
+model TrainingCourseSnapshot {
+  id                String                 @id @default(cuid())
+  originalCourseId  String?
+  courseCode        String
+  courseName        String
+  category          TrainingCourseCategory
+  minimumMinutes    Int
+  requiresPractical Boolean
+  isSafety          Boolean
+  checksum          String
+  payload           Json
+  createdAt         DateTime               @default(now())
+
+  originalCourse   TrainingCourse?           @relation(fields: [originalCourseId], references: [id], onDelete: SetNull)
+  assignmentCourse TrainingAssignmentCourse?
+
+  @@index([originalCourseId, createdAt])
+  @@index([checksum])
+}
+
+model TrainingPermissionGrant {
+  id          String             @id @default(cuid())
+  userId      String
+  campusId    String?
+  scopeKey    String
+  permission  TrainingPermission
+  isActive    Boolean            @default(true)
+  createdById String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  user      User    @relation("TrainingGrantUser", fields: [userId], references: [id], onDelete: Restrict)
+  campus    Campus? @relation(fields: [campusId], references: [id], onDelete: Restrict)
+  createdBy User?   @relation("TrainingGrantCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([userId, permission, scopeKey])
+  @@index([campusId, permission, isActive])
+}
+
+model TrainingAssignment {
+  id                  String                    @id @default(cuid())
+  teacherId           String
+  campusId            String
+  mentorId            String?
+  planId              String?
+  type                TrainingAssignmentType    @default(onboarding)
+  roundNumber         Int
+  status              TrainingAssignmentStatus  @default(pending)
+  activeSlot          String?                   @unique
+  assignedById        String?
+  sourceAssignmentId  String?
+  assignedAt          DateTime                  @default(now())
+  dueAt               DateTime
+  startedAt           DateTime?
+  completedAt         DateTime?
+  terminatedAt        DateTime?
+  terminationReason   String?
+  frozenAt            DateTime?
+  frozenFromStatus    TrainingAssignmentStatus?
+  remainingDueSeconds Int?
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
+
+  teacher               User                       @relation("TrainingAssignmentTeacher", fields: [teacherId], references: [id], onDelete: Restrict)
+  campus                Campus                     @relation(fields: [campusId], references: [id], onDelete: Restrict)
+  mentor                User?                      @relation("TrainingAssignmentMentor", fields: [mentorId], references: [id], onDelete: SetNull)
+  plan                  TrainingPlanTemplate?      @relation(fields: [planId], references: [id], onDelete: Restrict)
+  assignedBy            User?                      @relation("TrainingAssignmentCreatedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+  sourceAssignment      TrainingAssignment?        @relation("TrainingAssignmentSource", fields: [sourceAssignmentId], references: [id], onDelete: SetNull)
+  retrainingAssignments TrainingAssignment[]       @relation("TrainingAssignmentSource")
+  courses               TrainingAssignmentCourse[]
+  safetyRecords         TrainingSafetyRecord[]
+  feedback              TrainingFeedback?
+  notifications         TrainingNotification[]
+  auditRecords          TrainingAuditRecord[]
+
+  @@unique([teacherId, roundNumber])
+  @@index([campusId, status, dueAt])
+  @@index([mentorId, status])
+  @@index([teacherId, assignedAt])
+}
+
+model TrainingAssignmentCourse {
+  id                   String               @id @default(cuid())
+  assignmentId         String
+  originalCourseId     String?
+  snapshotId           String               @unique
+  sortOrder            Int
+  status               TrainingCourseStatus @default(locked)
+  currentAttemptNumber Int                  @default(1)
+  unlockedAt           DateTime?
+  completedAt          DateTime?
+  exemptedAt           DateTime?
+  exemptReason         String?
+  exemptedById         String?
+  lastLearningAt       DateTime?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+
+  assignment     TrainingAssignment      @relation(fields: [assignmentId], references: [id], onDelete: Restrict)
+  originalCourse TrainingCourse?         @relation(fields: [originalCourseId], references: [id], onDelete: SetNull)
+  snapshot       TrainingCourseSnapshot  @relation(fields: [snapshotId], references: [id], onDelete: Restrict)
+  exemptedBy     User?                   @relation("TrainingCourseExemptedBy", fields: [exemptedById], references: [id], onDelete: SetNull)
+  attempts       TrainingCourseAttempt[]
+  notifications  TrainingNotification[]
+
+  @@unique([assignmentId, sortOrder])
+  @@index([assignmentId, status])
+  @@index([originalCourseId])
+}
+
+model TrainingCourseAttempt {
+  id                  String                @id @default(cuid())
+  assignmentCourseId  String
+  attemptNumber       Int
+  status              TrainingAttemptStatus @default(available)
+  accumulatedSeconds  Int                   @default(0)
+  startedAt           DateTime?
+  learningCompletedAt DateTime?
+  completedAt         DateTime?
+  lastActivityAt      DateTime?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+
+  assignmentCourse TrainingAssignmentCourse  @relation(fields: [assignmentCourseId], references: [id], onDelete: Restrict)
+  chapterProgress  TrainingChapterProgress[]
+  studySessions    TrainingStudySession[]
+  quizAttempts     TrainingQuizAttempt[]
+  practicalChecks  TrainingPracticalCheck[]
+  safetyRecords    TrainingSafetyRecord[]
+
+  @@unique([assignmentCourseId, attemptNumber])
+  @@index([status, lastActivityAt])
+}
+
+model TrainingChapterProgress {
+  id                   String    @id @default(cuid())
+  courseAttemptId      String
+  chapterKey           String
+  completedAt          DateTime?
+  videoPositionSeconds Float     @default(0)
+  videoDurationSeconds Float?
+  watchedRanges        Json?
+  watchedPercent       Float     @default(0)
+  lastSavedAt          DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  courseAttempt TrainingCourseAttempt @relation(fields: [courseAttemptId], references: [id], onDelete: Restrict)
+
+  @@unique([courseAttemptId, chapterKey])
+}
+
+model TrainingStudySession {
+  id                 String            @id @default(cuid())
+  clientSessionId    String            @unique
+  courseAttemptId    String
+  chapterKey         String
+  kind               TrainingStudyKind
+  startedAt          DateTime          @default(now())
+  lastHeartbeatAt    DateTime          @default(now())
+  endedAt            DateTime?
+  accumulatedSeconds Int               @default(0)
+  isActive           Boolean           @default(true)
+
+  courseAttempt TrainingCourseAttempt @relation(fields: [courseAttemptId], references: [id], onDelete: Restrict)
+
+  @@index([courseAttemptId, isActive])
+}
+
+model TrainingQuizAttempt {
+  id              String   @id @default(cuid())
+  courseAttemptId String
+  attemptNumber   Int
+  answers         Json
+  score           Float
+  passed          Boolean
+  submittedAt     DateTime @default(now())
+
+  courseAttempt TrainingCourseAttempt @relation(fields: [courseAttemptId], references: [id], onDelete: Restrict)
+
+  @@unique([courseAttemptId, attemptNumber])
+}
+
+model TrainingPracticalCheck {
+  id               String                      @id @default(cuid())
+  courseAttemptId  String
+  reviewerId       String?
+  conclusion       TrainingPracticalConclusion
+  checklistResults Json
+  comment          String
+  createdAt        DateTime                    @default(now())
+
+  courseAttempt TrainingCourseAttempt @relation(fields: [courseAttemptId], references: [id], onDelete: Restrict)
+  reviewer      User?                 @relation("TrainingPracticalReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+
+  @@index([courseAttemptId, createdAt])
+  @@index([reviewerId, createdAt])
+}
+
+model TrainingSafetyCredential {
+  id             String               @id @default(cuid())
+  teacherId      String               @unique
+  campusId       String
+  status         TrainingSafetyStatus @default(not_obtained)
+  latestRecordId String?
+  validFrom      DateTime?
+  validUntil     DateTime?
+  updatedAt      DateTime             @updatedAt
+
+  teacher User   @relation("TrainingSafetyTeacher", fields: [teacherId], references: [id], onDelete: Restrict)
+  campus  Campus @relation(fields: [campusId], references: [id], onDelete: Restrict)
+
+  @@index([campusId, status, validUntil])
+}
+
+model TrainingSafetyRecord {
+  id              String               @id @default(cuid())
+  teacherId       String
+  campusId        String
+  assignmentId    String
+  courseAttemptId String
+  actorId         String?
+  action          TrainingSafetyAction
+  declaration     String?
+  note            String?
+  reason          String?
+  validFrom       DateTime?
+  validUntil      DateTime?
+  createdAt       DateTime             @default(now())
+
+  teacher       User                  @relation("TrainingSafetyRecordTeacher", fields: [teacherId], references: [id], onDelete: Restrict)
+  campus        Campus                @relation(fields: [campusId], references: [id], onDelete: Restrict)
+  assignment    TrainingAssignment    @relation(fields: [assignmentId], references: [id], onDelete: Restrict)
+  courseAttempt TrainingCourseAttempt @relation(fields: [courseAttemptId], references: [id], onDelete: Restrict)
+  actor         User?                 @relation("TrainingSafetyActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([teacherId, createdAt])
+  @@index([campusId, action, createdAt])
+}
+
+model TrainingFeedback {
+  id           String   @id @default(cuid())
+  assignmentId String   @unique
+  teacherId    String
+  rating       Int
+  reflection   String?
+  suggestion   String?
+  submittedAt  DateTime @default(now())
+
+  assignment TrainingAssignment @relation(fields: [assignmentId], references: [id], onDelete: Restrict)
+  teacher    User               @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+
+  @@index([teacherId, submittedAt])
+}
+
+model TrainingNotification {
+  id                 String                   @id @default(cuid())
+  userId             String
+  type               TrainingNotificationType
+  title              String
+  content            String
+  assignmentId       String?
+  assignmentCourseId String?
+  dedupeKey          String                   @unique
+  readAt             DateTime?
+  createdAt          DateTime                 @default(now())
+
+  user             User                      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  assignment       TrainingAssignment?       @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
+  assignmentCourse TrainingAssignmentCourse? @relation(fields: [assignmentCourseId], references: [id], onDelete: SetNull)
+
+  @@index([userId, readAt, createdAt])
+}
+
+model TrainingFeatureFlag {
+  campusId    String   @id
+  enabled     Boolean  @default(false)
+  reason      String
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+
+  campus    Campus @relation(fields: [campusId], references: [id], onDelete: Restrict)
+  updatedBy User?  @relation("TrainingFlagUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+}
+
+model TrainingAuditRecord {
+  id           String   @id @default(cuid())
+  actorId      String?
+  campusId     String?
+  assignmentId String?
+  action       String
+  targetType   String
+  targetId     String?
+  before       Json?
+  after        Json?
+  reason       String?
+  createdAt    DateTime @default(now())
+
+  actor      User?               @relation("TrainingAuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  campus     Campus?             @relation(fields: [campusId], references: [id], onDelete: Restrict)
+  assignment TrainingAssignment? @relation(fields: [assignmentId], references: [id], onDelete: Restrict)
+
+  @@index([campusId, createdAt])
+  @@index([assignmentId, createdAt])
+  @@index([action, createdAt])
 }

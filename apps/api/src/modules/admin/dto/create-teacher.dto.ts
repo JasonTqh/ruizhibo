@@ -1,5 +1,13 @@
 import { UserStatus } from "@prisma/client";
-import { IsEnum, IsString, Matches, MinLength } from "class-validator";
+import {
+  IsBoolean,
+  IsEnum,
+  IsOptional,
+  IsString,
+  Matches,
+  MinLength,
+  ValidateIf,
+} from "class-validator";
 
 export class CreateTeacherDto {
   @IsString()
@@ -12,4 +20,18 @@ export class CreateTeacherDto {
 
   @IsEnum(UserStatus)
   status: UserStatus = UserStatus.active;
+
+  @IsOptional()
+  @IsBoolean()
+  assignTraining: boolean = true;
+
+  @ValidateIf((dto: CreateTeacherDto) => dto.assignTraining !== false)
+  @IsString()
+  @MinLength(1)
+  campusId?: string;
+
+  @ValidateIf((dto: CreateTeacherDto) => dto.assignTraining !== false)
+  @IsString()
+  @MinLength(1)
+  mentorId?: string;
 }

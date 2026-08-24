@@ -1,17 +1,18 @@
 import { Module } from "@nestjs/common";
 import { AuthModule } from "../auth/auth.module";
 import { PrismaModule } from "../prisma/prisma.module";
-import { FilesController } from "./files.controller";
+import { FilesController, TrainingMediaController } from "./files.controller";
 import { FilesService } from "./files.service";
 import { FILE_STORAGE } from "./storage/file-storage";
 import { createFileStorage } from "./storage/storage.factory";
 
 @Module({
   imports: [AuthModule, PrismaModule],
-  controllers: [FilesController],
+  controllers: [FilesController, TrainingMediaController],
   providers: [
     FilesService,
     { provide: FILE_STORAGE, useFactory: createFileStorage },
   ],
+  exports: [FilesService],
 })
 export class FilesModule {}

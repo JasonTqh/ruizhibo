@@ -1,5 +1,5 @@
 const assert = require("node:assert/strict");
-const { mkdtemp, readFile, rm } = require("node:fs/promises");
+const { mkdtemp, readFile, rm, writeFile } = require("node:fs/promises");
 const { tmpdir } = require("node:os");
 const { join } = require("node:path");
 const { DeleteObjectCommand, PutObjectCommand } = require("@aws-sdk/client-s3");
@@ -45,6 +45,7 @@ async function verifyS3Storage() {
   const storage = new S3FileStorage({
     client,
     bucket: "verify-bucket",
+    trainingBucket: "verify-training-private",
     publicBaseUrl: "https://static.example.com",
   });
   const body = Buffer.from("s3-storage-check");
@@ -63,6 +64,28 @@ async function verifyS3Storage() {
   await storage.delete(stored.key);
   assert.ok(commands[1] instanceof DeleteObjectCommand);
   assert.equal(commands[1].input.Key, "verify/object.png");
+
+  const directory = await mkdtemp(join(tmpdir(), "ruizhibo-s3-training-"));
+  const source = join(directory, "training.png");
+  try {
+    await writeFile(source, body);
+    const training = await storage.putFile({
+      key: "training-course/private.png",
+      path: source,
+      size: body.length,
+      mimeType: "image/png",
+    });
+    assert.equal(
+      training.url,
+      "s3://verify-training-private/training-course/private.png",
+    );
+    assert.equal(commands[2].input.Bucket, "verify-training-private");
+    commands[2].input.Body.destroy();
+    await storage.delete(training.key);
+    assert.equal(commands[3].input.Bucket, "verify-training-private");
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 
   const unavailableStorage = new S3FileStorage({
     client: {

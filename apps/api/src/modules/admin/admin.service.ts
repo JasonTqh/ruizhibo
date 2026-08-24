@@ -13,14 +13,17 @@ import {
   ResearchActivityType,
   ResearchActivityStatus,
   StudentStatus,
+  TeacherEmploymentStatus,
   UserRole,
   UserStatus,
 } from "@prisma/client";
 import { AuditService } from "../audit/audit.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { StudentWorkflowService } from "../workflow/student-workflow.service";
+import { TrainingAssignmentService } from "../training/training-assignment.service";
 import { BindGuardianDto } from "./dto/bind-guardian.dto";
 import { CreateClassDto } from "./dto/create-class.dto";
+import { CreateParentDto } from "./dto/create-parent.dto";
 import { CreateStudentDto } from "./dto/create-student.dto";
 import { CreateTeacherDto } from "./dto/create-teacher.dto";
 import { CreateWorkflowTemplateDto } from "./dto/create-workflow-template.dto";
@@ -37,6 +40,7 @@ const userSummarySelect = {
   name: true,
   phone: true,
   status: true,
+  employmentStatus: true,
   createdAt: true,
   updatedAt: true,
 } satisfies Prisma.UserSelect;
@@ -47,7 +51,16 @@ export class AdminService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly studentWorkflow: StudentWorkflowService,
+    private readonly trainingAssignments: TrainingAssignmentService,
   ) {}
+
+  async listCampuses() {
+    const campuses = await this.prisma.campus.findMany({
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, address: true, phone: true },
+    });
+    return { data: campuses };
+  }
 
   async listTeachers() {
     const teachers = await this.prisma.user.findMany({
@@ -61,15 +74,38 @@ export class AdminService {
 
   async createTeacher(actorId: string, dto: CreateTeacherDto) {
     await this.assertPhoneAvailable(dto.phone);
+    const assignTraining = dto.assignTraining !== false;
+    if (assignTraining && dto.status !== UserStatus.active) {
+      throw new BadRequestException("停用状态的教师不能同时布置培训");
+    }
+    if (assignTraining && (!dto.campusId || !dto.mentorId)) {
+      throw new BadRequestException("布置新教师培训时必须选择校区和带教负责人");
+    }
+    if (assignTraining) {
+      await this.assertCampusExists(dto.campusId!);
+      await this.trainingAssignments.assertCanAssign(actorId, dto.campusId!);
+    }
 
-    const teacher = await this.prisma.user.create({
-      data: {
-        role: UserRole.teacher,
-        name: dto.name,
-        phone: dto.phone,
-        status: dto.status ?? UserStatus.active,
-      },
-      select: userSummarySelect,
+    const teacher = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.user.create({
+        data: {
+          role: UserRole.teacher,
+          name: dto.name,
+          phone: dto.phone,
+          status: dto.status ?? UserStatus.active,
+          employmentStatus: TeacherEmploymentStatus.employed,
+        },
+        select: userSummarySelect,
+      });
+      if (assignTraining) {
+        await this.trainingAssignments.createNewTeacherAssignmentInTransaction(tx, {
+          actorId,
+          teacherId: created.id,
+          campusId: dto.campusId!,
+          mentorId: dto.mentorId!,
+        });
+      }
+      return created;
     });
 
     await this.audit.log({
@@ -77,7 +113,12 @@ export class AdminService {
       action: "admin.teacher.create",
       targetType: "User",
       targetId: teacher.id,
-      detail: { phone: teacher.phone },
+      detail: {
+        phone: teacher.phone,
+        assignTraining,
+        campusId: dto.campusId ?? null,
+        mentorId: dto.mentorId ?? null,
+      },
     });
 
     return { data: teacher };
@@ -85,6 +126,11 @@ export class AdminService {
 
   async updateTeacher(actorId: string, id: string, dto: UpdateTeacherDto) {
     await this.assertUserWithRoleExists(id, UserRole.teacher, "Teacher");
+
+    const before = await this.prisma.user.findUniqueOrThrow({
+      where: { id },
+      select: { status: true, employmentStatus: true },
+    });
 
     if (dto.phone) {
       await this.assertPhoneAvailable(dto.phone, id);
@@ -94,11 +140,23 @@ export class AdminService {
     if (dto.name !== undefined) data.name = dto.name;
     if (dto.phone !== undefined) data.phone = dto.phone;
     if (dto.status !== undefined) data.status = dto.status;
+    if (dto.employmentStatus !== undefined) {
+      data.employmentStatus = dto.employmentStatus;
+    }
 
     const teacher = await this.prisma.user.update({
       where: { id },
       data,
       select: userSummarySelect,
+    });
+
+    await this.trainingAssignments.handleTeacherAccountChange({
+      actorId,
+      teacherId: id,
+      previousStatus: before.status,
+      nextStatus: teacher.status,
+      previousEmploymentStatus: before.employmentStatus,
+      nextEmploymentStatus: teacher.employmentStatus,
     });
 
     await this.audit.log({
@@ -131,6 +189,11 @@ export class AdminService {
       pickupRecords,
       careRecords,
       dailyReportNotes,
+      trainingAssignments,
+      mentoredTrainingAssignments,
+      trainingPracticalChecks,
+      trainingSafetyActions,
+      trainingPermissionGrants,
     ] = await Promise.all([
       this.prisma.class.count({ where: { teacherId: id } }),
       this.prisma.attendanceEvent.count({ where: { teacherId: id } }),
@@ -150,6 +213,11 @@ export class AdminService {
       }),
       this.prisma.studentCareRecord.count({ where: { teacherId: id } }),
       this.prisma.studentDailyReportNote.count({ where: { teacherId: id } }),
+      this.prisma.trainingAssignment.count({ where: { teacherId: id } }),
+      this.prisma.trainingAssignment.count({ where: { mentorId: id } }),
+      this.prisma.trainingPracticalCheck.count({ where: { reviewerId: id } }),
+      this.prisma.trainingSafetyRecord.count({ where: { actorId: id } }),
+      this.prisma.trainingPermissionGrant.count({ where: { userId: id } }),
     ]);
     return {
       data: {
@@ -169,6 +237,11 @@ export class AdminService {
         pickupRecords,
         careRecords,
         dailyReportNotes,
+        trainingAssignments,
+        mentoredTrainingAssignments,
+        trainingPracticalChecks,
+        trainingSafetyActions,
+        trainingPermissionGrants,
       },
     };
   }
@@ -179,6 +252,16 @@ export class AdminService {
       select: { id: true, status: true },
     });
     if (!current) throw new NotFoundException("Teacher not found");
+    const trainingHistoryCount = await this.prisma.trainingAssignment.count({
+      where: {
+        OR: [{ teacherId: id }, { mentorId: id }, { assignedById: id }],
+      },
+    });
+    if (trainingHistoryCount > 0) {
+      throw new ConflictException(
+        "该老师已有培训学习或带教历史，必须永久保留；请停用账号，不能删除",
+      );
+    }
     if (force && current.status === UserStatus.active) {
       throw new BadRequestException("请先将老师设为停用，再清理引用并删除");
     }
@@ -291,7 +374,7 @@ export class AdminService {
     return { data: parents };
   }
 
-  async createParent(actorId: string, dto: CreateTeacherDto) {
+  async createParent(actorId: string, dto: CreateParentDto) {
     await this.assertPhoneAvailable(dto.phone);
     const parent = await this.prisma.user.create({
       data: {

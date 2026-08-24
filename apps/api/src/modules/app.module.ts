@@ -11,6 +11,7 @@ import { ParentModule } from "./parent/parent.module";
 import { PickupModule } from "./pickup/pickup.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { TeacherModule } from "./teacher/teacher.module";
+import { TrainingModule } from "./training/training.module";
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { TeacherModule } from "./teacher/teacher.module";
     DailyReportModule,
     AdminModule,
     TeacherModule,
+    TrainingModule,
     ParentModule,
     PickupModule,
     FilesModule,

@@ -101,6 +101,53 @@
   box-shadow: 0 12px 28px rgba(47, 128, 100, 0.2);
 }
 
+.academy-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 18px;
+  padding: 21px;
+  background: #ffffff;
+  border: 1px solid #dce9e3;
+  border-radius: 18px;
+  box-shadow: 0 5px 18px rgba(26, 46, 40, 0.06);
+}
+
+.academy-card__icon {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  color: #ffffff;
+  background: linear-gradient(145deg, #276c54, #50a17f);
+  border-radius: 18px;
+  font-size: 28px;
+  font-weight: 900;
+}
+
+.academy-card__main { flex: 1; min-width: 0; }
+.academy-card__eyebrow,
+.academy-card__title,
+.academy-card__meta { display: block; }
+.academy-card__eyebrow { color: #2f8064; font-size: 18px; font-weight: 700; }
+.academy-card__title { margin-top: 4px; font-size: 23px; font-weight: 800; }
+.academy-card__meta { margin-top: 5px; color: #7d8782; font-size: 18px; }
+.academy-card__arrow { color: #2f8064; font-size: 35px; }
+.academy-card__badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 7px;
+  color: #ffffff;
+  background: #df7564;
+  border-radius: 999px;
+  font-size: 18px;
+}
+
 .greeting-card::after {
   position: absolute;
   top: -80px;
