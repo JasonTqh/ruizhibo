@@ -592,7 +592,7 @@ function careRows(care) {
           h(
             Text,
             { className: "report-fact__title" },
-            `异常记录 · ${item.category || "其他"}`,
+            `异常记录 · ${careExceptionCategoryText(item.category)}`,
           ),
           h(
             Text,
@@ -723,6 +723,18 @@ function careValueText(value) {
     }[value] ||
     value ||
     "已记录"
+  );
+}
+
+function careExceptionCategoryText(value) {
+  return (
+    {
+      physical: "身体不适",
+      emotional: "情绪异常",
+      injury: "受伤",
+      behavior: "行为异常",
+      other: "其他",
+    }[value] || value || "其他"
   );
 }
 function restText(record) {

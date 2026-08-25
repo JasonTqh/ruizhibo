@@ -12,6 +12,7 @@ const MAX_UPLOAD_SIZE = 10 * 1024 * 1024;
 
 export default function WorkflowPage() {
   const [sessions, setSessions] = useState([]);
+  const [selectedClassId, setSelectedClassId] = useState("");
   const [loading, setLoading] = useState(true);
   const [checkingKey, setCheckingKey] = useState("");
   const [selectedPhotos, setSelectedPhotos] = useState({});
@@ -26,6 +27,11 @@ export default function WorkflowPage() {
     try {
       const nextSessions = await teacherRequest("/teacher/workflow/today");
       setSessions(nextSessions);
+      setSelectedClassId((current) =>
+        nextSessions.some((session) => session.class.id === current)
+          ? current
+          : nextSessions[0]?.class.id || "",
+      );
       setSelectedPhotos((current) =>
         removeCheckedSelections(current, nextSessions),
       );
@@ -167,10 +173,12 @@ export default function WorkflowPage() {
   });
 
   const summary = workflowSummary(sessions);
-  const current = findGlobalCurrentStep(sessions);
-  const currentClassSummary = current
-    ? workflowSummary([current.session])
-    : { checked: 0, total: 0, percent: 0 };
+  const selectedSession =
+    sessions.find((session) => session.class.id === selectedClassId) ||
+    sessions[0];
+  const visibleSessions = selectedSession ? [selectedSession] : [];
+  const current = findGlobalCurrentStep(visibleSessions);
+  const currentClassSummary = workflowSummary(visibleSessions);
 
   return h(
     View,
@@ -194,7 +202,7 @@ export default function WorkflowPage() {
         h(
           Text,
           { className: "workflow-sticky-summary__label" },
-          current?.className || "班级进度",
+          selectedSession?.class.name || "班级进度",
         ),
         h(
           Text,
@@ -212,7 +220,8 @@ export default function WorkflowPage() {
           Text,
           { className: "workflow-sticky-summary__current-name" },
           current?.step.name ||
-            (summary.total && summary.checked === summary.total
+            (currentClassSummary.total &&
+            currentClassSummary.checked === currentClassSummary.total
               ? "全部完成"
               : "暂无待办"),
         ),
@@ -277,13 +286,31 @@ export default function WorkflowPage() {
             { className: "workflow-current" },
             current
               ? `当前关注：${current.className} · ${current.step.name}`
-              : summary.total && summary.checked === summary.total
-                ? "今日流程已全部完成"
-                : "暂无待处理环节",
+              : currentClassSummary.total &&
+                  currentClassSummary.checked === currentClassSummary.total
+                ? `${selectedSession?.class.name || "当前班级"}流程已全部完成`
+                : `${selectedSession?.class.name || "当前班级"}暂无待处理环节`,
           ),
         ),
       ),
     ),
+    sessions.length > 1
+      ? h(
+          View,
+          { className: "workflow-class-tabs" },
+          ...sessions.map((session) =>
+            h(
+              View,
+              {
+                className: `workflow-class-tab${session.id === selectedSession?.id ? " workflow-class-tab--active" : ""}`,
+                key: session.id,
+                onClick: () => setSelectedClassId(session.class.id),
+              },
+              h(Text, null, session.class.name),
+            ),
+          ),
+        )
+      : null,
     error
       ? h(
           View,
@@ -314,7 +341,7 @@ export default function WorkflowPage() {
               "请确认班级归属和启用中的流程模板。",
             ),
           )
-        : sessions.map((session) =>
+        : visibleSessions.map((session) =>
             h(SessionCard, {
               key: session.id,
               session,

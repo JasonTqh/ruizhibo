@@ -157,6 +157,7 @@ if ($IncludeWrites) {
   $createdTeacher = Invoke-Api -Method "POST" -Path "/admin/teachers" -Token $adminToken -Body @{
     name = "verify-teacher-$suffix"
     phone = "13999$phoneSuffix"
+    assignTraining = $false
   } -ExpectedStatus 201
   $teacherId = $createdTeacher.Body.data.id
 
@@ -235,6 +236,7 @@ if ($IncludeWrites) {
   $plainTeacher = Invoke-Api -Method "POST" -Path "/admin/teachers" -Token $adminToken -Body @{
     name = "verify-plain-teacher-$suffix"
     phone = "13699$phoneSuffix"
+    assignTraining = $false
   } -ExpectedStatus 201
   Invoke-Api -Method "DELETE" -Path "/admin/teachers/$($plainTeacher.Body.data.id)" -Token $adminToken | Out-Null
 }

@@ -33,6 +33,17 @@ type ApiErrorResult = {
   error: { message: string; requestId?: string };
 };
 
+const accountStatusLabels: Record<string, string> = {
+  active: "启用",
+  inactive: "停用",
+  disabled: "停用",
+};
+
+const studentStatusLabels: Record<string, string> = {
+  active: "在读",
+  inactive: "停用",
+};
+
 interface AdminLoginResult {
   token: string;
   user: UserSummary;
@@ -445,7 +456,7 @@ export function App() {
   if (!token) {
     return (
       <div className="admin-login-page">
-        <Card className="admin-login-card" bordered={false}>
+        <Card className="admin-login-card" variant="borderless">
           <div className="admin-login-brand">锐之博托管中心</div>
           <Typography.Title level={2}>运营管理后台</Typography.Title>
           <Typography.Paragraph type="secondary">
@@ -826,7 +837,9 @@ function TeachersPanel({
           {
             title: "状态",
             dataIndex: "status",
-            render: (value) => <Tag>{value}</Tag>,
+            render: (value) => (
+              <Tag>{accountStatusLabels[value] ?? value}</Tag>
+            ),
           },
           {
             title: "在职状态",
@@ -1999,7 +2012,11 @@ function StudentsPanel({
             title: "班级",
             render: (_, record) => record.class?.name ?? record.classId,
           },
-          { title: "状态", dataIndex: "status" },
+          {
+            title: "状态",
+            dataIndex: "status",
+            render: (value) => studentStatusLabels[value] ?? value,
+          },
           {
             title: "家长",
             render: (_, record) =>
@@ -2163,9 +2180,11 @@ function WorkflowStepsEditor() {
     >
       {(fields, { add, remove }, { errors }) => (
         <Space direction="vertical" className="admin-stack" size={12}>
-          {fields.map((field, index) => (
+          {fields.map((field, index) => {
+            const { key: fieldKey, ...fieldProps } = field;
+            return (
             <Card
-              key={field.key}
+              key={fieldKey}
               size="small"
               title={`步骤 ${index + 1}`}
               extra={
@@ -2182,7 +2201,7 @@ function WorkflowStepsEditor() {
               <Row gutter={12}>
                 <Col xs={24} md={6}>
                   <Form.Item
-                    {...field}
+                    {...fieldProps}
                     name={[field.name, "name"]}
                     label="步骤名称"
                     rules={[{ required: true, message: "请输入步骤名称" }]}
@@ -2192,7 +2211,7 @@ function WorkflowStepsEditor() {
                 </Col>
                 <Col xs={24} md={5}>
                   <Form.Item
-                    {...field}
+                    {...fieldProps}
                     name={[field.name, "stepKey"]}
                     label="步骤标识"
                     rules={[
@@ -2208,7 +2227,7 @@ function WorkflowStepsEditor() {
                 </Col>
                 <Col xs={24} md={5}>
                   <Form.Item
-                    {...field}
+                    {...fieldProps}
                     name={[field.name, "timeRange"]}
                     label="时间范围"
                     rules={[{ required: true, message: "请输入时间范围" }]}
@@ -2218,7 +2237,7 @@ function WorkflowStepsEditor() {
                 </Col>
                 <Col xs={12} md={4}>
                   <Form.Item
-                    {...field}
+                    {...fieldProps}
                     name={[field.name, "sortOrder"]}
                     label="排序"
                     rules={[{ required: true, message: "请输入排序" }]}
@@ -2232,7 +2251,7 @@ function WorkflowStepsEditor() {
                 </Col>
                 <Col xs={12} md={4}>
                   <Form.Item
-                    {...field}
+                    {...fieldProps}
                     name={[field.name, "requirePhoto"]}
                     label="要求照片"
                     valuePropName="checked"
@@ -2242,7 +2261,8 @@ function WorkflowStepsEditor() {
                 </Col>
               </Row>
             </Card>
-          ))}
+            );
+          })}
           <Button
             type="dashed"
             block
@@ -2415,6 +2435,7 @@ function WorkflowPanel({
       <Modal
         title="编辑流程模板"
         open={Boolean(editing)}
+        forceRender
         onCancel={() => setEditing(null)}
         onOk={() => editForm.submit()}
         width={960}

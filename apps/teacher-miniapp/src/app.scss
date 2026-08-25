@@ -18,6 +18,10 @@ button[disabled] {
   opacity: 0.62;
 }
 
+.weui-tabbar__icon:not([src]) {
+  display: none;
+}
+
 input,
 textarea {
   box-sizing: border-box;

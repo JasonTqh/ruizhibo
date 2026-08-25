@@ -84,8 +84,8 @@ try {
   $campusId = $classes.Body.data[0].campusId
   $suffix = Get-Date -Format "MMddHHmmssfff"
 
-  $teacherA = Invoke-Api -Method "POST" -Path "/admin/teachers" -Token $adminToken -Body @{ name = "verify-daily-report-teacher-a-$suffix"; phone = New-Phone "138" } -ExpectedStatus 201
-  $teacherB = Invoke-Api -Method "POST" -Path "/admin/teachers" -Token $adminToken -Body @{ name = "verify-daily-report-teacher-b-$suffix"; phone = New-Phone "137" } -ExpectedStatus 201
+  $teacherA = Invoke-Api -Method "POST" -Path "/admin/teachers" -Token $adminToken -Body @{ name = "verify-daily-report-teacher-a-$suffix"; phone = New-Phone "138"; assignTraining = $false } -ExpectedStatus 201
+  $teacherB = Invoke-Api -Method "POST" -Path "/admin/teachers" -Token $adminToken -Body @{ name = "verify-daily-report-teacher-b-$suffix"; phone = New-Phone "137"; assignTraining = $false } -ExpectedStatus 201
   $createdTeachers += $teacherA.Body.data.id
   $createdTeachers += $teacherB.Body.data.id
   $parentA = Invoke-Api -Method "POST" -Path "/admin/parents" -Token $adminToken -Body @{ name = "verify-daily-report-parent-a-$suffix"; phone = New-Phone "136" } -ExpectedStatus 201

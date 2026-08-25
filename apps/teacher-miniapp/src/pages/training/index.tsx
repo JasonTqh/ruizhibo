@@ -192,7 +192,7 @@ export default function TrainingPage() {
 
       {home?.feedbackInvitation ? (
         <View className="training-feedback-invite" onClick={() => setFeedbackOpen(true)}>
-          <View><Text className="training-feedback-invite__title">本轮培训已完成 🎉</Text><Text className="training-feedback-invite__copy">欢迎留下总体评分和建议，也可以稍后填写</Text></View>
+          <View><Text className="training-feedback-invite__title">{home.feedbackInvitation.roundNumber ? `第 ${home.feedbackInvitation.roundNumber} 轮培训已完成 🎉` : "已有培训轮次完成 🎉"}</Text><Text className="training-feedback-invite__copy">欢迎留下总体评分和建议，也可以稍后填写</Text></View>
           <Text className="training-arrow">›</Text>
         </View>
       ) : null}

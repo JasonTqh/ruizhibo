@@ -192,8 +192,48 @@ const careValueLabels: Record<string, string> = {
   upset: "明显不开心",
 };
 
+const careExceptionCategoryLabels: Record<string, string> = {
+  physical: "身体不适",
+  emotional: "情绪异常",
+  injury: "受伤",
+  behavior: "行为异常",
+  other: "其他",
+};
+
+const pickupRelationshipLabels: Record<string, string> = {
+  father: "父亲",
+  mother: "母亲",
+  grandfather: "爷爷",
+  grandmother: "奶奶",
+  maternal_grandfather: "外公",
+  maternal_grandmother: "外婆",
+  sibling: "兄弟姐妹",
+  relative: "亲属",
+  other: "其他",
+};
+
+const dateOnlyBusinessKinds = new Set<BusinessKind>([
+  "dailyReport",
+  "lesson",
+  "teaching",
+  "workflow",
+  "studentWorkflow",
+]);
+
 function formatDate(value?: string) {
   return value ? new Date(value).toLocaleString("zh-CN") : "-";
+}
+
+function formatBusinessTime(kind: BusinessKind, record: BusinessRecord) {
+  const value = recordTime(kind, record);
+  if (!value) return "-";
+  return dateOnlyBusinessKinds.has(kind)
+    ? String(value).slice(0, 10)
+    : formatDate(value);
+}
+
+function pickupRelationshipLabel(value?: string) {
+  return value ? (pickupRelationshipLabels[value] ?? value) : "";
 }
 
 function recordTitle(kind: BusinessKind, record: BusinessRecord) {
@@ -434,10 +474,10 @@ export function BusinessPanel({
       ),
     },
     {
-      title: "时间",
+      title: dateOnlyBusinessKinds.has(kind) ? "日期" : "时间",
       key: "time",
       render: (_: unknown, record: BusinessRecord) =>
-        formatDate(recordTime(kind, record)),
+        formatBusinessTime(kind, record),
     },
     {
       title: "操作",
@@ -699,8 +739,10 @@ export function BusinessPanel({
             <Descriptions.Item label="状态">
               {recordStatus(kind, selected)}
             </Descriptions.Item>
-            <Descriptions.Item label="业务时间">
-              {formatDate(recordTime(kind, selected))}
+            <Descriptions.Item
+              label={dateOnlyBusinessKinds.has(kind) ? "业务日期" : "业务时间"}
+            >
+              {formatBusinessTime(kind, selected)}
             </Descriptions.Item>
             <Descriptions.Item label="内容">
               {selected.content ??
@@ -721,7 +763,7 @@ export function BusinessPanel({
                   }
                 >
                   {selected.pickupPersonNameSnapshot
-                    ? `${selected.relationshipSnapshot ?? ""} ${selected.pickupPersonNameSnapshot}`
+                    ? `${pickupRelationshipLabel(selected.relationshipSnapshot)} ${selected.pickupPersonNameSnapshot}`
                     : "-"}
                 </Descriptions.Item>
                 <Descriptions.Item
@@ -776,7 +818,11 @@ export function BusinessPanel({
                     : "-"}
                 </Descriptions.Item>
                 <Descriptions.Item label="异常类别">
-                  {selected.exceptionCategory ?? "-"}
+                  {selected.exceptionCategory
+                    ? (careExceptionCategoryLabels[
+                        selected.exceptionCategory
+                      ] ?? selected.exceptionCategory)
+                    : "-"}
                 </Descriptions.Item>
                 <Descriptions.Item label="需要家长关注">
                   {selected.needsAttention ? "是" : "否"}
@@ -927,7 +973,7 @@ function DailyReportDetails({ report }: { report: BusinessRecord }) {
                       {typeLabels[item.type] ?? item.type}
                     </Typography.Text>
                     <Typography.Text type="secondary">
-                      {` · ${formatDate(item.happenedAt)} · 经办：${item.teacher?.name ?? "未记录"}${item.pickupPersonName ? ` · ${item.relationship ?? ""} ${item.pickupPersonName}` : ""}`}
+                      {` · ${formatDate(item.happenedAt)} · 经办：${item.teacher?.name ?? "未记录"}${item.pickupPersonName ? ` · ${pickupRelationshipLabel(item.relationship)} ${item.pickupPersonName}` : ""}`}
                     </Typography.Text>
                   </div>
                 ),

@@ -63,12 +63,14 @@ try {
   $teacher = Invoke-Api -Method "POST" -Path "/admin/teachers" -Token $adminToken -Body @{
     name = "verify-workflow-owner-$suffix"
     phone = $teacherPhone
+    assignTraining = $false
   } -ExpectedStatus 201
   $teacherId = $teacher.Body.data.id
 
   $otherTeacher = Invoke-Api -Method "POST" -Path "/admin/teachers" -Token $adminToken -Body @{
     name = "verify-workflow-foreign-$suffix"
     phone = $otherTeacherPhone
+    assignTraining = $false
   } -ExpectedStatus 201
   $otherTeacherId = $otherTeacher.Body.data.id
 

@@ -108,11 +108,13 @@ try {
   $teacherA = Invoke-Api -Method "POST" -Path "/admin/teachers" -Token $adminToken -Body @{
     name = "verify-student-workflow-teacher-a-$suffix"
     phone = New-Phone "138"
+    assignTraining = $false
   } -ExpectedStatus 201
   $createdTeachers += $teacherA.Body.data.id
   $teacherB = Invoke-Api -Method "POST" -Path "/admin/teachers" -Token $adminToken -Body @{
     name = "verify-student-workflow-teacher-b-$suffix"
     phone = New-Phone "137"
+    assignTraining = $false
   } -ExpectedStatus 201
   $createdTeachers += $teacherB.Body.data.id
 

@@ -68,12 +68,14 @@ try {
   $teacherA = Invoke-Api -Method "POST" -Path "/admin/teachers" -Token $adminToken -Body @{
     name = "verify-pickup-teacher-a-$suffix"
     phone = "138$phoneTail"
+    assignTraining = $false
   } -ExpectedStatus 201
   $createdTeachers += $teacherA.Body.data.id
   $phoneTail = Get-Random -Minimum 10000000 -Maximum 99999999
   $teacherB = Invoke-Api -Method "POST" -Path "/admin/teachers" -Token $adminToken -Body @{
     name = "verify-pickup-teacher-b-$suffix"
     phone = "137$phoneTail"
+    assignTraining = $false
   } -ExpectedStatus 201
   $createdTeachers += $teacherB.Body.data.id
 

@@ -88,6 +88,34 @@ const courseLabels: Record<string, string> = {
   exempted: "已免修",
 };
 
+const courseCategoryLabels: Record<string, string> = {
+  foundation: "基础制度",
+  business: "业务能力",
+  safety: "安全",
+  library: "资料库",
+};
+
+const assignmentTypeLabels: Record<string, string> = {
+  onboarding: "入职培训",
+  safety_retraining: "安全复训",
+};
+
+const attemptStatusLabels: Record<string, string> = {
+  ...courseLabels,
+  superseded: "已被新尝试替代",
+};
+
+const studyKindLabels: Record<string, string> = {
+  content: "图文",
+  video: "视频",
+};
+
+const permissionLabels: Record<string, string> = {
+  training_manage: "培训管理",
+  practical_confirm: "实操确认",
+  safety_confirm: "安全确认",
+};
+
 const safetyLabels: Record<string, string> = {
   not_obtained: "未取得",
   awaiting_confirmation: "待确认",
@@ -396,7 +424,7 @@ export function TrainingPanel({
                   {title:"顺序",dataIndex:"sortOrder",width:70},
                   {title:"课程",dataIndex:"name"},
                   {title:"代码",dataIndex:"code"},
-                  {title:"分类",dataIndex:"category"},
+                  {title:"分类",dataIndex:"category",render:(v:string)=>courseCategoryLabels[v] ?? v},
                   {title:"最低时长",dataIndex:"minimumMinutes",render:(v:number)=>`${v} 分钟`},
                   {title:"实操",dataIndex:"requiresPractical",render:(v:boolean)=>v?"需要":"不需要"},
                   {title:"状态",dataIndex:"status",render:(v:string)=><Tag>{v === "enabled" ? "已启用" : v === "draft" ? "草稿" : "已停用"}</Tag>},
@@ -621,7 +649,7 @@ function AssignmentDrawer({ detail, canRevokeSafety, onClose, onAction, onOpenHi
         <Table rowKey="id" size="small" dataSource={detail.safetyRecords} pagination={false} scroll={{x:1000}} columns={safetyRecordColumns()} />
         <Typography.Title level={5}>历史轮次</Typography.Title>
         <Table rowKey="id" dataSource={detail.history} pagination={false} columns={[
-          {title:"轮次",dataIndex:"roundNumber"},{title:"类型",dataIndex:"type"},{title:"状态",dataIndex:"status",render:(v:string)=>assignmentLabels[v] ?? v},{title:"布置时间",dataIndex:"assignedAt",render:formatDate},{title:"截止时间",dataIndex:"dueAt",render:formatDate},{title:"操作",render:(_:unknown,item:any)=><Button type="link" onClick={()=>void onOpenHistory(item.id)}>查看详情</Button>},
+          {title:"轮次",dataIndex:"roundNumber"},{title:"类型",dataIndex:"type",render:(v:string)=>assignmentTypeLabels[v] ?? v},{title:"状态",dataIndex:"status",render:(v:string)=>assignmentLabels[v] ?? v},{title:"布置时间",dataIndex:"assignedAt",render:formatDate},{title:"截止时间",dataIndex:"dueAt",render:formatDate},{title:"操作",render:(_:unknown,item:any)=><Button type="link" onClick={()=>void onOpenHistory(item.id)}>查看详情</Button>},
         ]} />
         <Typography.Title level={5}>本轮审计</Typography.Title>
         <Table rowKey="id" dataSource={detail.auditRecords} pagination={false} scroll={{x:1200}} columns={auditColumns()} />
@@ -632,7 +660,7 @@ function AssignmentDrawer({ detail, canRevokeSafety, onClose, onAction, onOpenHi
 
 function AttemptHistory({ course }: any) {
   return <Table rowKey="id" size="small" dataSource={course.attempts} pagination={false} expandable={{expandedRowRender:(attempt:any)=><AttemptDetail course={course} attempt={attempt} />}} columns={[
-    {title:"尝试",dataIndex:"attemptNumber"},{title:"状态",dataIndex:"status"},{title:"学习时长",dataIndex:"accumulatedSeconds",render:(v:number)=>`${Math.floor(v/60)} 分 ${v%60} 秒`},{title:"测验次数",dataIndex:"quizAttempts",render:(v:any[])=>v.length},{title:"实操记录",dataIndex:"practicalChecks",render:(v:any[])=>v.length},{title:"完成时间",dataIndex:"completedAt",render:formatDate},
+    {title:"尝试",dataIndex:"attemptNumber"},{title:"状态",dataIndex:"status",render:(v:string)=>attemptStatusLabels[v] ?? v},{title:"学习时长",dataIndex:"accumulatedSeconds",render:(v:number)=>`${Math.floor(v/60)} 分 ${v%60} 秒`},{title:"测验次数",dataIndex:"quizAttempts",render:(v:any[])=>v.length},{title:"实操记录",dataIndex:"practicalChecks",render:(v:any[])=>v.length},{title:"完成时间",dataIndex:"completedAt",render:formatDate},
   ]} />;
 }
 
@@ -647,7 +675,7 @@ function AttemptDetail({ course, attempt }: any) {
     ]} />
     <Typography.Text strong>学习会话</Typography.Text>
     <Table rowKey="id" size="small" dataSource={attempt.studySessions ?? []} pagination={false} columns={[
-      {title:"章节标识",dataIndex:"chapterKey"},{title:"类型",dataIndex:"kind"},{title:"开始",dataIndex:"startedAt",render:formatDate},{title:"结束",dataIndex:"endedAt",render:formatDate},{title:"有效时长",dataIndex:"accumulatedSeconds",render:(v:number)=>`${v ?? 0} 秒`},
+      {title:"章节标识",dataIndex:"chapterKey"},{title:"类型",dataIndex:"kind",render:(v:string)=>studyKindLabels[v] ?? v},{title:"开始",dataIndex:"startedAt",render:formatDate},{title:"结束",dataIndex:"endedAt",render:formatDate},{title:"有效时长",dataIndex:"accumulatedSeconds",render:(v:number)=>`${v ?? 0} 秒`},
     ]} />
     <Typography.Text strong>测验记录</Typography.Text>
     <Table rowKey="id" size="small" dataSource={attempt.quizAttempts ?? []} pagination={false} columns={[
@@ -734,7 +762,7 @@ function SettingsPanel({ flags, permissions, permissionSubjects, campuses, reque
         <Button htmlType="submit" type="primary">保存</Button>
       </Form>
       <Table style={{marginTop:16}} rowKey="id" dataSource={permissions} pagination={{pageSize:10}} columns={[
-        {title:"账号",dataIndex:["user","name"]},{title:"权限",dataIndex:"permission"},{title:"范围",render:(_:unknown,x:any)=>x.campus?.name ?? "总部/全局"},{title:"状态",dataIndex:"isActive",render:(v:boolean)=>v?"启用":"停用"},{title:"授权时间",dataIndex:"updatedAt",render:formatDate},
+        {title:"账号",dataIndex:["user","name"]},{title:"权限",dataIndex:"permission",render:(v:string)=>permissionLabels[v] ?? v},{title:"范围",render:(_:unknown,x:any)=>x.campus?.name ?? "总部/全局"},{title:"状态",dataIndex:"isActive",render:(v:boolean)=>v?"启用":"停用"},{title:"授权时间",dataIndex:"updatedAt",render:formatDate},
       ]} />
     </Card> : null}
   </Space>;

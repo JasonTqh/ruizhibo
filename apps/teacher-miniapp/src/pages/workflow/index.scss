@@ -203,6 +203,29 @@
   line-height: 1.45;
 }
 
+.workflow-class-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.workflow-class-tab {
+  padding: 12px 20px;
+  color: #53645e;
+  background: #ffffff;
+  border: 1px solid #d9e3de;
+  border-radius: 999px;
+  font-size: 21px;
+}
+
+.workflow-class-tab--active {
+  color: #ffffff;
+  background: #2f8064;
+  border-color: #2f8064;
+  box-shadow: 0 6px 16px rgba(47, 128, 100, 0.2);
+}
+
 .workflow-error {
   gap: 16px;
   margin-top: 20px;

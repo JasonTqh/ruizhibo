@@ -2,7 +2,7 @@ param(
   [string]$BaseUrl = $(if ($env:VERIFY_API_BASE_URL) { $env:VERIFY_API_BASE_URL } else { "http://localhost:3000/api" }),
   [string]$AdminPhone = $(if ($env:VERIFY_ADMIN_PHONE) { $env:VERIFY_ADMIN_PHONE } else { "13800000000" }),
   [string]$TeacherPhone = $(if ($env:VERIFY_TEACHER_PHONE) { $env:VERIFY_TEACHER_PHONE } else { "13800000001" }),
-  [string]$TeacherPhoneB = $(if ($env:VERIFY_TEACHER_PHONE_B) { $env:VERIFY_TEACHER_PHONE_B } else { "13800000002" })
+  [string]$TeacherPhoneB = $(if ($env:VERIFY_TEACHER_PHONE_B) { $env:VERIFY_TEACHER_PHONE_B } else { "13800000003" })
 )
 
 $ErrorActionPreference = "Stop"
