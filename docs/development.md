@@ -1,6 +1,6 @@
 # 开发状态与下一步计划
 
-本项目已经从“核心业务链路可联调”推进到“测试环境上线前验收”阶段。正式 Taro 小程序、管理后台、后端生产化能力、发布门禁、CP-33 安全接送、CP-34 学生级一日托管流程、CP-35 生活照护，以及 CP-36 每日托管报告代码闭环均已实现；当前重点是接入真实 HTTPS 测试域名、微信公众平台配置、体验版真机绑定、接送/学生流程/生活照护/日报真机验收、备份恢复演练和小范围业务试运行。
+本项目已经从“核心业务链路可联调”推进到“测试环境上线前验收”阶段。当前正式基线为 `9c8cd72 fix: polish development acceptance ui and interactions`。正式 Taro 小程序、管理后台、后端生产化能力、发布门禁、CP-33 安全接送、CP-34 学生级一日托管流程、CP-35 生活照护、CP-36 每日托管报告，以及 CP-37 教师培训学院 MVP、Training Media、培训访问隔离、H5 验收工具链和开发环境视觉验收 polish 均已实现；当前重点是接入真实 HTTPS 测试域名、微信公众平台配置、体验版真机绑定、接送/学生流程/生活照护/日报/培训真机验收、培训私有媒体生产配置、备份恢复演练和小范围业务试运行。
 
 ## 1. 当前正式工程
 
@@ -33,15 +33,16 @@ archive/apps/website
 - 安全接送事实链：学校接到、安全到店、正常/临时/异常离店、授权接送人快照、家长历史查询与考勤兼容。
 - 生活照护事实：按餐次用餐、可累计饮水、主要休息、情绪和不可覆盖异常，支持班级批量记录、家长今日摘要与管理端只读查询。
 - 每日托管报告：按 Asia/Shanghai 业务日实时聚合接送、学生流程、生活照护、作业和家长可见成长反馈；支持教师寄语草稿/发布、家长历史查看及管理端分页只读查询。
+- 教师培训学院：固定七门入职培训、课程内容和测验、线性解锁、最低学习时长、视频 90% 有效观看、实操检查、安全确认、复训提醒、反馈、通知、校区功能开关、培训权限授权、统计、详情、审计与 Excel 导出。
 - 家校会话、聊天详情、文本/图片消息、未读数和读取后已读。
 - 教师发布通知/家长任务，家长查看与确认，教师查看逐位回执。
-- JSON/base64 文件上传、local/S3 兼容存储、`FileAsset` 元数据记录。
+- JSON/base64 文件上传、local/S3 兼容存储、`FileAsset` 元数据记录；培训素材使用受保护的 multipart 上传、私有桶存储和短期签名访问。
 - 请求追踪、结构化运行日志、审计日志记录和管理端查询。
 
 前端：
 
-- 管理后台已接入真实 API，可正式登录、维护基础数据和流程模板、配置家长与接送权限、维护非账号型授权接送人、执行引用检查，并只读查询接送/异常、学生托管步骤、生活照护及每日托管报告。
-- 教师小程序已接入工作台、今日接送、今日照护、今日报告、备课、教研、教学记录、学生级流程、作业、通知/任务、消息列表和聊天详情；今日报告支持班级摘要、学生详情以及老师寄语草稿/发布。
+- 管理后台已接入真实 API，可正式登录、维护基础数据和流程模板、配置家长与接送权限、维护非账号型授权接送人、执行引用检查，并只读查询接送/异常、学生托管步骤、生活照护及每日托管报告；培训面板已接入课程维护、培训布置、状态统计、实操/安全确认、校区灰度、权限授权、反馈、审计和导出。
+- 教师小程序已接入工作台、今日接送、今日照护、今日报告、教师学院、备课、教研、教学记录、学生级流程、作业、通知/任务、消息列表和聊天详情；今日报告支持班级摘要、学生详情以及老师寄语草稿/发布，教师学院支持当前计划、课程学习、资料库、提醒、带教实操检查和培训反馈。
 - 家长小程序已接入首页今日接送状态、今日托管进度、今日生活、每日托管报告摘要/完整历史报告、接送历史、作业提交、成长、“我的”、通知/任务确认、消息列表和聊天详情。
 - 教师端、家长端已按历史原型方向完成首轮真实 API 页面迁移，不再保留底部导航占位页。
 
@@ -56,7 +57,10 @@ archive/apps/website
 - `docs/file-storage.md` 记录 local/S3 文件存储配置和验证。
 - `docs/admin-authentication.md` 记录管理员正式登录、密码初始化和限流。
 - `docs/release-verification.md` 记录生产模式发布门禁。
+- `docs/teacher-training-rollout.md` 记录教师培训 MVP 试运行、上线、回滚和私有媒体恢复要求。
 - `apps/api/scripts/verify-*.ps1` 与根目录部署脚本可覆盖管理端、教师端、家长端、文件存储、观测性、发布门禁、备份和恢复验证。
+- `pnpm test:training`、`verify:training-api`、`verify:training-media`、`verify:training-isolation`、`verify:training-feature-flag`、`verify:training-load` 覆盖培训领域规则、接口、私有媒体、校区隔离、功能开关和容量基线。
+- `pnpm dev:teacher:h5`、`pnpm build:teacher:h5` 与 `pnpm verify:dev-acceptance` 支撑教师端 H5 视觉/交互验收和 20 人开发验收报告。
 
 ## 3. 本地联调流程
 
@@ -87,6 +91,13 @@ pnpm dev:admin
 ```powershell
 pnpm dev:teacher
 pnpm dev:parent
+```
+
+教师端 H5 验收构建：
+
+```powershell
+pnpm dev:teacher:h5
+pnpm build:teacher:h5
 ```
 
 微信开发者工具导入目录：
@@ -120,6 +131,12 @@ apps/parent-miniapp/dist
 15. 再用一名学生验证家长送达，以及临时/异常接送的必填保护。
 16. 家长端首页和接送历史确认时间线、经办教师、接送人及异常提示。
 17. 管理后台“接送记录”验证今日未到店、今日未离店和异常接送筛选。
+18. 教师端完成学生级流程的批量正常处理、单人跳过、异常和缺勤展示。
+19. 教师端批量记录用餐、饮水和休息，并为个别学生记录情绪或异常。
+20. 教师端打开今日报告，保存草稿并发布老师寄语；家长端查看今日和历史完整日报。
+21. 管理后台进入培训面板，核对七门课程、校区开关、培训权限、培训布置、实操/安全确认、统计和导出。
+22. 教师端进入教师学院，验证当前计划、课程学习、资料库、提醒、带教实操检查和培训反馈。
+23. 在 Chrome/Edge/H5 与微信开发者工具中检查教师学院、20 人列表、日报八区块、图片/视频媒体、失败态和弱网反馈。
 ```
 
 ## 5. 自动验证
@@ -141,6 +158,10 @@ pnpm --filter @ruizhibo/api verify:admin
 pnpm --filter @ruizhibo/api verify:workflow-image-policy
 pnpm --filter @ruizhibo/api verify:workflow-images
 pnpm --filter @ruizhibo/api verify:pickup
+pnpm --filter @ruizhibo/api verify:student-workflow
+pnpm --filter @ruizhibo/api verify:care-records
+pnpm --filter @ruizhibo/api verify:daily-report
+pnpm --filter @ruizhibo/api verify:all
 ```
 
 `verify:workflow-images` 会创建并清理隔离的临时教师/班级，需要封闭开发环境开启 dev login；生产发布门禁不依赖 dev login，而是自动执行 `verify:workflow-image-policy`。生产配置可单独执行：
@@ -154,21 +175,37 @@ pnpm verify:production-config -- -EnvPath deploy/.env -RequireHttps
 ```powershell
 pnpm --filter @ruizhibo/teacher-miniapp typecheck
 pnpm --filter @ruizhibo/teacher-miniapp build
+pnpm --filter @ruizhibo/teacher-miniapp build:h5
 pnpm --filter @ruizhibo/parent-miniapp typecheck
 pnpm --filter @ruizhibo/parent-miniapp build
 ```
 
+培训与开发验收验证：
+
+```powershell
+pnpm test:training
+pnpm verify:training-api
+pnpm verify:training-media
+pnpm verify:training-isolation
+pnpm verify:training-feature-flag
+pnpm verify:training-load
+pnpm verify:dev-acceptance
+```
+
+`verify:dev-acceptance` 会准备固定的 20 人开发验收数据，并输出 `tmp/dev-acceptance/latest.md`。它适合开发/内测环境，不替代真实微信、真实域名和真实门店验收。
+
 ## 6. 下一阶段优先级
 
-CP-21、CP-22、UI-01 至 UI-09、CP-23 至 CP-31、最新路线图定义的 CP-32 代码部分、重新定义的 CP-33/CP-33.1 安全接送、CP-34 学生级一日托管流程、CP-35 生活照护，以及 CP-36 每日托管报告均已完成本地/隔离环境自动验证。CP-32 外部项及 CP-33 至 CP-36 的真实微信、门店、高频和儿童数据展示验收仍为 `WAITING_FOR_EXTERNAL_ACCEPTANCE`；本轮完成后不自动进入 CP-37。
+CP-21、CP-22、UI-01 至 UI-09、CP-23 至 CP-31、最新路线图定义的 CP-32 代码部分、重新定义的 CP-33/CP-33.1 安全接送、CP-34 学生级一日托管流程、CP-35 生活照护、CP-36 每日托管报告，以及 CP-37 教师培训学院均已完成本地/隔离环境自动验证或专项验证。CP-32 外部项、CP-33 至 CP-36 的真实微信/门店/高频/儿童数据展示验收，以及 CP-37 的真实培训内容、受保护媒体、Chrome/Edge/H5/微信端体验验收仍为 `WAITING_FOR_EXTERNAL_ACCEPTANCE`；下一开发阶段不应直接使用旧编号 CP-37，周成长简报顺延为 CP-38。
 
 建议优先顺序：
 
 1. 准备真实 HTTPS 测试域名、Caddy 入口、微信 request/uploadFile/downloadFile 合法域名。
 2. 配置教师端、家长端正式 AppID/AppSecret，构建 `TARO_APP_AUTH_MODE=wechat` 体验版。
-3. 执行 `pnpm verify:release`、管理后台人工验收、文件上传验收和备份/恢复演练。
+3. 执行 `pnpm verify:release`、`pnpm verify:production-config -- -EnvPath deploy/.env -RequireHttps`、管理后台人工验收、文件上传验收和备份/恢复演练。
 4. 组织老师、家长按真实学校接人、家长送达、授权接走、临时/异常接走场景小范围试运行，记录身份核验与操作路径问题。
 5. 用 20 名脱敏学生验证用餐/饮水/休息批量操作、缺勤与例外保护、异常跨端展示，再根据反馈拆分 UI/流程微调提案。
+6. 配置 `TRAINING_MEDIA_SIGNING_SECRET`、`TRAINING_MEDIA_URL_SECONDS` 和独立 `S3_TRAINING_PRIVATE_BUCKET`，按 `docs/teacher-training-rollout.md` 完成培训灰度、受保护媒体、实操/安全确认、导出、备份恢复和外部体验验收。
 
 ### UI-01 双端首页与视觉基线
 
@@ -415,7 +452,7 @@ pnpm --filter @ruizhibo/api verify:all
 
 ### CP-36 每日托管报告
 
-**代码已完成；真实微信、20 人班列表与真实儿童数据展示仍为 `WAITING_FOR_EXTERNAL_ACCEPTANCE`；不进入 CP-37。**
+**代码已完成；真实微信、20 人班列表与真实儿童数据展示仍为 `WAITING_FOR_EXTERNAL_ACCEPTANCE`；后续代码基线已进入 CP-37 教师培训学院，周成长简报顺延为 CP-38。**
 
 - 新增统一 `DailyReportModule` / `DailyReportService`，三端共享同一套实时查询聚合；不建立日报事实快照，所有 GET 均不写入 Pickup、Attendance、Workflow、Care、Homework、Growth 或 Audit。
 - 报告以 Asia/Shanghai 业务日为唯一边界。家长可查最近 90 天，教师可查最近 31 天，未来和非法日期返回 `400`；老师寄语第一版只允许编辑当前业务日。
@@ -448,6 +485,29 @@ pnpm build
 - 真实微信教师端、家长端完整日报和历史日期切换。
 - 真实儿童数据脱敏、异常展示、个人图片加载/失败反馈和临时授权接送展示。
 - 老师寄语草稿、发布、重新发布及家长不可见/可见切换的真机操作。
+
+### CP-37 教师培训学院 MVP、Training Media 与 H5/视觉验收
+
+**代码已完成；生产配置、真实课程内容、受保护媒体、Chrome/Edge/H5/微信端体验和校区灰度试运行为 `WAITING_FOR_EXTERNAL_ACCEPTANCE`。**
+
+- 后端新增 `TrainingModule`，覆盖固定七门入职课程、课程内容快照、章节媒体、测验、最低学习时长、线性解锁、实操检查、安全确认、培训凭证、复训提醒、反馈、通知、审计和 Excel 导出。
+- 管理后台新增培训面板，支持课程维护、培训布置、状态统计、详情、实操/安全确认、校区功能开关、培训权限授权、反馈、审计和导出。
+- 教师端新增 `training`、`training-course`、`training-library` 页面，支持当前计划、资料库、提醒、带教实操检查、课程学习、续播、后台暂停、倍速、测验和培训反馈。
+- 培训素材必须使用 `/api/files/training` 受保护上传，普通 `/api/files` 会拒绝 training 场景；生产环境要求独立 `TRAINING_MEDIA_SIGNING_SECRET`、60 至 1800 秒短期签名 URL，以及与公开素材桶隔离的 `S3_TRAINING_PRIVATE_BUCKET`。
+- 受保护媒体访问通过 `/api/files/training/:assetId/access` 换取短期地址，再由 `/api/files/training/:assetId/content` 支持签名校验、过期拒绝、Range 请求、`private/no-store` 缓存头和 `same-site` 资源策略。
+- `047bd1e` 已收紧培训媒体访问：教师只能访问自己已布置、已解锁课程中引用的媒体；跨教师、匿名、伪造 actor、过期签名和锁定课程资料均会被拒绝。
+- `9c8cd72` 已补管理后台培训面板、教师端培训/课程/H5 相关视觉与交互 polish，并把开发环境验收 UI 纳入固定 20 人验收工具链。
+- 本地验证命令包括 `pnpm test:training`、`pnpm verify:training-api`、`pnpm verify:training-media`、`pnpm verify:training-isolation`、`pnpm verify:training-feature-flag`、`pnpm verify:training-load`、`pnpm build:teacher:h5` 和 `pnpm verify:dev-acceptance`。
+
+**WAITING_FOR_EXTERNAL_ACCEPTANCE**
+
+- 用真实或脱敏课程素材核对七门课程内容、题库、最低学习时长、实操检查项、安全确认声明和反馈流程。
+- 在生产配置中确认 `TRAINING_MEDIA_SIGNING_SECRET` 与 `JWT_SECRET` 独立、`TRAINING_MEDIA_URL_SECONDS` 合规、S3 私有培训桶不可匿名读取且与普通公开桶隔离。
+- 在 Chrome、Edge、教师端 H5、微信开发者工具和至少一台真机完成课程学习、视频 Range/续播/后台暂停、测验、实操确认、安全确认、资料库锁定绕过防护和受保护媒体访问验收。
+- 按单校区灰度开启，验证关闭功能开关后教师端培训入口和培训业务请求被阻断，但既有学习、快照、确认和审计数据不丢失。
+- 隔离环境完成数据库与培训私有媒体桶同一恢复点的恢复演练。
+
+后续编号说明：CP-37 已用于当前已落地的教师培训学院；周成长简报顺延为 CP-38，招生报名/套餐/续费顺延为 CP-39，管理经营看板顺延为 CP-40。以上后续业务只有获得单独授权后才进入实现。
 
 ## 7. 给 Codex 的任务模板
 
