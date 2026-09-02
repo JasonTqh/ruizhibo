@@ -630,6 +630,12 @@ Content-Type: application/json
 管理后台接口必须登录，并且当前用户角色必须是 `admin`。
 
 ```http
+GET    /api/admin/campuses
+POST   /api/admin/campuses
+PATCH  /api/admin/campuses/:id
+GET    /api/admin/campuses/:id/references
+DELETE /api/admin/campuses/:id
+
 GET    /api/admin/teachers
 POST   /api/admin/teachers
 PATCH  /api/admin/teachers/:id
@@ -681,6 +687,80 @@ GET    /api/admin/business/pickup-records
 
 GET    /api/admin/audit-logs
 ```
+
+### 校区管理
+
+校区列表继续返回数组，保留原有 `id`、`name`、`address`、`phone` 字段，并非破坏性地增加创建/更新时间和班级数量：
+
+```http
+GET /api/admin/campuses
+Authorization: Bearer <admin-token>
+```
+
+```json
+{
+  "data": [
+    {
+      "id": "<campus-id>",
+      "name": "城东校区",
+      "address": "示例路 1 号",
+      "phone": "010-12345678",
+      "createdAt": "2026-09-02T08:00:00.000Z",
+      "updatedAt": "2026-09-02T08:00:00.000Z",
+      "_count": { "classes": 2 }
+    }
+  ]
+}
+```
+
+创建和编辑校区：
+
+```http
+POST /api/admin/campuses
+PATCH /api/admin/campuses/:id
+Authorization: Bearer <admin-token>
+Content-Type: application/json
+
+{
+  "name": "城东校区",
+  "address": "示例路 1 号",
+  "phone": "010-12345678"
+}
+```
+
+`name` 必填，服务端会去除首尾空格并拒绝空字符串；`address`、`phone` 可选，空字符串按未填写保存。创建和重命名会在数据库事务内按规范化后的名称串行查重，并将重复名称稳定返回为 HTTP `409`、错误码 `CAMPUS_NAME_CONFLICT`，不依赖前端去重。
+
+删除前查询全部直接业务引用：
+
+```http
+GET /api/admin/campuses/:id/references
+Authorization: Bearer <admin-token>
+```
+
+```json
+{
+  "data": {
+    "classes": 0,
+    "researchActivities": 0,
+    "pickupRecords": 0,
+    "trainingPermissionGrants": 0,
+    "trainingAssignments": 0,
+    "trainingSafetyCredentials": 0,
+    "trainingSafetyRecords": 0,
+    "trainingFeatureFlags": 0,
+    "trainingAuditRecords": 0
+  }
+}
+```
+
+只有上述引用全部为 `0` 的空校区才允许物理删除。服务端不会级联、清理或修改任何业务记录，也不提供 `force` 参数：
+
+```http
+DELETE /api/admin/campuses/:id
+Authorization: Bearer <admin-token>
+```
+
+存在引用时返回 HTTP `409`、错误码 `CAMPUS_HAS_REFERENCES`，并在 `error.details.references` 返回最新统计；数据库外键同时兜底删除检查。创建、编辑、删除成功后分别记录 `admin.campus.create`、`admin.campus.update`、`admin.campus.delete` 审计日志。
 
 ### 老师管理
 
@@ -737,7 +817,7 @@ Authorization: Bearer <admin-token>
 Content-Type: application/json
 
 {
-  "campusId": "seed-campus-main",
+  "campusId": "<campus-id>",
   "name": "晚托 B 班",
   "teacherId": "<teacher-id>"
 }

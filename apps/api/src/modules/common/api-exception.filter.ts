@@ -14,6 +14,7 @@ type ExceptionResponseBody =
   | {
       code?: string;
       message?: string | string[];
+      details?: unknown;
     };
 
 type StatusError = Error & {
@@ -44,11 +45,13 @@ export class ApiExceptionFilter implements ExceptionFilter {
       });
     }
 
+    const details = this.resolveDetails(exception);
     response.status(status).json({
       error: {
         code,
         message: this.resolveMessage(exception, status),
         requestId: request.requestId,
+        ...(details === undefined ? {} : { details }),
       },
     });
   }
@@ -114,5 +117,14 @@ export class ApiExceptionFilter implements ExceptionFilter {
     }
 
     return exception.message;
+  }
+
+  private resolveDetails(exception: unknown) {
+    if (!(exception instanceof HttpException)) {
+      return undefined;
+    }
+
+    const body = exception.getResponse() as ExceptionResponseBody;
+    return body && typeof body === "object" ? body.details : undefined;
   }
 }

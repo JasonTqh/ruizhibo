@@ -22,12 +22,14 @@ import { PrismaService } from "../prisma/prisma.service";
 import { StudentWorkflowService } from "../workflow/student-workflow.service";
 import { TrainingAssignmentService } from "../training/training-assignment.service";
 import { BindGuardianDto } from "./dto/bind-guardian.dto";
+import { CreateCampusDto } from "./dto/create-campus.dto";
 import { CreateClassDto } from "./dto/create-class.dto";
 import { CreateParentDto } from "./dto/create-parent.dto";
 import { CreateStudentDto } from "./dto/create-student.dto";
 import { CreateTeacherDto } from "./dto/create-teacher.dto";
 import { CreateWorkflowTemplateDto } from "./dto/create-workflow-template.dto";
 import { UpdateClassDto } from "./dto/update-class.dto";
+import { UpdateCampusDto } from "./dto/update-campus.dto";
 import { UpdateStudentDto } from "./dto/update-student.dto";
 import { UpdateTeacherDto } from "./dto/update-teacher.dto";
 import { UpdateWorkflowTemplateDto } from "./dto/update-workflow-template.dto";
@@ -45,6 +47,18 @@ const userSummarySelect = {
   updatedAt: true,
 } satisfies Prisma.UserSelect;
 
+type CampusReferenceCounts = {
+  classes: number;
+  researchActivities: number;
+  pickupRecords: number;
+  trainingPermissionGrants: number;
+  trainingAssignments: number;
+  trainingSafetyCredentials: number;
+  trainingSafetyRecords: number;
+  trainingFeatureFlags: number;
+  trainingAuditRecords: number;
+};
+
 @Injectable()
 export class AdminService {
   constructor(
@@ -57,9 +71,153 @@ export class AdminService {
   async listCampuses() {
     const campuses = await this.prisma.campus.findMany({
       orderBy: { name: "asc" },
-      select: { id: true, name: true, address: true, phone: true },
+      select: this.campusSelect(),
     });
     return { data: campuses };
+  }
+
+  async createCampus(actorId: string, dto: CreateCampusDto) {
+    const name = dto.name.trim();
+    try {
+      const campus = await this.prisma.$transaction(async (tx) => {
+        await this.assertCampusNameAvailable(tx, name);
+        return tx.campus.create({
+          data: {
+            name,
+            address: this.normalizeOptionalText(dto.address) ?? null,
+            phone: this.normalizeOptionalText(dto.phone) ?? null,
+          },
+          select: this.campusSelect(),
+        });
+      });
+
+      await this.audit.log({
+        userId: actorId,
+        action: "admin.campus.create",
+        targetType: "Campus",
+        targetId: campus.id,
+        detail: {
+          name: campus.name,
+          address: campus.address,
+          phone: campus.phone,
+        },
+      });
+
+      return { data: campus };
+    } catch (error) {
+      if (this.isUniqueConstraintError(error)) {
+        throw this.campusNameConflict(name);
+      }
+      throw error;
+    }
+  }
+
+  async updateCampus(actorId: string, id: string, dto: UpdateCampusDto) {
+    const before = await this.prisma.campus.findUnique({
+      where: { id },
+      select: this.campusRecordSelect(),
+    });
+    if (!before) {
+      throw new NotFoundException("校区不存在");
+    }
+
+    const name = dto.name?.trim();
+    try {
+      const campus = await this.prisma.$transaction(async (tx) => {
+        if (name !== undefined) {
+          await this.assertCampusNameAvailable(tx, name, id);
+        }
+
+        const data: Prisma.CampusUpdateInput = {};
+        if (name !== undefined) data.name = name;
+        if (dto.address !== undefined) {
+          data.address = this.normalizeOptionalText(dto.address);
+        }
+        if (dto.phone !== undefined) {
+          data.phone = this.normalizeOptionalText(dto.phone);
+        }
+
+        return tx.campus.update({
+          where: { id },
+          data,
+          select: this.campusSelect(),
+        });
+      });
+
+      await this.audit.log({
+        userId: actorId,
+        action: "admin.campus.update",
+        targetType: "Campus",
+        targetId: campus.id,
+        detail: {
+          before: {
+            name: before.name,
+            address: before.address,
+            phone: before.phone,
+          },
+          after: {
+            name: campus.name,
+            address: campus.address,
+            phone: campus.phone,
+          },
+        },
+      });
+
+      return { data: campus };
+    } catch (error) {
+      if (this.isUniqueConstraintError(error)) {
+        throw this.campusNameConflict(name ?? before.name);
+      }
+      if (this.isRecordNotFoundError(error)) {
+        throw new NotFoundException("校区不存在");
+      }
+      throw error;
+    }
+  }
+
+  async campusReferences(id: string) {
+    await this.assertCampusExists(id);
+    return { data: await this.countCampusReferences(id) };
+  }
+
+  async deleteCampus(actorId: string, id: string) {
+    const campus = await this.prisma.campus.findUnique({
+      where: { id },
+      select: this.campusRecordSelect(),
+    });
+    if (!campus) {
+      throw new NotFoundException("校区不存在");
+    }
+
+    const references = await this.countCampusReferences(id);
+    if (this.referenceCountTotal(references) > 0) {
+      throw this.campusReferenceConflict(references);
+    }
+
+    try {
+      const deleted = await this.prisma.campus.delete({
+        where: { id },
+        select: this.campusRecordSelect(),
+      });
+      await this.audit.log({
+        userId: actorId,
+        action: "admin.campus.delete",
+        targetType: "Campus",
+        targetId: id,
+        detail: { name: campus.name },
+      });
+      return { data: deleted };
+    } catch (error) {
+      if (this.isForeignKeyConstraintError(error)) {
+        throw this.campusReferenceConflict(
+          await this.countCampusReferences(id),
+        );
+      }
+      if (this.isRecordNotFoundError(error)) {
+        throw new NotFoundException("校区不存在");
+      }
+      throw error;
+    }
   }
 
   async listTeachers() {
@@ -98,12 +256,15 @@ export class AdminService {
         select: userSummarySelect,
       });
       if (assignTraining) {
-        await this.trainingAssignments.createNewTeacherAssignmentInTransaction(tx, {
-          actorId,
-          teacherId: created.id,
-          campusId: dto.campusId!,
-          mentorId: dto.mentorId!,
-        });
+        await this.trainingAssignments.createNewTeacherAssignmentInTransaction(
+          tx,
+          {
+            actorId,
+            teacherId: created.id,
+            campusId: dto.campusId!,
+            mentorId: dto.mentorId!,
+          },
+        );
       }
       return created;
     });
@@ -1601,6 +1762,92 @@ export class AdminService {
     return user;
   }
 
+  private async countCampusReferences(
+    id: string,
+  ): Promise<CampusReferenceCounts> {
+    const [
+      classes,
+      researchActivities,
+      pickupRecords,
+      trainingPermissionGrants,
+      trainingAssignments,
+      trainingSafetyCredentials,
+      trainingSafetyRecords,
+      trainingFeatureFlags,
+      trainingAuditRecords,
+    ] = await Promise.all([
+      this.prisma.class.count({ where: { campusId: id } }),
+      this.prisma.researchActivity.count({ where: { campusId: id } }),
+      this.prisma.pickupRecord.count({ where: { campusId: id } }),
+      this.prisma.trainingPermissionGrant.count({ where: { campusId: id } }),
+      this.prisma.trainingAssignment.count({ where: { campusId: id } }),
+      this.prisma.trainingSafetyCredential.count({ where: { campusId: id } }),
+      this.prisma.trainingSafetyRecord.count({ where: { campusId: id } }),
+      this.prisma.trainingFeatureFlag.count({ where: { campusId: id } }),
+      this.prisma.trainingAuditRecord.count({ where: { campusId: id } }),
+    ]);
+
+    return {
+      classes,
+      researchActivities,
+      pickupRecords,
+      trainingPermissionGrants,
+      trainingAssignments,
+      trainingSafetyCredentials,
+      trainingSafetyRecords,
+      trainingFeatureFlags,
+      trainingAuditRecords,
+    };
+  }
+
+  private referenceCountTotal(references: CampusReferenceCounts) {
+    return Object.values(references).reduce((sum, count) => sum + count, 0);
+  }
+
+  private async assertCampusNameAvailable(
+    tx: Prisma.TransactionClient,
+    name: string,
+    exceptId?: string,
+  ) {
+    if (!name) {
+      throw new BadRequestException("校区名称不能为空");
+    }
+
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`campus:${name}`}))`;
+    const existing = exceptId
+      ? await tx.$queryRaw<Array<{ id: string }>>`
+          SELECT "id"
+          FROM "Campus"
+          WHERE BTRIM("name") = ${name} AND "id" <> ${exceptId}
+          LIMIT 1
+        `
+      : await tx.$queryRaw<Array<{ id: string }>>`
+          SELECT "id"
+          FROM "Campus"
+          WHERE BTRIM("name") = ${name}
+          LIMIT 1
+        `;
+
+    if (existing.length > 0) {
+      throw this.campusNameConflict(name);
+    }
+  }
+
+  private campusNameConflict(name: string) {
+    return new ConflictException({
+      code: "CAMPUS_NAME_CONFLICT",
+      message: `校区名称“${name}”已存在`,
+    });
+  }
+
+  private campusReferenceConflict(references: CampusReferenceCounts) {
+    return new ConflictException({
+      code: "CAMPUS_HAS_REFERENCES",
+      message: "该校区仍有关联业务数据，不能删除",
+      details: { references },
+    });
+  }
+
   private async assertCampusExists(id: string) {
     const campus = await this.prisma.campus.findUnique({
       where: { id },
@@ -1608,7 +1855,7 @@ export class AdminService {
     });
 
     if (!campus) {
-      throw new NotFoundException("Campus not found");
+      throw new NotFoundException("校区不存在");
     }
   }
 
@@ -1661,6 +1908,33 @@ export class AdminService {
     }
 
     return value;
+  }
+
+  private normalizeOptionalText(value: string | null | undefined) {
+    if (value === undefined) return undefined;
+    return value?.trim() || null;
+  }
+
+  private campusRecordSelect() {
+    return {
+      id: true,
+      name: true,
+      address: true,
+      phone: true,
+      createdAt: true,
+      updatedAt: true,
+    } satisfies Prisma.CampusSelect;
+  }
+
+  private campusSelect() {
+    return {
+      ...this.campusRecordSelect(),
+      _count: {
+        select: {
+          classes: true,
+        },
+      },
+    } satisfies Prisma.CampusSelect;
   }
 
   private classSelect() {
@@ -1767,6 +2041,20 @@ export class AdminService {
     return (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"
+    );
+  }
+
+  private isForeignKeyConstraintError(error: unknown) {
+    return (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2003"
+    );
+  }
+
+  private isRecordNotFoundError(error: unknown) {
+    return (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2025"
     );
   }
 }

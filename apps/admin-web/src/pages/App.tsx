@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { MinusCircleOutlined, PlusOutlined } from "@ant-design/icons";
 import {
   Alert,
@@ -12,6 +12,7 @@ import {
   InputNumber,
   Layout,
   Menu,
+  message as antdMessage,
   Modal,
   Popconfirm,
   Row,
@@ -30,7 +31,7 @@ import { TrainingPanel } from "./TrainingPanel";
 
 type ApiResult<T> = { data: T };
 type ApiErrorResult = {
-  error: { message: string; requestId?: string };
+  error: { message: string; requestId?: string; details?: unknown };
 };
 
 const accountStatusLabels: Record<string, string> = {
@@ -79,8 +80,11 @@ interface UserSummary {
 interface CampusSummary {
   id: string;
   name: string;
-  address?: string;
-  phone?: string;
+  address?: string | null;
+  phone?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  _count?: { classes: number };
 }
 
 interface ParentSummary extends UserSummary {
@@ -193,6 +197,18 @@ const classReferenceLabels = {
   studentDailyReportNotes: "学生日报寄语",
 };
 
+const campusReferenceLabels = {
+  classes: "班级",
+  researchActivities: "教研活动",
+  pickupRecords: "安全接送记录",
+  trainingPermissionGrants: "培训权限授权",
+  trainingAssignments: "培训任务",
+  trainingSafetyCredentials: "培训安全凭证",
+  trainingSafetyRecords: "培训安全记录",
+  trainingFeatureFlags: "教师学院校区开关",
+  trainingAuditRecords: "培训审计记录",
+};
+
 const studentReferenceLabels = {
   guardians: "家长绑定",
   attendance: "考勤记录",
@@ -239,6 +255,15 @@ const teacherReferenceLabels = {
 
 function referenceTotal(counts: ReferenceCounts) {
   return Object.values(counts).reduce((sum, value) => sum + value, 0);
+}
+
+function formatAdminDate(value?: string) {
+  return value
+    ? new Date(value).toLocaleString("zh-CN", {
+        timeZone: "Asia/Shanghai",
+        hour12: false,
+      })
+    : "-";
 }
 
 const defaultWorkflowSteps = [
@@ -291,6 +316,7 @@ function workflowFormValues(template?: WorkflowTemplate) {
 
 const modules = [
   { key: "dashboard", label: "工作台" },
+  { key: "campuses", label: "校区管理" },
   { key: "teachers", label: "老师管理" },
   { key: "training", label: "教师学院" },
   { key: "parents", label: "家长管理" },
@@ -303,7 +329,9 @@ const modules = [
 
 export function App() {
   const [activeKey, setActiveKey] = useState("dashboard");
-  const [trainingTeacherId, setTrainingTeacherId] = useState<string | null>(null);
+  const [trainingTeacherId, setTrainingTeacherId] = useState<string | null>(
+    null,
+  );
   const [token, setToken] = useState(() => {
     localStorage.removeItem("adminToken");
     return sessionStorage.getItem("adminToken") ?? "";
@@ -311,6 +339,8 @@ export function App() {
   const [message, setMessage] = useState("");
   const [loginError, setLoginError] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
+  const [refreshLoading, setRefreshLoading] = useState(Boolean(token));
+  const [refreshError, setRefreshError] = useState("");
   const [teachers, setTeachers] = useState<UserSummary[]>([]);
   const [campuses, setCampuses] = useState<CampusSummary[]>([]);
   const [parents, setParents] = useState<ParentSummary[]>([]);
@@ -322,6 +352,7 @@ export function App() {
   const dashboard = useMemo(
     () => ({
       teachers: teachers.length,
+      campuses: campuses.length,
       parents: parents.length,
       classes: classes.length,
       students: students.length,
@@ -329,6 +360,7 @@ export function App() {
     }),
     [
       classes.length,
+      campuses.length,
       parents.length,
       students.length,
       teachers.length,
@@ -360,30 +392,41 @@ export function App() {
 
   async function refreshAll() {
     if (!token) return;
-    const [
-      nextTeachers,
-      nextCampuses,
-      nextParents,
-      nextClasses,
-      nextStudents,
-      nextTemplates,
-      nextAuditLogs,
-    ] = await Promise.all([
-      request<UserSummary[]>("/admin/teachers"),
-      request<CampusSummary[]>("/admin/campuses"),
-      request<ParentSummary[]>("/admin/parents"),
-      request<ClassSummary[]>("/admin/classes"),
-      request<StudentSummary[]>("/admin/students"),
-      request<WorkflowTemplate[]>("/admin/workflow-templates"),
-      request<any[]>("/admin/audit-logs"),
-    ]);
-    setTeachers(nextTeachers);
-    setCampuses(nextCampuses);
-    setParents(nextParents);
-    setClasses(nextClasses);
-    setStudents(nextStudents);
-    setTemplates(nextTemplates);
-    setAuditLogs(nextAuditLogs);
+    setRefreshLoading(true);
+    setRefreshError("");
+    try {
+      const [
+        nextTeachers,
+        nextCampuses,
+        nextParents,
+        nextClasses,
+        nextStudents,
+        nextTemplates,
+        nextAuditLogs,
+      ] = await Promise.all([
+        request<UserSummary[]>("/admin/teachers"),
+        request<CampusSummary[]>("/admin/campuses"),
+        request<ParentSummary[]>("/admin/parents"),
+        request<ClassSummary[]>("/admin/classes"),
+        request<StudentSummary[]>("/admin/students"),
+        request<WorkflowTemplate[]>("/admin/workflow-templates"),
+        request<any[]>("/admin/audit-logs"),
+      ]);
+      setTeachers(nextTeachers);
+      setCampuses(nextCampuses);
+      setParents(nextParents);
+      setClasses(nextClasses);
+      setStudents(nextStudents);
+      setTemplates(nextTemplates);
+      setAuditLogs(nextAuditLogs);
+    } catch (error) {
+      const nextError =
+        error instanceof Error ? error.message : "后台数据加载失败";
+      setRefreshError(nextError);
+      throw error;
+    } finally {
+      setRefreshLoading(false);
+    }
   }
 
   function saveLogin(result: AdminLoginResult) {
@@ -450,7 +493,7 @@ export function App() {
   }
 
   useEffect(() => {
-    refreshAll().catch((error: Error) => setMessage(error.message));
+    void refreshAll().catch(() => undefined);
   }, [token]);
 
   if (!token) {
@@ -547,16 +590,44 @@ export function App() {
         <Layout.Header className="admin-header">
           <Typography.Title level={3}>运营管理工作台</Typography.Title>
           <Space>
-            <Button onClick={refreshAll}>刷新</Button>
+            <Button
+              loading={refreshLoading}
+              onClick={() => void refreshAll().catch(() => undefined)}
+            >
+              刷新
+            </Button>
             <Button onClick={logout}>退出登录</Button>
           </Space>
         </Layout.Header>
         <Layout.Content className="admin-content">
-          {message ? (
+          {refreshError ? (
+            <Alert
+              className="admin-alert"
+              message="后台数据加载失败"
+              description={refreshError}
+              type="error"
+              showIcon
+              action={
+                <Button
+                  size="small"
+                  onClick={() => void refreshAll().catch(() => undefined)}
+                >
+                  重试
+                </Button>
+              }
+            />
+          ) : message ? (
             <Alert className="admin-alert" message={message} type="info" />
           ) : null}
           {activeKey === "dashboard" ? (
             <Dashboard dashboard={dashboard} />
+          ) : activeKey === "campuses" ? (
+            <CampusesPanel
+              campuses={campuses}
+              loading={refreshLoading}
+              request={request}
+              refreshAll={refreshAll}
+            />
           ) : activeKey === "teachers" ? (
             <TeachersPanel
               teachers={teachers}
@@ -587,6 +658,7 @@ export function App() {
           ) : activeKey === "classes" ? (
             <ClassesPanel
               classes={classes}
+              campuses={campuses}
               teachers={teachers}
               request={request}
               refreshAll={refreshAll}
@@ -626,6 +698,11 @@ function Dashboard({ dashboard }: { dashboard: Record<string, number> }) {
     <Row gutter={[16, 16]}>
       <Col xs={24} sm={12} lg={6}>
         <Card>
+          <Statistic title="校区" value={dashboard.campuses} />
+        </Card>
+      </Col>
+      <Col xs={24} sm={12} lg={6}>
+        <Card>
           <Statistic title="老师" value={dashboard.teachers} />
         </Card>
       </Col>
@@ -650,6 +727,348 @@ function Dashboard({ dashboard }: { dashboard: Record<string, number> }) {
         </Card>
       </Col>
     </Row>
+  );
+}
+
+interface CampusFormValues {
+  name: string;
+  address?: string | null;
+  phone?: string | null;
+}
+
+function campusPayload(values: CampusFormValues) {
+  return {
+    name: values.name.trim(),
+    address: values.address?.trim() || null,
+    phone: values.phone?.trim() || null,
+  };
+}
+
+function CampusesPanel({
+  campuses,
+  loading,
+  request,
+  refreshAll,
+}: {
+  campuses: CampusSummary[];
+  loading: boolean;
+  request: <T>(path: string, options?: RequestInit) => Promise<T>;
+  refreshAll: () => Promise<void>;
+}) {
+  const [createForm] = Form.useForm<CampusFormValues>();
+  const [editForm] = Form.useForm<CampusFormValues>();
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editing, setEditing] = useState<CampusSummary | null>(null);
+  const [createSubmitting, setCreateSubmitting] = useState(false);
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [referenceLoadingId, setReferenceLoadingId] = useState<string | null>(
+    null,
+  );
+  const mutationInFlight = useRef(false);
+  const referenceInFlight = useRef<string | null>(null);
+
+  async function refreshAfterMutation() {
+    try {
+      await refreshAll();
+    } catch {
+      antdMessage.warning("操作已成功，但列表刷新失败，请点击页面上的重试按钮");
+    }
+  }
+
+  async function createCampus(values: CampusFormValues) {
+    if (mutationInFlight.current) return;
+    mutationInFlight.current = true;
+    setCreateSubmitting(true);
+    try {
+      await request("/admin/campuses", {
+        method: "POST",
+        body: JSON.stringify(campusPayload(values)),
+      });
+      setCreateOpen(false);
+      createForm.resetFields();
+      antdMessage.success("校区已新增");
+      await refreshAfterMutation();
+    } catch (error) {
+      Modal.error({
+        title: "新增校区失败",
+        content: error instanceof Error ? error.message : "请稍后重试",
+      });
+    } finally {
+      mutationInFlight.current = false;
+      setCreateSubmitting(false);
+    }
+  }
+
+  async function updateCampus(values: CampusFormValues) {
+    if (!editing || mutationInFlight.current) return;
+    mutationInFlight.current = true;
+    setEditSubmitting(true);
+    try {
+      await request(`/admin/campuses/${editing.id}`, {
+        method: "PATCH",
+        body: JSON.stringify(campusPayload(values)),
+      });
+      setEditing(null);
+      editForm.resetFields();
+      antdMessage.success("校区资料已更新");
+      await refreshAfterMutation();
+    } catch (error) {
+      Modal.error({
+        title: "编辑校区失败",
+        content: error instanceof Error ? error.message : "请稍后重试",
+      });
+    } finally {
+      mutationInFlight.current = false;
+      setEditSubmitting(false);
+    }
+  }
+
+  function showReferenceWarning(
+    campus: CampusSummary,
+    counts: ReferenceCounts,
+  ) {
+    Modal.warning({
+      width: 680,
+      title: `“${campus.name}”不能删除`,
+      okText: "知道了",
+      content: (
+        <Space direction="vertical" size={12} className="admin-stack">
+          <Alert
+            type="warning"
+            showIcon
+            message="该校区仍有关联业务数据。为保护班级、接送、教研、培训及历史审计记录，系统不会提供强制删除。"
+          />
+          <ReferenceSummary counts={counts} labels={campusReferenceLabels} />
+        </Space>
+      ),
+    });
+  }
+
+  async function deleteCampus(campus: CampusSummary) {
+    if (referenceInFlight.current) return;
+    referenceInFlight.current = campus.id;
+    setReferenceLoadingId(campus.id);
+    try {
+      const counts = await request<ReferenceCounts>(
+        `/admin/campuses/${campus.id}/references`,
+      );
+      if (referenceTotal(counts) > 0) {
+        showReferenceWarning(campus, counts);
+        return;
+      }
+
+      Modal.confirm({
+        title: `确认删除空校区“${campus.name}”？`,
+        content: "已确认该校区没有业务引用。删除后不可恢复，请再次确认。",
+        okText: "确认删除",
+        cancelText: "取消",
+        okButtonProps: { danger: true },
+        onOk: async () => {
+          try {
+            await request(`/admin/campuses/${campus.id}`, {
+              method: "DELETE",
+            });
+            antdMessage.success("空校区已删除");
+            await refreshAfterMutation();
+          } catch (error) {
+            try {
+              const latestCounts = await request<ReferenceCounts>(
+                `/admin/campuses/${campus.id}/references`,
+              );
+              if (referenceTotal(latestCounts) > 0) {
+                showReferenceWarning(campus, latestCounts);
+                return;
+              }
+            } catch {}
+            Modal.error({
+              title: "删除校区失败",
+              content: error instanceof Error ? error.message : "请稍后重试",
+            });
+          }
+        },
+      });
+    } catch (error) {
+      Modal.error({
+        title: "校区关联检查失败",
+        content: error instanceof Error ? error.message : "请稍后重试",
+      });
+    } finally {
+      referenceInFlight.current = null;
+      setReferenceLoadingId(null);
+    }
+  }
+
+  return (
+    <Space direction="vertical" size={16} className="admin-stack">
+      <Card
+        title="校区管理"
+        extra={
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => {
+              createForm.resetFields();
+              setCreateOpen(true);
+            }}
+          >
+            新增校区
+          </Button>
+        }
+      >
+        <Typography.Paragraph type="secondary">
+          校区被班级、教研、接送或培训数据引用后不可删除；请优先保留历史业务关系。
+        </Typography.Paragraph>
+        <Table
+          rowKey="id"
+          loading={loading}
+          dataSource={campuses}
+          pagination={false}
+          locale={{ emptyText: "暂无校区，请点击右上角新增校区" }}
+          scroll={{ x: 900 }}
+          columns={[
+            { title: "校区名称", dataIndex: "name", width: 180 },
+            {
+              title: "地址",
+              dataIndex: "address",
+              render: (value) => value || "-",
+            },
+            {
+              title: "联系电话",
+              dataIndex: "phone",
+              width: 150,
+              render: (value) => value || "-",
+            },
+            {
+              title: "班级数量",
+              width: 100,
+              render: (_, record) => record._count?.classes ?? 0,
+            },
+            {
+              title: "更新时间",
+              width: 190,
+              render: (_, record) =>
+                formatAdminDate(record.updatedAt ?? record.createdAt),
+            },
+            {
+              title: "操作",
+              fixed: "right",
+              width: 150,
+              render: (_, record) => (
+                <Space>
+                  <Button
+                    type="link"
+                    onClick={() => {
+                      setEditing(record);
+                      editForm.setFieldsValue({
+                        name: record.name,
+                        address: record.address ?? "",
+                        phone: record.phone ?? "",
+                      });
+                    }}
+                  >
+                    编辑
+                  </Button>
+                  <Button
+                    type="link"
+                    danger
+                    loading={referenceLoadingId === record.id}
+                    disabled={
+                      referenceLoadingId !== null &&
+                      referenceLoadingId !== record.id
+                    }
+                    onClick={() => void deleteCampus(record)}
+                  >
+                    删除
+                  </Button>
+                </Space>
+              ),
+            },
+          ]}
+        />
+      </Card>
+
+      <Modal
+        title="新增校区"
+        open={createOpen}
+        confirmLoading={createSubmitting}
+        maskClosable={!createSubmitting}
+        closable={!createSubmitting}
+        okText="新增"
+        cancelText="取消"
+        onOk={() => createForm.submit()}
+        onCancel={() => {
+          if (!createSubmitting) setCreateOpen(false);
+        }}
+      >
+        <Form
+          form={createForm}
+          layout="vertical"
+          requiredMark={false}
+          onFinish={(values) => void createCampus(values)}
+        >
+          <Form.Item
+            name="name"
+            label="校区名称"
+            rules={[
+              {
+                required: true,
+                whitespace: true,
+                message: "请输入校区名称",
+              },
+            ]}
+          >
+            <Input placeholder="请输入校区名称" />
+          </Form.Item>
+          <Form.Item name="address" label="地址">
+            <Input placeholder="选填" />
+          </Form.Item>
+          <Form.Item name="phone" label="联系电话">
+            <Input placeholder="选填" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title={`编辑校区${editing ? `：${editing.name}` : ""}`}
+        open={Boolean(editing)}
+        confirmLoading={editSubmitting}
+        maskClosable={!editSubmitting}
+        closable={!editSubmitting}
+        okText="保存"
+        cancelText="取消"
+        onOk={() => editForm.submit()}
+        onCancel={() => {
+          if (!editSubmitting) setEditing(null);
+        }}
+      >
+        <Form
+          form={editForm}
+          layout="vertical"
+          requiredMark={false}
+          onFinish={(values) => void updateCampus(values)}
+        >
+          <Form.Item
+            name="name"
+            label="校区名称"
+            rules={[
+              {
+                required: true,
+                whitespace: true,
+                message: "请输入校区名称",
+              },
+            ]}
+          >
+            <Input placeholder="请输入校区名称" />
+          </Form.Item>
+          <Form.Item name="address" label="地址">
+            <Input placeholder="选填" />
+          </Form.Item>
+          <Form.Item name="phone" label="联系电话">
+            <Input placeholder="选填" />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </Space>
   );
 }
 
@@ -685,7 +1104,9 @@ function TeachersPanel({
     void request<any>("/admin/training/capabilities")
       .then(async (capabilities) => {
         if (!capabilities.trainingManage) return;
-        const subjects = await request<any>("/admin/training/assignment-subjects");
+        const subjects = await request<any>(
+          "/admin/training/assignment-subjects",
+        );
         if (active) {
           setCanAssignTraining(true);
           setTrainingSubjects(subjects);
@@ -780,49 +1201,53 @@ function TeachersPanel({
           <Form.Item name="phone" rules={[{ required: true }]}>
             <Input placeholder="手机号" />
           </Form.Item>
-          {canAssignTraining ? <Form.Item
-            name="assignTraining"
-            label="布置新教师培训"
-            valuePropName="checked"
-          >
-            <Switch />
-          </Form.Item> : null}
-          {canAssignTraining ? <Form.Item noStyle shouldUpdate>
-            {({ getFieldValue }) =>
-              getFieldValue("assignTraining") ? (
-                <>
-                  <Form.Item
-                    name="campusId"
-                    rules={[{ required: true, message: "请选择培训校区" }]}
-                  >
-                    <Select
-                      placeholder="培训校区"
-                      style={{ width: 170 }}
-                      options={trainingSubjects.campuses.map((campus) => ({
-                        value: campus.id,
-                        label: campus.name,
-                      }))}
-                    />
-                  </Form.Item>
-                  <Form.Item
-                    name="mentorId"
-                    rules={[{ required: true, message: "请选择带教负责人" }]}
-                  >
-                    <Select
-                      placeholder="带教负责人"
-                      style={{ width: 170 }}
-                      options={trainingSubjects.mentors
-                        .filter((teacher) => teacher.status === "active")
-                        .map((teacher) => ({
-                          value: teacher.id,
-                          label: teacher.name,
+          {canAssignTraining ? (
+            <Form.Item
+              name="assignTraining"
+              label="布置新教师培训"
+              valuePropName="checked"
+            >
+              <Switch />
+            </Form.Item>
+          ) : null}
+          {canAssignTraining ? (
+            <Form.Item noStyle shouldUpdate>
+              {({ getFieldValue }) =>
+                getFieldValue("assignTraining") ? (
+                  <>
+                    <Form.Item
+                      name="campusId"
+                      rules={[{ required: true, message: "请选择培训校区" }]}
+                    >
+                      <Select
+                        placeholder="培训校区"
+                        style={{ width: 170 }}
+                        options={trainingSubjects.campuses.map((campus) => ({
+                          value: campus.id,
+                          label: campus.name,
                         }))}
-                    />
-                  </Form.Item>
-                </>
-              ) : null
-            }
-          </Form.Item> : null}
+                      />
+                    </Form.Item>
+                    <Form.Item
+                      name="mentorId"
+                      rules={[{ required: true, message: "请选择带教负责人" }]}
+                    >
+                      <Select
+                        placeholder="带教负责人"
+                        style={{ width: 170 }}
+                        options={trainingSubjects.mentors
+                          .filter((teacher) => teacher.status === "active")
+                          .map((teacher) => ({
+                            value: teacher.id,
+                            label: teacher.name,
+                          }))}
+                      />
+                    </Form.Item>
+                  </>
+                ) : null
+              }
+            </Form.Item>
+          ) : null}
           <Button type="primary" htmlType="submit">
             创建
           </Button>
@@ -837,9 +1262,7 @@ function TeachersPanel({
           {
             title: "状态",
             dataIndex: "status",
-            render: (value) => (
-              <Tag>{accountStatusLabels[value] ?? value}</Tag>
-            ),
+            render: (value) => <Tag>{accountStatusLabels[value] ?? value}</Tag>,
           },
           {
             title: "在职状态",
@@ -1478,11 +1901,13 @@ function ParentsPanel({
 
 function ClassesPanel({
   classes,
+  campuses,
   teachers,
   request,
   refreshAll,
 }: {
   classes: ClassSummary[];
+  campuses: CampusSummary[];
   teachers: UserSummary[];
   request: <T>(path: string, options?: RequestInit) => Promise<T>;
   refreshAll: () => Promise<void>;
@@ -1555,7 +1980,6 @@ function ClassesPanel({
         <Form
           form={form}
           layout="inline"
-          initialValues={{ campusId: "seed-campus-main" }}
           onFinish={async (values) => {
             await request("/admin/classes", {
               method: "POST",
@@ -1566,7 +1990,14 @@ function ClassesPanel({
           }}
         >
           <Form.Item name="campusId" rules={[{ required: true }]}>
-            <Input placeholder="校区 ID" />
+            <Select
+              placeholder="校区"
+              style={{ width: 180 }}
+              options={campuses.map((campus) => ({
+                label: campus.name,
+                value: campus.id,
+              }))}
+            />
           </Form.Item>
           <Form.Item name="name" rules={[{ required: true }]}>
             <Input placeholder="班级名" />
@@ -1651,12 +2082,13 @@ function ClassesPanel({
           <Form.Item name="name" label="班级名" rules={[{ required: true }]}>
             <Input />
           </Form.Item>
-          <Form.Item
-            name="campusId"
-            label="校区 ID"
-            rules={[{ required: true }]}
-          >
-            <Input />
+          <Form.Item name="campusId" label="校区" rules={[{ required: true }]}>
+            <Select
+              options={campuses.map((campus) => ({
+                label: campus.name,
+                value: campus.id,
+              }))}
+            />
           </Form.Item>
           <Form.Item name="teacherId" label="老师">
             <Select
@@ -2183,84 +2615,84 @@ function WorkflowStepsEditor() {
           {fields.map((field, index) => {
             const { key: fieldKey, ...fieldProps } = field;
             return (
-            <Card
-              key={fieldKey}
-              size="small"
-              title={`步骤 ${index + 1}`}
-              extra={
-                <Button
-                  type="text"
-                  danger
-                  icon={<MinusCircleOutlined />}
-                  onClick={() => remove(field.name)}
-                >
-                  删除步骤
-                </Button>
-              }
-            >
-              <Row gutter={12}>
-                <Col xs={24} md={6}>
-                  <Form.Item
-                    {...fieldProps}
-                    name={[field.name, "name"]}
-                    label="步骤名称"
-                    rules={[{ required: true, message: "请输入步骤名称" }]}
+              <Card
+                key={fieldKey}
+                size="small"
+                title={`步骤 ${index + 1}`}
+                extra={
+                  <Button
+                    type="text"
+                    danger
+                    icon={<MinusCircleOutlined />}
+                    onClick={() => remove(field.name)}
                   >
-                    <Input placeholder="例如：到校签到" />
-                  </Form.Item>
-                </Col>
-                <Col xs={24} md={5}>
-                  <Form.Item
-                    {...fieldProps}
-                    name={[field.name, "stepKey"]}
-                    label="步骤标识"
-                    rules={[
-                      { required: true, message: "请输入步骤标识" },
-                      {
-                        pattern: /^[a-z][a-z0-9_-]*$/,
-                        message: "使用小写字母、数字、_ 或 -",
-                      },
-                    ]}
-                  >
-                    <Input placeholder="arrive" />
-                  </Form.Item>
-                </Col>
-                <Col xs={24} md={5}>
-                  <Form.Item
-                    {...fieldProps}
-                    name={[field.name, "timeRange"]}
-                    label="时间范围"
-                    rules={[{ required: true, message: "请输入时间范围" }]}
-                  >
-                    <Input placeholder="16:30-17:00" />
-                  </Form.Item>
-                </Col>
-                <Col xs={12} md={4}>
-                  <Form.Item
-                    {...fieldProps}
-                    name={[field.name, "sortOrder"]}
-                    label="排序"
-                    rules={[{ required: true, message: "请输入排序" }]}
-                  >
-                    <InputNumber
-                      min={0}
-                      precision={0}
-                      style={{ width: "100%" }}
-                    />
-                  </Form.Item>
-                </Col>
-                <Col xs={12} md={4}>
-                  <Form.Item
-                    {...fieldProps}
-                    name={[field.name, "requirePhoto"]}
-                    label="要求照片"
-                    valuePropName="checked"
-                  >
-                    <Switch />
-                  </Form.Item>
-                </Col>
-              </Row>
-            </Card>
+                    删除步骤
+                  </Button>
+                }
+              >
+                <Row gutter={12}>
+                  <Col xs={24} md={6}>
+                    <Form.Item
+                      {...fieldProps}
+                      name={[field.name, "name"]}
+                      label="步骤名称"
+                      rules={[{ required: true, message: "请输入步骤名称" }]}
+                    >
+                      <Input placeholder="例如：到校签到" />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} md={5}>
+                    <Form.Item
+                      {...fieldProps}
+                      name={[field.name, "stepKey"]}
+                      label="步骤标识"
+                      rules={[
+                        { required: true, message: "请输入步骤标识" },
+                        {
+                          pattern: /^[a-z][a-z0-9_-]*$/,
+                          message: "使用小写字母、数字、_ 或 -",
+                        },
+                      ]}
+                    >
+                      <Input placeholder="arrive" />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} md={5}>
+                    <Form.Item
+                      {...fieldProps}
+                      name={[field.name, "timeRange"]}
+                      label="时间范围"
+                      rules={[{ required: true, message: "请输入时间范围" }]}
+                    >
+                      <Input placeholder="16:30-17:00" />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={12} md={4}>
+                    <Form.Item
+                      {...fieldProps}
+                      name={[field.name, "sortOrder"]}
+                      label="排序"
+                      rules={[{ required: true, message: "请输入排序" }]}
+                    >
+                      <InputNumber
+                        min={0}
+                        precision={0}
+                        style={{ width: "100%" }}
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={12} md={4}>
+                    <Form.Item
+                      {...fieldProps}
+                      name={[field.name, "requirePhoto"]}
+                      label="要求照片"
+                      valuePropName="checked"
+                    >
+                      <Switch />
+                    </Form.Item>
+                  </Col>
+                </Row>
+              </Card>
             );
           })}
           <Button

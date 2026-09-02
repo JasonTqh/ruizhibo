@@ -18,12 +18,14 @@ import { RolesGuard } from "../auth/roles.guard";
 import { AdminService } from "./admin.service";
 import { BindGuardianDto } from "./dto/bind-guardian.dto";
 import { BusinessQueryDto } from "./dto/business-query.dto";
+import { CreateCampusDto } from "./dto/create-campus.dto";
 import { CreateClassDto } from "./dto/create-class.dto";
 import { CreateParentDto } from "./dto/create-parent.dto";
 import { CreateStudentDto } from "./dto/create-student.dto";
 import { CreateTeacherDto } from "./dto/create-teacher.dto";
 import { CreateWorkflowTemplateDto } from "./dto/create-workflow-template.dto";
 import { UpdateClassDto } from "./dto/update-class.dto";
+import { UpdateCampusDto } from "./dto/update-campus.dto";
 import { UpdateStudentDto } from "./dto/update-student.dto";
 import { UpdateTeacherDto } from "./dto/update-teacher.dto";
 import { UpdateWorkflowTemplateDto } from "./dto/update-workflow-template.dto";
@@ -47,6 +49,30 @@ export class AdminController {
   @Get("campuses")
   listCampuses() {
     return this.adminService.listCampuses();
+  }
+
+  @Post("campuses")
+  createCampus(@CurrentUser() user: AuthUser, @Body() dto: CreateCampusDto) {
+    return this.adminService.createCampus(user.id, dto);
+  }
+
+  @Patch("campuses/:id")
+  updateCampus(
+    @CurrentUser() user: AuthUser,
+    @Param("id") id: string,
+    @Body() dto: UpdateCampusDto,
+  ) {
+    return this.adminService.updateCampus(user.id, id, dto);
+  }
+
+  @Get("campuses/:id/references")
+  campusReferences(@Param("id") id: string) {
+    return this.adminService.campusReferences(id);
+  }
+
+  @Delete("campuses/:id")
+  deleteCampus(@CurrentUser() user: AuthUser, @Param("id") id: string) {
+    return this.adminService.deleteCampus(user.id, id);
   }
 
   @Post("teachers")
