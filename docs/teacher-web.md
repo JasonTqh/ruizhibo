@@ -76,4 +76,24 @@ pnpm build:teacher-web
 
 ## 部署边界
 
-生产环境需要将教师学院网页放在可信 HTTPS 域名下，并把该来源加入 API 的 `CORS_ORIGINS`。网页端只能配置公开的 API 地址，不得写入微信 AppSecret、JWT secret、数据库连接串或任何生产凭据。
+教师学院使用 `deploy/Dockerfile.teacher-web` 多阶段构建：Node 阶段产生 Vite 静态包，运行阶段只使用内网 Caddy 提供静态文件和 SPA fallback，不运行 Vite 开发服务器。`teacher-web` 没有宿主机端口映射，由现有 `web` Caddy 使用独立域名转发。
+
+生产示例：
+
+```text
+DEPLOY_SITE_ADDRESS=https://api.ruizhibo.com
+TEACHER_WEB_SITE_ADDRESS=https://teacher.ruizhibo.com
+CORS_ORIGINS=https://api.ruizhibo.com,https://teacher.ruizhibo.com
+```
+
+两个域名均解析到同一服务器，并由公网 Caddy 自动管理 HTTPS 证书。教师网页在构建时固定使用同源 `/api`，不得向 Vite 构建参数注入微信 AppSecret、JWT secret、数据库连接串或任何服务端凭据。
+
+构建与启动：
+
+```powershell
+docker compose --env-file deploy/.env -f deploy/docker-compose.test.yml config --quiet
+docker compose --env-file deploy/.env -f deploy/docker-compose.test.yml build api web teacher-web
+docker compose --env-file deploy/.env -f deploy/docker-compose.test.yml up -d
+```
+
+升级失败时切回上一 Git 版本并重新构建相同服务。不得使用 `docker compose down -v`；PostgreSQL、上传文件和 Caddy 证书卷与教师网页静态镜像独立。`deploy/.env` 保持 Git 忽略，只在部署环境维护。
