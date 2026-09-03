@@ -1,10 +1,17 @@
 # 测试环境部署
 
-本方案使用 Docker Compose 启动 PostgreSQL、NestJS API 和管理后台。管理后台由 Caddy 提供静态文件，并把 `/api/*`、`/uploads/*` 转发到 API；配置真实域名后由 Caddy 自动申请和续期 HTTPS 证书。
+本方案使用 Docker Compose 启动 PostgreSQL、NestJS API、管理后台入口和独立的教师学院静态容器。公网只由 Caddy 提供 80/443 入口：管理后台与教师网页使用不同域名，两个站点的 `/api/*`、`/uploads/*` 均转发到同一 API。配置真实域名后由 Caddy 自动申请和续期 HTTPS 证书。
 
 ## 1. 部署前准备
 
-服务器需要安装 Docker Engine 与 Docker Compose，并允许公网访问 TCP 80、443。将测试域名的 A/AAAA 记录指向服务器，然后确认以下内容：
+服务器需要安装 Docker Engine 与 Docker Compose，并只需对公网开放 TCP 80、443。在 DNS 中将两个域名的 A 记录（以及已正确配置 IPv6 时的 AAAA 记录）指向同一服务器，例如：
+
+```text
+api.ruizhibo.com      -> <server-public-ip>
+teacher.ruizhibo.com  -> <server-public-ip>
+```
+
+腾讯云防火墙/安全组不要对公网开放 3000 或 5432；API、PostgreSQL 和 `teacher-web` 只在 Compose 内网通信。然后确认以下内容：
 
 - 教师端和家长端各自的微信 AppID/AppSecret。
 - 一条至少 32 位的随机 `JWT_SECRET`。
@@ -24,14 +31,15 @@ Copy-Item deploy/.env.example deploy/.env
 编辑 `deploy/.env`：
 
 ```text
-DEPLOY_SITE_ADDRESS=test.example.com
+DEPLOY_SITE_ADDRESS=https://api.ruizhibo.com
+TEACHER_WEB_SITE_ADDRESS=https://teacher.ruizhibo.com
 APP_VERSION=<git-commit-sha>
 HTTP_PORT=80
 HTTPS_PORT=443
 POSTGRES_PASSWORD=<strong-password>
 DATABASE_URL=postgresql://ruizhibo:<url-encoded-password>@db:5432/ruizhibo?schema=public
 JWT_SECRET=<random-secret>
-CORS_ORIGINS=https://test.example.com
+CORS_ORIGINS=https://api.ruizhibo.com,https://teacher.ruizhibo.com
 LOG_LEVEL=info
 LOG_MAX_SIZE=10m
 LOG_MAX_FILES=5
@@ -49,9 +57,12 @@ WECHAT_PARENT_APP_SECRET=<parent-app-secret>
 
 ```powershell
 docker compose --env-file deploy/.env -f deploy/docker-compose.test.yml config --quiet
+docker compose --env-file deploy/.env -f deploy/docker-compose.test.yml build api web teacher-web
 docker compose --env-file deploy/.env -f deploy/docker-compose.test.yml up -d --build
 docker compose --env-file deploy/.env -f deploy/docker-compose.test.yml ps
 ```
+
+`teacher-web` 只通过 Compose 内网向 `web` 暴露 80，没有宿主机端口映射。`web` 是唯一公网入口，不会覆盖管理后台静态文件。
 
 API 容器启动时自动执行已提交的 Prisma migrations。首次创建专用测试数据库后，如需演示数据可执行：
 
@@ -71,12 +82,22 @@ docker compose --env-file deploy/.env -f deploy/docker-compose.test.yml run --rm
 Remove-Item Env:ADMIN_PHONE, Env:ADMIN_PASSWORD
 ```
 
+为在职教师初始化教师网页强密码（不要将明文写入 `deploy/.env`）：
+
+```powershell
+$env:TEACHER_WEB_PHONE="<教师手机号>"
+$env:TEACHER_WEB_PASSWORD="<至少12位且包含大小写字母、数字和特殊字符>"
+docker compose --env-file deploy/.env -f deploy/docker-compose.test.yml run --rm `
+  -e TEACHER_WEB_PHONE -e TEACHER_WEB_PASSWORD api pnpm teacher-web:set-password
+Remove-Item Env:TEACHER_WEB_PHONE, Env:TEACHER_WEB_PASSWORD
+```
+
 ## 4. 部署后验证
 
 检查日志：
 
 ```powershell
-docker compose --env-file deploy/.env -f deploy/docker-compose.test.yml logs --tail 100 api web
+docker compose --env-file deploy/.env -f deploy/docker-compose.test.yml logs --tail 100 api web teacher-web
 ```
 
 API 日志为单行 JSON，可通过 `requestId` 关联小程序错误与服务端请求。Docker 默认对数据库、API 和 Web 日志执行 10 MB × 5 文件轮转，详见 `docs/observability.md`。
@@ -87,13 +108,25 @@ API 日志为单行 JSON，可通过 `requestId` 关联小程序错误与服务�
 $env:VERIFY_APP_VERSION="<git-commit-sha>"
 $env:VERIFY_ADMIN_PASSWORD="<管理员密码>"
 pnpm verify:release -- `
-  -BaseUrl https://test.example.com/api `
-  -AdminUrl https://test.example.com `
-  -ExpectedCorsOrigin https://test.example.com `
+  -BaseUrl https://api.ruizhibo.com/api `
+  -AdminUrl https://api.ruizhibo.com `
+  -ExpectedCorsOrigin https://teacher.ruizhibo.com `
   -ExpectedStorageDriver local `
   -RequireHttps
 Remove-Item Env:VERIFY_APP_VERSION, Env:VERIFY_ADMIN_PASSWORD
 ```
+
+分别验证两个站点、API 代理和 SPA 刷新：
+
+```powershell
+curl.exe --fail --head https://api.ruizhibo.com/
+curl.exe --fail https://api.ruizhibo.com/api/health
+curl.exe --fail --head https://teacher.ruizhibo.com/
+curl.exe --fail https://teacher.ruizhibo.com/api/health
+curl.exe --fail --head https://teacher.ruizhibo.com/course/refresh-check
+```
+
+第一个域名应返回管理后台，第二个域名应返回教师学院；教师网页的 JS/CSS 资源应从自身域名加载，不得包含 `localhost`、数据库连接串或服务端密钥。
 
 该命令检查部署版本、正式管理员登录、开发登录禁用、CORS、安全响应头、生产后台包和真实文件上传。完整说明见 `docs/release-verification.md`。
 
@@ -101,7 +134,7 @@ Remove-Item Env:VERIFY_APP_VERSION, Env:VERIFY_ADMIN_PASSWORD
 
 ```powershell
 pnpm --filter @ruizhibo/api verify:observability -- `
-  -BaseUrl https://test.example.com/api
+  -BaseUrl https://api.ruizhibo.com/api
 ```
 
 `verify:deployment -RunApiSuite` 只保留给封闭开发环境；它依赖 `dev-login`，不能与 `verify:release` 混用。公网环境不要为了运行开发 API 套件而开启开发登录。
@@ -110,15 +143,15 @@ pnpm --filter @ruizhibo/api verify:observability -- `
 
 在微信公众平台分别为教师端、家长端配置：
 
-- request 合法域名：`https://test.example.com`
-- downloadFile 合法域名：`https://test.example.com`（用于 `/uploads/*` 图片）
+- request 合法域名：`https://api.ruizhibo.com`
+- downloadFile 合法域名：`https://api.ruizhibo.com`（用于 `/uploads/*` 图片）
 
 若 `FILE_STORAGE_DRIVER=s3`，还需把 `S3_PUBLIC_BASE_URL` 的 HTTPS 域名加入 downloadFile 合法域名。完整对象存储配置见 `docs/file-storage.md`。
 
 构建体验版时注入同一个 HTTPS API 地址和微信登录模式：
 
 ```powershell
-$env:TARO_APP_API_BASE_URL="https://test.example.com/api"
+$env:TARO_APP_API_BASE_URL="https://api.ruizhibo.com/api"
 $env:TARO_APP_AUTH_MODE="wechat"
 pnpm --filter @ruizhibo/teacher-miniapp build
 pnpm --filter @ruizhibo/parent-miniapp build
@@ -136,7 +169,7 @@ pnpm backup:deployment
 
 该命令会创建带 SHA-256 清单的 PostgreSQL 转储和 local 上传文件归档。恢复默认只校验，必须显式追加 `-ConfirmRestore` 才会覆盖当前数据，完整操作见 `docs/backup-and-restore.md`。
 
-更新代码后重新执行 `up -d --build`。回滚时切回上一 Git 版本重新构建；数据库 schema 变化必须先准备兼容或反向迁移方案。
+更新代码后重新执行 `up -d --build`。回滚时切回上一 Git 版本，然后按该版本的 Compose 配置重新构建 `api web teacher-web`；教师网页不保存业务数据，回滚静态镜像不需要删除 PostgreSQL、上传文件或 Caddy 卷。数据库 schema 变化必须先准备兼容或反向迁移方案。
 
 停止服务但保留数据：
 

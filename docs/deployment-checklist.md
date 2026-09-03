@@ -11,7 +11,9 @@ DATABASE_URL=postgresql://...
 JWT_SECRET=<strong-secret>
 TRAINING_MEDIA_SIGNING_SECRET=<independent-strong-secret>
 TRAINING_MEDIA_URL_SECONDS=900
-CORS_ORIGINS=https://test.example.com,https://admin.example.com
+DEPLOY_SITE_ADDRESS=https://api.ruizhibo.com
+TEACHER_WEB_SITE_ADDRESS=https://teacher.ruizhibo.com
+CORS_ORIGINS=https://api.ruizhibo.com,https://teacher.ruizhibo.com
 ENABLE_DEV_LOGIN=false
 WECHAT_TEACHER_APP_ID=<teacher-miniapp-app-id>
 WECHAT_TEACHER_APP_SECRET=<teacher-miniapp-app-secret>
@@ -28,6 +30,8 @@ BACKUP_RETENTION_DAYS=30
 - `TRAINING_MEDIA_SIGNING_SECRET` 必须是独立强随机值，不能与 `JWT_SECRET` 相同，用于教师培训媒体短期访问签名。
 - `TRAINING_MEDIA_URL_SECONDS` 必须在 60 到 1800 秒之间，推荐 900 秒。
 - `APP_VERSION` 建议设置为当前 Git 提交 SHA，供 `/api/health` 与 `verify:release` 校验。
+- `DEPLOY_SITE_ADDRESS` 与 `TEACHER_WEB_SITE_ADDRESS` 必须是两个不同的 HTTPS origin，并同时列入 `CORS_ORIGINS`。
+- 两个域名的 DNS A/AAAA 记录指向同一 Caddy 入口；腾讯云只对公网开放 TCP 80/443，不开放 3000/5432。
 - `.env`、微信密钥、数据库密码不得提交到 Git。
 - 教师端、家长端微信 AppID/AppSecret 分开配置，只放后端环境变量。
 - `ENABLE_DEV_LOGIN` 在测试公网和生产环境必须为 `false` 或不设置。
@@ -69,10 +73,23 @@ pnpm build
 ```powershell
 pnpm --filter @ruizhibo/api build
 pnpm --filter @ruizhibo/admin-web build
+pnpm --filter @ruizhibo/teacher-web typecheck
+pnpm --filter @ruizhibo/teacher-web build
 pnpm --filter @ruizhibo/teacher-miniapp typecheck
 pnpm --filter @ruizhibo/teacher-miniapp build:h5
 pnpm --filter @ruizhibo/parent-miniapp typecheck
 ```
+
+容器构建前先校验 Compose，并确认 `teacher-web` 无宿主机端口映射：
+
+```powershell
+docker compose --env-file deploy/.env -f deploy/docker-compose.test.yml config --quiet
+docker compose --env-file deploy/.env -f deploy/docker-compose.test.yml build api web teacher-web
+docker compose --env-file deploy/.env -f deploy/docker-compose.test.yml up -d
+docker compose --env-file deploy/.env -f deploy/docker-compose.test.yml ps
+```
+
+`deploy/.env` 只保留在服务器，不得提交 Git。停止服务只执行 `down`，不得执行 `down -v`。
 
 ## 健康检查
 
@@ -123,6 +140,9 @@ pnpm verify:dev-acceptance
 ## 上线前人工验收
 
 - 管理员可以登录后台并维护老师、班级、学生、家长绑定。
+- `https://api.ruizhibo.com/` 返回管理后台，`https://teacher.ruizhibo.com/` 返回教师学院，两站点的 `/api/health` 均由 API 处理。
+- 教师网页直接刷新深层路径不返回 404，JS/CSS 从教师域名正常加载。
+- `teacher-web`、`api` 和 PostgreSQL 均没有不必要的宿主机端口映射，公网只有 Caddy 80/443。
 - 管理后台生产包不展示开发登录入口，`POST /api/auth/dev-login` 不可用。
 - 管理员可设置主要联系人及通知、作业、成长权限；软解绑后家长立即失去对应孩子和会话访问权。
 - 管理员删除有业务引用的家长、班级、学生或流程模板时能看到引用统计和安全提示，未经停用或显式确认不能清理。

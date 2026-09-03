@@ -98,6 +98,13 @@ function Assert-AbsoluteHttpUrl {
   }
 }
 
+function Get-NormalizedOrigin {
+  param([string]$Value)
+
+  $uri = [Uri]$Value
+  return $uri.GetLeftPart([UriPartial]::Authority).TrimEnd("/").ToLowerInvariant()
+}
+
 $config = Read-DotEnv -Path $resolvedEnvPath
 
 $devLogin = Assert-Configured -Values $config -Name "ENABLE_DEV_LOGIN"
@@ -144,11 +151,27 @@ Write-Host "[production-config] CORS origins: explicit"
 
 $siteAddress = Assert-Configured -Values $config -Name "DEPLOY_SITE_ADDRESS"
 Assert-AbsoluteHttpUrl -Name "DEPLOY_SITE_ADDRESS" -Value $siteAddress -HttpsRequired ([bool]$RequireHttps)
+$teacherWebSiteAddress = Assert-Configured -Values $config -Name "TEACHER_WEB_SITE_ADDRESS"
+Assert-AbsoluteHttpUrl -Name "TEACHER_WEB_SITE_ADDRESS" -Value $teacherWebSiteAddress -HttpsRequired ([bool]$RequireHttps)
+if ((Get-NormalizedOrigin -Value $siteAddress) -eq (Get-NormalizedOrigin -Value $teacherWebSiteAddress)) {
+  throw "DEPLOY_SITE_ADDRESS and TEACHER_WEB_SITE_ADDRESS must use different origins"
+}
+$configuredCorsOrigins = @(
+  $corsOrigins.Split(",") |
+    ForEach-Object { Get-NormalizedOrigin -Value $_.Trim() }
+)
+foreach ($requiredOrigin in @($siteAddress, $teacherWebSiteAddress)) {
+  $normalizedOrigin = Get-NormalizedOrigin -Value $requiredOrigin
+  if ($normalizedOrigin -notin $configuredCorsOrigins) {
+    throw "CORS_ORIGINS must include $normalizedOrigin"
+  }
+}
 $appVersion = Assert-Configured -Values $config -Name "APP_VERSION"
 if ($appVersion -match "^(?i:local|unknown|development)$") {
   throw "APP_VERSION must be the deployed Git revision"
 }
-Write-Host "[production-config] Site address and application version: configured"
+Write-Host "[production-config] Admin/API and teacher web site addresses: distinct and allowed by CORS"
+Write-Host "[production-config] Application version: configured"
 
 foreach ($role in @("TEACHER", "PARENT")) {
   $appIdName = "WECHAT_$($role)_APP_ID"
@@ -193,6 +216,8 @@ Write-Host "[production-config] File storage: configured ($storageDriver)"
 $requiredFiles = @(
   "deploy/docker-compose.test.yml",
   "deploy/Caddyfile",
+  "deploy/Dockerfile.teacher-web",
+  "deploy/Caddyfile.teacher-web",
   "tools/backup-test-deployment.ps1",
   "tools/restore-test-deployment.ps1"
 )
@@ -206,20 +231,42 @@ $compose = Get-Content -LiteralPath (Join-Path $repoRoot "deploy/docker-compose.
 if (
   $compose -notmatch "postgres_data:/var/lib/postgresql/data" -or
   $compose -notmatch "uploads_data:/data/uploads" -or
-  $compose -notmatch 'ENABLE_DEV_LOGIN:\s*\$\{ENABLE_DEV_LOGIN:-false\}'
+  $compose -notmatch 'ENABLE_DEV_LOGIN:\s*\$\{ENABLE_DEV_LOGIN:-false\}' -or
+  $compose -notmatch '(?m)^  teacher-web:\s*$' -or
+  $compose -notmatch 'dockerfile:\s*deploy/Dockerfile\.teacher-web' -or
+  $compose -notmatch 'TEACHER_WEB_SITE_ADDRESS:'
 ) {
-  throw "Docker Compose persistence or development-login safety defaults are incomplete"
+  throw "Docker Compose persistence, safety defaults, or teacher web service are incomplete"
+}
+$teacherService = [regex]::Match(
+  $compose,
+  '(?ms)^  teacher-web:\r?\n(?<body>.*?)(?=^  [a-zA-Z0-9_-]+:\r?\n|^volumes:)'
+)
+if (-not $teacherService.Success) {
+  throw "Docker Compose teacher-web service could not be inspected"
+}
+if ($teacherService.Groups["body"].Value -match '(?m)^    ports:\s*$') {
+  throw "teacher-web must not publish a host port; Caddy is the only public entry"
 }
 
 $caddy = Get-Content -LiteralPath (Join-Path $repoRoot "deploy/Caddyfile") -Raw -Encoding UTF8
 foreach ($pattern in @(
   "reverse_proxy api:3000",
+  'TEACHER_WEB_SITE_ADDRESS:http://teacher.localhost',
+  "reverse_proxy teacher-web:80",
   "X-Content-Type-Options nosniff",
   "Strict-Transport-Security"
 )) {
   if ($caddy -notmatch [regex]::Escape($pattern)) {
     throw "Caddy production safety configuration is incomplete: $pattern"
   }
+}
+$teacherCaddy = Get-Content -LiteralPath (Join-Path $repoRoot "deploy/Caddyfile.teacher-web") -Raw -Encoding UTF8
+if (
+  $teacherCaddy -notmatch [regex]::Escape("try_files {path} /index.html") -or
+  $teacherCaddy -notmatch [regex]::Escape("file_server")
+) {
+  throw "Teacher web static server must provide SPA fallback and static files"
 }
 Write-Host "[production-config] Caddy, persistence, backup and restore assets: present"
 Write-Host "Production configuration verification passed."
