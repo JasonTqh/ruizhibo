@@ -8,20 +8,28 @@ const KEY_LENGTH = 64;
 const MAX_MEMORY = 64 * 1024 * 1024;
 
 export function validateAdminPassword(password: string) {
+  return validateStrongPassword(password, "管理员");
+}
+
+export function validateTeacherWebPassword(password: string) {
+  return validateStrongPassword(password, "教师学院");
+}
+
+function validateStrongPassword(password: string, accountLabel: string) {
   if (password.length < 12 || password.length > 128) {
-    return "管理员密码长度必须为 12-128 位";
+    return `${accountLabel}密码长度必须为 12-128 位`;
   }
   if (!/[a-z]/.test(password)) {
-    return "管理员密码必须包含小写字母";
+    return `${accountLabel}密码必须包含小写字母`;
   }
   if (!/[A-Z]/.test(password)) {
-    return "管理员密码必须包含大写字母";
+    return `${accountLabel}密码必须包含大写字母`;
   }
   if (!/\d/.test(password)) {
-    return "管理员密码必须包含数字";
+    return `${accountLabel}密码必须包含数字`;
   }
   if (!/[^A-Za-z0-9]/.test(password)) {
-    return "管理员密码必须包含特殊字符";
+    return `${accountLabel}密码必须包含特殊字符`;
   }
   return null;
 }

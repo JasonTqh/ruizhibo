@@ -7,6 +7,7 @@ import { BindPhoneDto } from "./dto/bind-phone.dto";
 import { AdminLoginDto } from "./dto/admin-login.dto";
 import { DevLoginDto } from "./dto/dev-login.dto";
 import { WechatLoginDto } from "./dto/wechat-login.dto";
+import { TeacherWebLoginDto } from "./dto/teacher-web-login.dto";
 import { AuthUser } from "./auth.types";
 
 @Controller()
@@ -21,6 +22,11 @@ export class AuthController {
   @Post("auth/admin-login")
   adminLogin(@Body() dto: AdminLoginDto, @Req() request: Request) {
     return this.authService.adminLogin(dto, request.ip ?? "unknown");
+  }
+
+  @Post("auth/teacher-web-login")
+  teacherWebLogin(@Body() dto: TeacherWebLoginDto, @Req() request: Request) {
+    return this.authService.teacherWebLogin(dto, request.ip ?? "unknown");
   }
 
   @Post("auth/wechat-login")

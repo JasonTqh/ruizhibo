@@ -226,6 +226,31 @@ importers:
         specifier: ^5.7.2
         version: 5.9.3
 
+  apps/teacher-web:
+    dependencies:
+      '@vitejs/plugin-react':
+        specifier: ^4.3.4
+        version: 4.7.0(vite@6.4.3(@types/node@25.9.3)(jiti@2.7.0)(less@3.13.1)(lightningcss@1.32.0)(sass@1.101.0)(stylus@0.64.0)(terser@5.48.0)(tsx@4.22.4))
+      react:
+        specifier: ^18.3.1
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.3.1
+        version: 18.3.1(react@18.3.1)
+      vite:
+        specifier: ^6.0.5
+        version: 6.4.3(@types/node@25.9.3)(jiti@2.7.0)(less@3.13.1)(lightningcss@1.32.0)(sass@1.101.0)(stylus@0.64.0)(terser@5.48.0)(tsx@4.22.4)
+    devDependencies:
+      '@types/react':
+        specifier: ^18.3.16
+        version: 18.3.31
+      '@types/react-dom':
+        specifier: ^18.3.5
+        version: 18.3.7(@types/react@18.3.31)
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+
   packages/shared:
     devDependencies:
       typescript:
