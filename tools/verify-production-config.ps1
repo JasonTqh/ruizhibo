@@ -173,6 +173,8 @@ if ($appVersion -match "^(?i:local|unknown|development)$") {
 Write-Host "[production-config] Admin/API and teacher web site addresses: distinct and allowed by CORS"
 Write-Host "[production-config] Application version: configured"
 
+$wechatAppIds = @{}
+$wechatAppSecrets = @{}
 foreach ($role in @("TEACHER", "PARENT")) {
   $appIdName = "WECHAT_$($role)_APP_ID"
   $appSecretName = "WECHAT_$($role)_APP_SECRET"
@@ -182,8 +184,29 @@ foreach ($role in @("TEACHER", "PARENT")) {
     throw "$appIdName must be a valid mini-program AppID"
   }
   Assert-StrongSecret -Name $appSecretName -Value $appSecret -MinimumLength 16
+  $wechatAppIds[$role] = $appId
+  $wechatAppSecrets[$role] = $appSecret
 }
-Write-Host "[production-config] WeChat teacher and parent credentials: configured"
+if ($wechatAppIds["TEACHER"] -ceq $wechatAppIds["PARENT"]) {
+  throw "WECHAT_TEACHER_APP_ID and WECHAT_PARENT_APP_ID must be different mini-program AppIDs"
+}
+if ($wechatAppSecrets["TEACHER"] -ceq $wechatAppSecrets["PARENT"]) {
+  throw "WECHAT_TEACHER_APP_SECRET and WECHAT_PARENT_APP_SECRET must be different"
+}
+foreach ($role in @("TEACHER", "PARENT")) {
+  $projectConfigPath = Join-Path $repoRoot "apps/$($role.ToLowerInvariant())-miniapp/project.config.json"
+  if (-not (Test-Path -LiteralPath $projectConfigPath -PathType Leaf)) {
+    throw "$role mini-program project config is missing"
+  }
+  $projectConfig = Get-Content -LiteralPath $projectConfigPath -Raw -Encoding UTF8 | ConvertFrom-Json
+  if ([string]$projectConfig.appid -cne $wechatAppIds[$role]) {
+    throw "WECHAT_$($role)_APP_ID must match $projectConfigPath"
+  }
+  if ($projectConfig.setting.urlCheck -ne $true) {
+    throw "$role mini-program must enable setting.urlCheck for production"
+  }
+}
+Write-Host "[production-config] WeChat teacher and parent credentials: configured and distinct"
 
 $storageDriver = (Assert-Configured -Values $config -Name "FILE_STORAGE_DRIVER").ToLowerInvariant()
 if ($storageDriver -notin @("local", "s3")) {

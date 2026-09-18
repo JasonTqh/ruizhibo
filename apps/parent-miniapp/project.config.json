@@ -1,10 +1,10 @@
 {
   "description": "锐之博家长端小程序",
   "compileType": "miniprogram",
-  "appid": "wxdde73d60a0be16e2",
+  "appid": "wx3052c81467eead2a",
   "projectname": "锐之博家长端",
   "setting": {
-    "urlCheck": false,
+    "urlCheck": true,
     "es6": true,
     "minified": true,
     "postcss": true,

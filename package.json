@@ -12,6 +12,7 @@
     "dev:teacher:h5": "pnpm --filter @ruizhibo/teacher-miniapp dev:h5",
     "build:teacher:h5": "pnpm --filter @ruizhibo/teacher-miniapp build:h5",
     "build:teacher-web": "pnpm --filter @ruizhibo/teacher-web build",
+    "build:miniapp:release": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/build-miniapp-release.ps1",
     "verify:deployment": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/verify-test-deployment.ps1",
     "verify:dev-acceptance": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/verify-dev-acceptance.ps1",
     "verify:release": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/verify-test-deployment.ps1 -ProductionGate",

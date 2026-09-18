@@ -143,18 +143,25 @@ pnpm --filter @ruizhibo/api verify:observability -- `
 
 在微信公众平台分别为教师端、家长端配置：
 
+- 教师端和家长端必须使用两个不同的小程序 AppID，并在服务器分别配置对应 AppSecret
+
 - request 合法域名：`https://api.ruizhibo.com`
+- uploadFile 合法域名：`https://api.ruizhibo.com`
 - downloadFile 合法域名：`https://api.ruizhibo.com`（用于 `/uploads/*` 图片）
 
 若 `FILE_STORAGE_DRIVER=s3`，还需把 `S3_PUBLIC_BASE_URL` 的 HTTPS 域名加入 downloadFile 合法域名。完整对象存储配置见 `docs/file-storage.md`。
 
-构建体验版时注入同一个 HTTPS API 地址和微信登录模式：
+使用正式构建脚本生成体验版。脚本会强制启用微信登录，检查 AppID、HTTPS API、合法域名校验开关及构建产物：
 
 ```powershell
-$env:TARO_APP_API_BASE_URL="https://api.ruizhibo.com/api"
-$env:TARO_APP_AUTH_MODE="wechat"
-pnpm --filter @ruizhibo/teacher-miniapp build
-pnpm --filter @ruizhibo/parent-miniapp build
+pnpm build:miniapp:release -- `
+  -App parent `
+  -ExpectedAppId wx3052c81467eead2a
+
+# 注册教师端正式小程序并更新 project.config.json 后再执行：
+pnpm build:miniapp:release -- `
+  -App teacher `
+  -ExpectedAppId <teacher-miniapp-app-id>
 ```
 
 分别将 `apps/teacher-miniapp/dist`、`apps/parent-miniapp/dist` 导入微信开发者工具，确认项目使用对应小程序 AppID 后上传体验版。
