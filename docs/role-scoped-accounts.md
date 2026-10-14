@@ -30,7 +30,7 @@
 
 ## 上线顺序
 
-本分支提交实现与本地验证结果，部署由用户在服务器维护窗口操作。先审核 PR 并选择经批准的版本；本任务不合并 main、不连接服务器执行部署或修改生产数据库。
+先审核 PR 并选择经批准的版本，按以下维护顺序发布。2026-10-14 用户追加授权提交、推送并发布到服务器后，已按本流程部署功能提交 `1fd01e755cf3704c924d8a5207c0a6fb5dd48381`，实际结果见下文。本次仍未合并 main，也未纳入原项目工作区的未提交修改。
 
 1. 备份数据库、上传文件、配置和旧镜像，记录后端版本。确认备份可恢复。
 2. 构建含新 Prisma Client 与迁移的新 API 镜像，以及管理后台 Web 镜像；只构建，暂不重启服务。
@@ -39,21 +39,22 @@
 5. 启动新 API，确认迁移状态和健康检查，再更新管理后台。检查同手机号新增教师和家长、重复角色拒绝、管理员密码登录、教师/家长微信登录与权限隔离。保持生产 `ENABLE_DEV_LOGIN=false`。
 6. 不运行生产 seed、db push、reset 或 down -v。现有用户不自动获得新增身份。
 
-现有 Docker Compose 部署在服务器上可使用以下顺序（所有命令由用户手动执行，真实 `deploy/.env` 保留在服务器）：
+现有 Docker Compose 部署在服务器上可使用以下顺序。下面是本次实际发布目录；以后升级时应先创建对应批准提交的独立发布目录，不要在保留的旧 main 工作区直接重新构建。真实环境文件仍保留在 `/home/ubuntu/ruizhibo/deploy/.env`，不得提交密钥：
 
 ```bash
-# 在确认服务器工作区干净、已切换至批准版本并完成备份后执行。
-docker compose --env-file deploy/.env -f deploy/docker-compose.test.yml config --quiet
-docker compose --env-file deploy/.env -f deploy/docker-compose.test.yml build api web
+# 在确认批准版本、备份可恢复后执行。
+cd /home/ubuntu/ruizhibo-releases/1fd01e755cf3
+docker compose --env-file /home/ubuntu/ruizhibo/deploy/.env -f deploy/docker-compose.test.yml config --quiet
+docker compose --env-file /home/ubuntu/ruizhibo/deploy/.env -f deploy/docker-compose.test.yml build api web
 
 # 维护窗口：确保不存在其他旧版 API 实例后迁移。
-docker compose --env-file deploy/.env -f deploy/docker-compose.test.yml stop api
-docker compose --env-file deploy/.env -f deploy/docker-compose.test.yml run --rm --no-deps api pnpm prisma:migrate
-docker compose --env-file deploy/.env -f deploy/docker-compose.test.yml run --rm --no-deps api pnpm exec prisma migrate status
+docker compose --env-file /home/ubuntu/ruizhibo/deploy/.env -f deploy/docker-compose.test.yml stop api
+docker compose --env-file /home/ubuntu/ruizhibo/deploy/.env -f deploy/docker-compose.test.yml run --rm --no-deps api pnpm prisma:migrate
+docker compose --env-file /home/ubuntu/ruizhibo/deploy/.env -f deploy/docker-compose.test.yml run --rm --no-deps api pnpm exec prisma migrate status
 
 # 仅迁移成功后恢复 API 与后台；不重建或删除数据库卷。
-docker compose --env-file deploy/.env -f deploy/docker-compose.test.yml up -d --no-deps api web
-docker compose --env-file deploy/.env -f deploy/docker-compose.test.yml ps
+docker compose --env-file /home/ubuntu/ruizhibo/deploy/.env -f deploy/docker-compose.test.yml up -d --no-deps api web
+docker compose --env-file /home/ubuntu/ruizhibo/deploy/.env -f deploy/docker-compose.test.yml ps
 ```
 
 API 镜像启动命令会再次执行迁移，已成功的迁移不会重复改写数据。发布配置中的 `APP_VERSION` 应设置为批准的实际提交号；健康检查与发布门禁见 `docs/release-verification.md`。
@@ -91,4 +92,39 @@ API 镜像启动命令会再次执行迁移，已成功的迁移不会重复改�
 
 页面验收使用真实本地 HTTP API（`127.0.0.1:3015`）与管理后台（`127.0.0.1:5185`），数据库始终为新建的 `127.0.0.1:55439/role_identity_test`。教师与家长均使用隔离 seed 管理员的手机号 `13800000000` 创建。培训开关在此次教师创建验收中关闭，培训权限与课程规则沿用原实现。
 
-尚未执行的验收：用户服务器维护窗口迁移、生产模式发布门禁、对应两套真实微信 AppID 的同手机号首次绑定与真机登录。这些步骤由用户在批准版本后执行。微信专项测试模拟外部微信响应，不代表真实微信网络和真机验收完成。现有管理后台大 chunk 构建提示仍存在，不影响本次构建成功。
+尚未执行的验收：正式管理员密码登录及认证后上传的完整发布门禁、对应两套真实微信 AppID 的同手机号首次绑定与真机登录。本次没有读取或重设管理员密码，也没有在业务库新增验证账号。微信专项测试模拟外部微信响应，不代表真实微信网络和真机验收完成。现有管理后台大 chunk 构建提示仍存在，不影响本次构建成功。
+
+## 服务器实际部署记录（2026-10-14）
+
+- 用户明确追加授权后，通过既有 SSH 密钥连接 `ubuntu@146.56.205.133` 执行发布；未向对话、开发电脑或 Git 暴露服务器密码、私钥内容及真实环境文件。
+- 功能代码提交：`1fd01e755cf3704c924d8a5207c0a6fb5dd48381`，分支 `codex/role-scoped-accounts`；[PR #2](https://github.com/JasonTqh/ruizhibo/pull/2) 保持未合并。后续只补充文档的提交不改变本次线上功能代码版本。
+- 服务器原工作区 `/home/ubuntu/ruizhibo` 仍为干净的 main，提交 `8b3af423611bbc31c9e1e919183501473baf689d`。独立发布工作区为 `/home/ubuntu/ruizhibo-releases/1fd01e755cf3`，稳定指针 `/home/ubuntu/ruizhibo-releases/current` 指向该目录。
+- 管理后台：[https://api.ruizhibo.com](https://api.ruizhibo.com)；原教师网站：[https://academy.ruizhibo.com](https://academy.ruizhibo.com)。两个站点的 `/api/health` 均返回本次完整提交号。
+- 维护窗口：北京时间 12:27:40–12:27:56（UTC 04:27:40–04:27:56），约 16 秒。先停旧 API，再迁移、检查、启动新 API 与管理后台；数据库、上传卷及教师网站容器均未重建。
+- `deploy/.env` 仅更新 `APP_VERSION`；除该行外逐字比对与备份一致，权限设为 600。`ENABLE_DEV_LOGIN=false` 保持不变。
+
+### 备份与恢复证据
+
+备份保存在服务器 `/home/ubuntu/ruizhibo/backups/role-scoped-1fd01e7-20261014T042042Z-3asaK9`，目录权限 700，文件权限 600，未下载业务数据到开发电脑。包括停写前和停写后的 PostgreSQL custom dump、上传文件归档、环境文件、旧 Compose/Caddy 配置、Caddy 证书归档和旧 API/后台/教师网站镜像归档。`SHA256SUMS` 与 `VERIFICATION_SHA256SUMS` 均校验通过。
+
+最终停写备份 `database-pre-migration.dump` 在 `--network none` 的临时 PostgreSQL 16 容器中完整恢复，51 张业务表的行数及内容摘要与迁移前完全一致；验证容器及其匿名数据卷已移除，正式数据库未执行恢复。备份中的 `data-before.txt`、`data-after-migration.txt`、`data-restored.txt` 保存摘要证据，不包含账号、密码或微信绑定的明文内容。旧镜像同时保留为 `rollback-role-1fd01e7` 标签，但这些镜像不能绕过上文数据库回滚限制。
+
+### 部署后检查
+
+| 检查 | 结果 |
+| --- | --- |
+| 服务器镜像构建 | API 与管理后台构建成功；新镜像使用生成后的 role-scoped Prisma Client |
+| PostgreSQL 16 正式迁移 | 19 → 20 条，新增迁移成功，无未完成迁移；两个 role 联合唯一索引存在，两个旧全局唯一索引已移除 |
+| 数据保留 | 迁移前后 51 张业务表的行数及全行摘要完全相同，包含原 User ID、密码哈希、OpenID 和业务关系 |
+| 运行时只读账号检查 | 现有 3 个账号按 role + phone、已绑定账号按 role + OpenID 查询均保持原 User ID；未创建、修改或删除业务账号 |
+| 服务状态 | API、数据库和原教师网站健康；管理后台入口运行正常，持久卷保留 |
+| HTTPS 与版本 | 从开发电脑读取两个公网域名健康接口均返回 200 和本次完整提交号；服务器侧检查两个可信 HTTPS 站点、安全响应头、数据库及 local 存储通过 |
+| 生产配置 | 正式环境、开发登录禁用、JWT/数据库密码强度、明确 CORS、两端微信配置和上传目录读写权限检查通过，未输出密钥值 |
+| 前端与代理 | 新后台包包含独立身份提示和正式管理员登录、无开发登录接口，实际 API 地址为同源 `/api`；原教师首页及 SPA 深链正常 |
+| 权限负向检查 | 开发登录 403；未认证 `/me`、教师管理和家长管理均 401；微信登录与手机号绑定传入 admin 均 400，在访问微信前拒绝 |
+| CORS | 教师网站来源获授权，未配置来源不获授权 |
+| workflow 图片归属策略 | 新 API 镜像内执行策略验证通过，不修改业务数据 |
+
+上述线上检查不等同于完整 `verify:release` 已通过：未提供正式管理员密码，因此未运行其管理员登录及认证后上传步骤。后续由用户使用原管理员密码确认后台登录、新增同号教师/家长，再分别进行真实微信绑定和真机登录。前端包保留未使用的本地默认地址常量，但本次构建明确以 `/api` 初始化，不会因此向 localhost 请求。
+
+备份目前仍在同一台服务器，应按项目备份策略另行同步到受控异地存储；本次没有擅自配置新的外部存储或传输业务备份。
