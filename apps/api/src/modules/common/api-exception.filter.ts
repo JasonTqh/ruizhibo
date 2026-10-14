@@ -6,6 +6,7 @@ import {
   HttpStatus,
 } from "@nestjs/common";
 import { Response } from "express";
+import { Prisma } from "@prisma/client";
 import { writeOperationalLog } from "./operational-logger";
 import { RequestWithContext } from "./request-context";
 
@@ -21,6 +22,19 @@ type StatusError = Error & {
   status?: number;
   statusCode?: number;
 };
+
+export function userIdentityConflictMessage(exception: unknown) {
+  if (
+    !(exception instanceof Prisma.PrismaClientKnownRequestError) ||
+    exception.code !== "P2002"
+  )
+    return undefined;
+  const target = exception.meta?.target;
+  if (!Array.isArray(target) || !target.includes("role")) return undefined;
+  if (target.includes("phone")) return "该手机号在当前身份下已存在账号";
+  if (target.includes("wechatOpenid")) return "当前微信账号已绑定本端其他用户";
+  return undefined;
+}
 
 @Catch()
 export class ApiExceptionFilter implements ExceptionFilter {
@@ -57,6 +71,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
   }
 
   private resolveStatus(exception: unknown) {
+    if (userIdentityConflictMessage(exception)) return HttpStatus.CONFLICT;
     if (exception instanceof HttpException) {
       return exception.getStatus();
     }
@@ -95,6 +110,8 @@ export class ApiExceptionFilter implements ExceptionFilter {
   }
 
   private resolveMessage(exception: unknown, status: number) {
+    const identityMessage = userIdentityConflictMessage(exception);
+    if (identityMessage) return identityMessage;
     if (status === HttpStatus.PAYLOAD_TOO_LARGE) {
       return "请求内容过大，请压缩图片或减少文件数量";
     }
