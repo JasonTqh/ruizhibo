@@ -106,7 +106,7 @@ async function main() {
     });
 
     const teacher = await tx.user.upsert({
-      where: { phone: "13800000001" },
+      where: { role_phone: { role: UserRole.teacher, phone: "13800000001" } },
       update: {
         role: UserRole.teacher,
         name: "教师A",
@@ -121,7 +121,7 @@ async function main() {
     });
 
     const parent = await tx.user.upsert({
-      where: { phone: "13800000002" },
+      where: { role_phone: { role: UserRole.parent, phone: "13800000002" } },
       update: {
         role: UserRole.parent,
         name: "家长A",

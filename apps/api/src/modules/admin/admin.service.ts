@@ -231,7 +231,7 @@ export class AdminService {
   }
 
   async createTeacher(actorId: string, dto: CreateTeacherDto) {
-    await this.assertPhoneAvailable(dto.phone);
+    await this.assertPhoneAvailable(dto.phone, UserRole.teacher);
     const assignTraining = dto.assignTraining !== false;
     if (assignTraining && dto.status !== UserStatus.active) {
       throw new BadRequestException("停用状态的教师不能同时布置培训");
@@ -294,7 +294,7 @@ export class AdminService {
     });
 
     if (dto.phone) {
-      await this.assertPhoneAvailable(dto.phone, id);
+      await this.assertPhoneAvailable(dto.phone, UserRole.teacher, id);
     }
 
     const data: Prisma.UserUpdateInput = {};
@@ -536,7 +536,7 @@ export class AdminService {
   }
 
   async createParent(actorId: string, dto: CreateParentDto) {
-    await this.assertPhoneAvailable(dto.phone);
+    await this.assertPhoneAvailable(dto.phone, UserRole.parent);
     const parent = await this.prisma.user.create({
       data: {
         role: UserRole.parent,
@@ -558,7 +558,8 @@ export class AdminService {
 
   async updateParent(actorId: string, id: string, dto: UpdateTeacherDto) {
     await this.assertUserWithRoleExists(id, UserRole.parent, "Parent");
-    if (dto.phone) await this.assertPhoneAvailable(dto.phone, id);
+    if (dto.phone)
+      await this.assertPhoneAvailable(dto.phone, UserRole.parent, id);
     const parent = await this.prisma.user.update({
       where: { id },
       data: { name: dto.name, phone: dto.phone, status: dto.status },
@@ -1691,17 +1692,11 @@ export class AdminService {
     }
 
     const existing = await this.prisma.user.findUnique({
-      where: { phone: dto.parentPhone },
+      where: { role_phone: { role: UserRole.parent, phone: dto.parentPhone } },
       select: userSummarySelect,
     });
 
     if (existing) {
-      if (existing.role !== UserRole.parent) {
-        throw new ConflictException(
-          "Phone number is already used by another role",
-        );
-      }
-
       if (dto.parentName && dto.parentName !== existing.name) {
         return this.prisma.user.update({
           where: { id: existing.id },
@@ -1729,16 +1724,21 @@ export class AdminService {
     });
   }
 
-  private async assertPhoneAvailable(phone: string, exceptUserId?: string) {
+  private async assertPhoneAvailable(
+    phone: string,
+    role: UserRole,
+    exceptUserId?: string,
+  ) {
     const existing = await this.prisma.user.findUnique({
-      where: { phone },
+      where: { role_phone: { role, phone } },
       select: {
         id: true,
       },
     });
 
     if (existing && existing.id !== exceptUserId) {
-      throw new ConflictException("Phone number is already used");
+      const label = role === UserRole.teacher ? "教师" : "家长";
+      throw new ConflictException(`该手机号已存在${label}账号，请勿重复创建`);
     }
   }
 

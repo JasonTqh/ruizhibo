@@ -1176,24 +1176,30 @@ function TeachersPanel({
   return (
     <Space direction="vertical" size={16} className="admin-stack">
       <Card title="新增老师">
+        <Typography.Paragraph type="secondary">
+          可使用已有管理员或家长的手机号新增教师身份；同一手机号不能重复创建教师。各身份的密码、微信绑定、权限和启停状态独立，创建后仍需单独分配班级。
+        </Typography.Paragraph>
         <Form
           form={form}
           layout="inline"
           initialValues={{ assignTraining: true }}
-          onFinish={async (values) => {
-            await request("/admin/teachers", {
-              method: "POST",
-              body: JSON.stringify({
-                ...values,
-                assignTraining: canAssignTraining
-                  ? values.assignTraining !== false
-                  : false,
-                status: "active",
-              }),
-            });
-            form.resetFields();
-            await refreshAll();
-          }}
+          onFinish={(values) =>
+            submitChange(async () => {
+              await request("/admin/teachers", {
+                method: "POST",
+                body: JSON.stringify({
+                  ...values,
+                  assignTraining: canAssignTraining
+                    ? values.assignTraining !== false
+                    : false,
+                  status: "active",
+                }),
+              });
+              form.resetFields();
+              await refreshAll();
+              antdMessage.success("教师身份创建成功，请在班级管理中分配班级");
+            })
+          }
         >
           <Form.Item name="name" rules={[{ required: true }]}>
             <Input placeholder="姓名" />
@@ -1743,6 +1749,9 @@ function ParentsPanel({
   return (
     <Space direction="vertical" size={16} className="admin-stack">
       <Card title="新增家长">
+        <Typography.Paragraph type="secondary">
+          可使用已有管理员或教师的手机号新增家长身份；同一手机号不能重复创建家长。各身份的密码、微信绑定、权限和启停状态独立，家长仍须单独绑定孩子。
+        </Typography.Paragraph>
         <Form
           form={form}
           layout="inline"
@@ -1754,6 +1763,7 @@ function ParentsPanel({
               });
               form.resetFields();
               await refreshAll();
+              antdMessage.success("家长身份创建成功，请通过管理绑定关联孩子");
             })
           }
         >

@@ -14,10 +14,10 @@ const MAX_TRACKED_KEYS = 5_000;
 export class AdminLoginThrottleService {
   private readonly attempts = new Map<string, AttemptWindow>();
 
-  assertAllowed(phone: string, ipAddress: string) {
+  assertAllowed(phone: string, ipAddress: string, scope = "admin") {
     this.cleanupExpired();
     if (
-      this.currentCount(this.phoneKey(phone)) >= PHONE_LIMIT ||
+      this.currentCount(this.phoneKey(phone, scope)) >= PHONE_LIMIT ||
       this.currentCount(this.ipKey(ipAddress)) >= IP_LIMIT
     ) {
       throw new HttpException(
@@ -27,13 +27,13 @@ export class AdminLoginThrottleService {
     }
   }
 
-  recordFailure(phone: string, ipAddress: string) {
-    this.increment(this.phoneKey(phone));
+  recordFailure(phone: string, ipAddress: string, scope = "admin") {
+    this.increment(this.phoneKey(phone, scope));
     this.increment(this.ipKey(ipAddress));
   }
 
-  recordSuccess(phone: string) {
-    this.attempts.delete(this.phoneKey(phone));
+  recordSuccess(phone: string, scope = "admin") {
+    this.attempts.delete(this.phoneKey(phone, scope));
   }
 
   private currentCount(key: string) {
@@ -75,8 +75,8 @@ export class AdminLoginThrottleService {
     }
   }
 
-  private phoneKey(phone: string) {
-    return `phone:${phone}`;
+  private phoneKey(phone: string, scope: string) {
+    return `phone:${scope}:${phone}`;
   }
 
   private ipKey(ipAddress: string) {
