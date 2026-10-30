@@ -98,6 +98,7 @@ const assignmentDetailInclude = {
       attempts: {
         orderBy: { attemptNumber: "desc" as const },
         include: {
+          snapshot: true,
           chapterProgress: true,
           studySessions: { orderBy: { startedAt: "desc" as const } },
           quizAttempts: { orderBy: { submittedAt: "desc" as const } },
@@ -615,6 +616,7 @@ export class TrainingAssignmentService {
       const attempt = await tx.trainingCourseAttempt.create({
         data: {
           assignmentCourseId,
+          snapshotId: course.snapshotId,
           attemptNumber: nextNumber,
           status: TrainingAttemptStatus.available,
         },
@@ -907,6 +909,7 @@ export class TrainingAssignmentService {
           unlockedAt: index === 0 ? input.assignedAt : null,
           attempts: {
             create: {
+              snapshotId: snapshot.id,
               attemptNumber: 1,
               status: TrainingAttemptStatus.available,
             },

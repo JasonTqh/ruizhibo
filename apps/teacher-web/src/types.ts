@@ -142,6 +142,7 @@ export type TrainingCourseDetail = {
   assignmentStatus: string;
   deadlineStatus: string;
   course: {
+    snapshotId: string;
     id: string;
     status: string;
     snapshot: {

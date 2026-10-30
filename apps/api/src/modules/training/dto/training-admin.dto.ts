@@ -164,6 +164,10 @@ export class TrainingPracticalItemDto {
 }
 
 export class UpsertTrainingCourseDto {
+  @IsOptional() @IsBoolean() overwriteExisting?: boolean;
+  @IsOptional() @IsString() previewToken?: string;
+  @IsOptional() @IsString() expectedUpdatedAt?: string;
+
   @IsString()
   @MinLength(2)
   @MaxLength(1_000)
@@ -342,6 +346,8 @@ export class PracticalChecklistResultDto {
 }
 
 export class SubmitPracticalDto {
+  @IsOptional() @IsString() snapshotId?: string;
+
   @IsEnum(TrainingPracticalConclusion)
   conclusion!: TrainingPracticalConclusion;
 
@@ -359,6 +365,8 @@ export class SubmitPracticalDto {
 }
 
 export class ConfirmSafetyDto {
+  @IsOptional() @IsString() snapshotId?: string;
+
   @IsBoolean()
   declarationAccepted!: boolean;
 

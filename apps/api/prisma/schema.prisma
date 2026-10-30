@@ -258,9 +258,13 @@ model User {
   avatarUrl        String?
   status           UserStatus              @default(active)
   employmentStatus TeacherEmploymentStatus @default(employed)
+  teacherPosition  String?
+  teacherPositions String[] @default([])
+  phoneIssue       String?
   createdAt        DateTime                @default(now())
   updatedAt        DateTime                @updatedAt
 
+  managedCampuses        Campus[] @relation("CampusSupervisors")
   teachingClasses        Class[]                    @relation("ClassTeacher")
   guardianships          StudentGuardian[]
   attendanceLogs         AttendanceEvent[]          @relation("AttendanceTeacher")
@@ -307,6 +311,7 @@ model Campus {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  supervisors          User[] @relation("CampusSupervisors")
   classes              Class[]
   researchActivities   ResearchActivity[]
   pickupRecords        PickupRecord[]
@@ -645,6 +650,7 @@ model LessonPlan {
   objectives      String
   content         String
   status          LessonPlanStatus @default(draft)
+  publishedAt     DateTime?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 
@@ -951,6 +957,7 @@ model TrainingCourseSnapshot {
   createdAt         DateTime               @default(now())
 
   originalCourse   TrainingCourse?           @relation(fields: [originalCourseId], references: [id], onDelete: SetNull)
+  attempts         TrainingCourseAttempt[] @relation("TrainingAttemptSnapshot")
   assignmentCourse TrainingAssignmentCourse?
 
   @@index([originalCourseId, createdAt])
@@ -1050,6 +1057,8 @@ model TrainingAssignmentCourse {
 
 model TrainingCourseAttempt {
   id                  String                @id @default(cuid())
+  snapshotId          String?
+  snapshot            TrainingCourseSnapshot? @relation("TrainingAttemptSnapshot", fields: [snapshotId], references: [id], onDelete: Restrict)
   assignmentCourseId  String
   attemptNumber       Int
   status              TrainingAttemptStatus @default(available)
@@ -1068,6 +1077,7 @@ model TrainingCourseAttempt {
   practicalChecks  TrainingPracticalCheck[]
   safetyRecords    TrainingSafetyRecord[]
 
+  @@index([snapshotId])
   @@unique([assignmentCourseId, attemptNumber])
   @@index([status, lastActivityAt])
 }

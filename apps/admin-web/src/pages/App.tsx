@@ -1,7 +1,23 @@
+const teacherPositionOptions = [
+  { value: "teacher", label: "教师" },
+  { value: "supervisor", label: "校区主管" },
+];
+const teacherPositionLabel = (values?: string[]) =>
+  (values || [])
+    .map(
+      (value) =>
+        teacherPositionOptions.find((item) => item.value === value)?.label ||
+        value,
+    )
+    .join("、") || "未设置";
+import { academySections } from "./academy-sections";
+import CreateEntry from "../components/CreateEntry";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MinusCircleOutlined, PlusOutlined } from "@ant-design/icons";
 import {
   Alert,
+  Tree,
+  Breadcrumb,
   Button,
   Card,
   Col,
@@ -25,6 +41,7 @@ import {
   Tag,
   Typography,
 } from "antd";
+import QueryTable, { QueryBar, matchesQuery } from "../components/QueryTable";
 import { API_BASE_URL } from "../config";
 import { BusinessPanel } from "./BusinessPanel";
 import { TrainingPanel } from "./TrainingPanel";
@@ -60,11 +77,13 @@ function apiErrorMessage(body: ApiErrorResult, fallback = "请求失败") {
 async function submitChange(action: () => Promise<void>) {
   try {
     await action();
+    return true;
   } catch (error) {
     Modal.error({
       title: "操作失败",
       content: error instanceof Error ? error.message : "请稍后重试",
     });
+    return false;
   }
 }
 
@@ -75,6 +94,10 @@ interface UserSummary {
   phone?: string;
   status?: string;
   employmentStatus?: string;
+  teacherPosition?: string | null;
+  teacherPositions?: string[];
+  managedCampuses?: { id: string; name: string }[];
+  phoneIssue?: string | null;
 }
 
 interface CampusSummary {
@@ -316,19 +339,27 @@ function workflowFormValues(template?: WorkflowTemplate) {
 
 const modules = [
   { key: "dashboard", label: "工作台" },
-  { key: "campuses", label: "校区管理" },
-  { key: "teachers", label: "老师管理" },
-  { key: "training", label: "教师学院" },
-  { key: "parents", label: "家长管理" },
-  { key: "classes", label: "班级管理" },
-  { key: "students", label: "学生管理" },
-  { key: "business", label: "业务查询" },
-  { key: "workflow", label: "流程模板" },
+  { key: "training", label: "教师培训", children: academySections.map(section => ({ key: `training_${section.key}`, label: section.label })) },
+  { key: "organization", label: "校区与班级", children: [
+    { key: "campuses", label: "校区总览" },
+    { key: "classes", label: "班级管理" },
+    { key: "students", label: "学生名册" },
+  ] },
+  { key: "people", label: "人员管理", children: [
+    { key: "teachers", label: "教师管理" },
+    { key: "parents", label: "家长与绑定" },
+  ] },
+  { key: "operations", label: "托管运营", children: [
+    { key: "business", label: "业务查询" },
+    { key: "workflow", label: "流程模板" },
+  ] },
   { key: "audit", label: "审计日志" },
 ];
 
 export function App() {
   const [activeKey, setActiveKey] = useState("dashboard");
+  const [scopeCampus, setScopeCampus] = useState<string>();
+  const [scopeClass, setScopeClass] = useState<string>();
   const [trainingTeacherId, setTrainingTeacherId] = useState<string | null>(
     null,
   );
@@ -579,16 +610,23 @@ export function App() {
           theme="dark"
           mode="inline"
           selectedKeys={[activeKey]}
+          defaultOpenKeys={[]}
           items={modules}
           onClick={(item) => {
-            if (item.key === "training") setTrainingTeacherId(null);
+            if (item.key.startsWith("training_")) setTrainingTeacherId(null);
+            setScopeCampus(undefined);
+            setScopeClass(undefined);
             setActiveKey(item.key);
           }}
         />
       </Layout.Sider>
       <Layout>
         <Layout.Header className="admin-header">
-          <Typography.Title level={3}>运营管理工作台</Typography.Title>
+          <Typography.Title level={3}>
+            {activeKey.startsWith("training_")
+              ? "教师学院 · 管理中心"
+              : "运营管理工作台"}
+          </Typography.Title>
           <Space>
             <Button
               loading={refreshLoading}
@@ -619,6 +657,25 @@ export function App() {
           ) : message ? (
             <Alert className="admin-alert" message={message} type="info" />
           ) : null}
+          <Breadcrumb style={{ marginBottom: 16 }} items={[
+            { title: "锐之博管理台" },
+            { title: activeKey.startsWith("training_") ? "教师培训" : ["campuses", "classes", "students"].includes(activeKey) ? "校区与班级" : ["teachers", "parents"].includes(activeKey) ? "人员管理" : "运营管理" },
+            ...(scopeCampus ? [{ title: campuses.find(c => c.id === scopeCampus)?.name || "校区" }] : []),
+            ...(scopeClass ? [{ title: classes.find(c => c.id === scopeClass)?.name || "班级" }] : []),
+          ]} />
+          {["campuses", "classes", "students"].includes(activeKey) && (
+            <Card title="校区 → 班级 → 学生" style={{ marginBottom: 20 }} extra={<Button onClick={() => { setScopeCampus(undefined); setScopeClass(undefined); }}>查看全部</Button>}>
+              <Typography.Paragraph type="secondary">展开校区查看班级，点击校区筛选班级，点击班级查看学生名册。</Typography.Paragraph>
+              <Tree showLine selectedKeys={scopeClass ? [`class:${scopeClass}`] : scopeCampus ? [`campus:${scopeCampus}`] : []}
+                onSelect={(keys) => {
+                  const key = String(keys[0] || "");
+                  if (key.startsWith("campus:")) { setScopeCampus(key.slice(7)); setScopeClass(undefined); setActiveKey("classes"); }
+                  if (key.startsWith("class:")) { const cls = classes.find(c => c.id === key.slice(6)); if (cls) { setScopeCampus(cls.campusId); setScopeClass(cls.id); setActiveKey("students"); } }
+                }}
+                treeData={campuses.map(campus => ({ key: `campus:${campus.id}`, title: campus.name, children: classes.filter(cls => cls.campusId === campus.id).map(cls => ({ key: `class:${cls.id}`, title: `${cls.name} · ${students.filter(s => s.classId === cls.id).length} 名学生${cls.teacher ? ` · ${cls.teacher.name}` : ""}`, isLeaf: true })) }))}
+              />
+            </Card>
+          )}
           {activeKey === "dashboard" ? (
             <Dashboard dashboard={dashboard} />
           ) : activeKey === "campuses" ? (
@@ -636,11 +693,16 @@ export function App() {
               refreshAll={refreshAll}
               openTraining={(teacherId) => {
                 setTrainingTeacherId(teacherId);
-                setActiveKey("training");
+                setActiveKey("training_assignments");
               }}
             />
-          ) : activeKey === "training" ? (
+          ) : activeKey.startsWith("training_") ? (
             <TrainingPanel
+              section={activeKey.slice("training_".length)}
+              onSectionChange={(section) => {
+                setTrainingTeacherId(null);
+                setActiveKey(`training_${section}`);
+              }}
               request={request}
               token={token}
               teachers={teachers}
@@ -657,7 +719,7 @@ export function App() {
             />
           ) : activeKey === "classes" ? (
             <ClassesPanel
-              classes={classes}
+              classes={scopeCampus ? classes.filter(c => c.campusId === scopeCampus) : classes}
               campuses={campuses}
               teachers={teachers}
               request={request}
@@ -666,7 +728,7 @@ export function App() {
           ) : activeKey === "students" ? (
             <StudentsPanel
               classes={classes}
-              students={students}
+              students={scopeClass ? students.filter(s => s.classId === scopeClass) : scopeCampus ? students.filter(s => classes.some(c => c.id === s.classId && c.campusId === scopeCampus)) : students}
               parents={parents}
               request={request}
               refreshAll={refreshAll}
@@ -918,10 +980,20 @@ function CampusesPanel({
         <Typography.Paragraph type="secondary">
           校区被班级、教研、接送或培训数据引用后不可删除；请优先保留历史业务关系。
         </Typography.Paragraph>
-        <Table
+        <QueryTable
           rowKey="id"
           loading={loading}
           dataSource={campuses}
+          queryFields={[
+            { key: "name", label: "校区名称", value: (r: any) => r.name },
+            { key: "phone", label: "联系电话", value: (r: any) => r.phone },
+            { key: "address", label: "地址", value: (r: any) => r.address },
+            {
+              key: "updatedAt",
+              label: "更新时间",
+              value: (r: any) => r.updatedAt,
+            },
+          ]}
           pagination={false}
           locale={{ emptyText: "暂无校区，请点击右上角新增校区" }}
           scroll={{ x: 900 }}
@@ -1175,7 +1247,7 @@ function TeachersPanel({
   }
   return (
     <Space direction="vertical" size={16} className="admin-stack">
-      <Card title="新增老师">
+      <CreateEntry title="新增老师">
         <Form
           form={form}
           layout="inline"
@@ -1185,6 +1257,11 @@ function TeachersPanel({
               method: "POST",
               body: JSON.stringify({
                 ...values,
+                managedCampusIds: values.teacherPositions?.includes(
+                  "supervisor",
+                )
+                  ? (values.managedCampusIds ?? [])
+                  : [],
                 assignTraining: canAssignTraining
                   ? values.assignTraining !== false
                   : false,
@@ -1248,17 +1325,121 @@ function TeachersPanel({
               }
             </Form.Item>
           ) : null}
+          <Form.Item name="teacherPositions" label="岗位">
+            <Select
+              placeholder="选择岗位"
+              style={{ width: 170 }}
+              mode="multiple"
+              options={teacherPositionOptions}
+            />
+          </Form.Item>
+          <Form.Item noStyle shouldUpdate>
+            {({ getFieldValue }) =>
+              getFieldValue("teacherPositions")?.includes("supervisor") ? (
+                <Form.Item
+                  name="managedCampusIds"
+                  label="管理校区"
+                  extra="可多选；未配置时仅能查看本人记录。此配置不分配培训权限。"
+                >
+                  <Select
+                    mode="multiple"
+                    allowClear
+                    placeholder="选择主管负责的校区"
+                    style={{ minWidth: 240, maxWidth: "100%" }}
+                    options={campuses.map((c) => ({
+                      value: c.id,
+                      label: c.name,
+                    }))}
+                  />
+                </Form.Item>
+              ) : null
+            }
+          </Form.Item>
+
           <Button type="primary" htmlType="submit">
             创建
           </Button>
         </Form>
-      </Card>
-      <Table
+      </CreateEntry>
+      <QueryTable
         rowKey="id"
         dataSource={teachers}
+        queryFields={[
+          { key: "name", label: "姓名", value: (r: any) => r.name },
+          { key: "phone", label: "手机号", value: (r: any) => r.phone },
+          {
+            key: "position",
+            label: "岗位",
+            value: (r: any) => teacherPositionLabel(r.teacherPositions),
+          },
+          {
+            key: "managedCampuses",
+            label: "管理校区",
+            value: (r: any) =>
+              r.managedCampuses?.map((c: any) => c.name).join(" "),
+          },
+          {
+            key: "phoneIssue",
+            label: "手机号异常",
+            value: (r: any) => r.phoneIssue,
+          },
+          {
+            key: "status",
+            label: "账号状态",
+            value: (r: any) => accountStatusLabels[r.status] ?? r.status,
+          },
+          {
+            key: "employmentStatus",
+            label: "在职状态",
+            value: (r: any) =>
+              r.employmentStatus === "resigned" ? "已离职" : "在职",
+          },
+        ]}
         columns={[
           { title: "姓名", dataIndex: "name" },
-          { title: "手机号", dataIndex: "phone" },
+          {
+            title: "岗位",
+            dataIndex: "teacherPositions",
+            render: (values: string[] = []) =>
+              values.length ? (
+                <Space wrap>
+                  {values.map((value) => (
+                    <Tag
+                      key={value}
+                      color={value === "supervisor" ? "blue" : "default"}
+                    >
+                      {teacherPositionLabel([value])}
+                    </Tag>
+                  ))}
+                </Space>
+              ) : (
+                "未设置"
+              ),
+          },
+          {
+            title: "管理校区",
+            render: (_, record) =>
+              record.teacherPositions?.includes("supervisor") ? (
+                record.managedCampuses?.length ? (
+                  record.managedCampuses.map((c) => c.name).join("、")
+                ) : (
+                  <Tag color="warning">待配置</Tag>
+                )
+              ) : (
+                "—"
+              ),
+          },
+          {
+            title: "手机号",
+            render: (_, record) => (
+              <Space direction="vertical">
+                <span>{record.phone || "待补充"}</span>
+                {record.phoneIssue ? (
+                  <Tag color="error">{record.phoneIssue}</Tag>
+                ) : null}
+              </Space>
+            ),
+          },
           {
             title: "状态",
             dataIndex: "status",
@@ -1290,7 +1471,11 @@ function TeachersPanel({
                   type="link"
                   onClick={() => {
                     setEditing(record);
-                    editForm.setFieldsValue(record);
+                    editForm.setFieldsValue({
+                      ...record,
+                      managedCampusIds:
+                        record.managedCampuses?.map((c) => c.id) ?? [],
+                    });
                   }}
                 >
                   编辑
@@ -1320,7 +1505,15 @@ function TeachersPanel({
             submitChange(async () => {
               await request(`/admin/teachers/${editing!.id}`, {
                 method: "PATCH",
-                body: JSON.stringify(values),
+                body: JSON.stringify({
+                  ...values,
+                  managedCampusIds: values.teacherPositions?.includes(
+                    "supervisor",
+                  )
+                    ? (values.managedCampusIds ?? [])
+                    : [],
+                  phone: values.phone?.trim() || undefined,
+                }),
               });
               setEditing(null);
               await refreshAll();
@@ -1330,7 +1523,47 @@ function TeachersPanel({
           <Form.Item name="name" label="姓名" rules={[{ required: true }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="phone" label="手机号" rules={[{ required: true }]}>
+          <Form.Item name="teacherPositions" label="岗位">
+            <Select mode="multiple" options={teacherPositionOptions} />
+          </Form.Item>
+          <Form.Item noStyle shouldUpdate>
+            {({ getFieldValue }) =>
+              getFieldValue("teacherPositions")?.includes("supervisor") ? (
+                <Form.Item
+                  name="managedCampusIds"
+                  label="管理校区"
+                  extra="可多选；未配置时仅能查看本人记录。此配置不分配培训权限。"
+                >
+                  <Select
+                    mode="multiple"
+                    allowClear
+                    placeholder="选择主管负责的校区"
+                    style={{ minWidth: 240, maxWidth: "100%" }}
+                    options={campuses.map((c) => ({
+                      value: c.id,
+                      label: c.name,
+                    }))}
+                  />
+                </Form.Item>
+              ) : null
+            }
+          </Form.Item>
+
+          {editing?.phoneIssue ? (
+            <Alert
+              type="warning"
+              showIcon
+              message={editing.phoneIssue}
+              description="补齐正确手机号后，异常标记会自动清除；如需开放登录，请将账号状态改为启用。"
+            />
+          ) : null}
+          <Form.Item
+            name="phone"
+            label="手机号"
+            rules={[
+              { pattern: /^1\d{10}$/, message: "请输入正确的11位手机号" },
+            ]}
+          >
             <Input />
           </Form.Item>
           <Form.Item name="status" label="状态" rules={[{ required: true }]}>
@@ -1452,7 +1685,14 @@ function GuardianManager({
       width={900}
       onClose={onClose}
     >
-      <Card title={editing ? "编辑绑定关系" : "新增绑定关系"} size="small">
+      <CreateEntry
+        title={editing ? "编辑绑定关系" : "新增绑定关系"}
+        buttonText="新增绑定关系"
+        editTarget={editing}
+        onOpen={resetForm}
+        onCancel={resetForm}
+        contextKey={student?.id ?? parent?.id}
+      >
         <Form
           form={form}
           layout="vertical"
@@ -1597,7 +1837,7 @@ function GuardianManager({
             {editing ? <Button onClick={resetForm}>取消编辑</Button> : null}
           </Space>
         </Form>
-      </Card>
+      </CreateEntry>
       <Table
         style={{ marginTop: 16 }}
         rowKey="id"
@@ -1742,7 +1982,7 @@ function ParentsPanel({
 
   return (
     <Space direction="vertical" size={16} className="admin-stack">
-      <Card title="新增家长">
+      <CreateEntry title="新增家长">
         <Form
           form={form}
           layout="inline"
@@ -1776,10 +2016,28 @@ function ParentsPanel({
             创建
           </Button>
         </Form>
-      </Card>
-      <Table
+      </CreateEntry>
+      <QueryTable
         rowKey="id"
         dataSource={parents}
+        queryFields={[
+          { key: "name", label: "姓名", value: (r: any) => r.name },
+          { key: "phone", label: "手机号", value: (r: any) => r.phone },
+          {
+            key: "status",
+            label: "账号状态",
+            value: (r: any) => accountStatusLabels[r.status] ?? r.status,
+          },
+          {
+            key: "student",
+            label: "绑定学生",
+            value: (r: any) =>
+              r.guardianships
+                ?.filter((g: any) => g.status !== "unlinked")
+                .map((g: any) => g.student.name)
+                .join(" "),
+          },
+        ]}
         columns={[
           { title: "姓名", dataIndex: "name" },
           { title: "手机号", dataIndex: "phone" },
@@ -1976,7 +2234,7 @@ function ClassesPanel({
   }
   return (
     <Space direction="vertical" size={16} className="admin-stack">
-      <Card title="新增班级">
+      <CreateEntry title="新增班级">
         <Form
           form={form}
           layout="inline"
@@ -2017,10 +2275,24 @@ function ClassesPanel({
             创建
           </Button>
         </Form>
-      </Card>
-      <Table
+      </CreateEntry>
+      <QueryTable
         rowKey="id"
         dataSource={classes}
+        queryFields={[
+          { key: "name", label: "班级名称", value: (r: any) => r.name },
+          { key: "campus", label: "校区", value: (r: any) => r.campus?.name },
+          {
+            key: "teacher",
+            label: "老师",
+            value: (r: any) => r.teacher?.name ?? "未分配",
+          },
+          {
+            key: "count",
+            label: "学生数",
+            value: (r: any) => r._count?.students ?? 0,
+          },
+        ]}
         columns={[
           { title: "班级", dataIndex: "name" },
           {
@@ -2187,7 +2459,7 @@ function PickupPeopleManager({
         type="info"
         message="家长绑定中的“授权接送”人员会自动出现在教师端；此处用于添加没有家长账号的爷爷、奶奶或其他固定授权人。"
       />
-      <Card title="新增固定授权人" size="small" style={{ marginTop: 16 }}>
+      <CreateEntry title="新增固定授权人">
         <Form
           form={form}
           layout="vertical"
@@ -2243,7 +2515,7 @@ function PickupPeopleManager({
             添加授权人
           </Button>
         </Form>
-      </Card>
+      </CreateEntry>
       <Table
         style={{ marginTop: 16 }}
         rowKey="id"
@@ -2385,7 +2657,7 @@ function StudentsPanel({
   }
   return (
     <Space direction="vertical" size={16} className="admin-stack">
-      <Card title="新增学生">
+      <CreateEntry title="新增学生">
         <Form
           form={studentForm}
           layout="inline"
@@ -2433,10 +2705,41 @@ function StudentsPanel({
             创建
           </Button>
         </Form>
-      </Card>
-      <Table
+      </CreateEntry>
+      <QueryTable
         rowKey="id"
         dataSource={students}
+        queryFields={[
+          { key: "name", label: "学生姓名", value: (r: any) => r.name },
+          { key: "class", label: "班级", value: (r: any) => r.class?.name },
+          {
+            key: "status",
+            label: "学籍状态",
+            value: (r: any) => studentStatusLabels[r.status] ?? r.status,
+          },
+          {
+            key: "gender",
+            label: "性别",
+            value: (r: any) =>
+              (({ male: "男", female: "女" }) as Record<string, string>)[
+                r.gender
+              ] ?? r.gender,
+          },
+          {
+            key: "birthday",
+            label: "生日",
+            value: (r: any) => r.birthday?.slice(0, 10),
+          },
+          {
+            key: "parent",
+            label: "家长",
+            value: (r: any) =>
+              r.guardians
+                ?.filter((g: any) => g.status !== "unlinked")
+                .map((g: any) => g.parent.name)
+                .join(" "),
+          },
+        ]}
         locale={{ emptyText: "暂无学生，请先在上方创建" }}
         columns={[
           { title: "学生", dataIndex: "name" },
@@ -2727,6 +3030,27 @@ function WorkflowPanel({
   request: <T>(path: string, options?: RequestInit) => Promise<T>;
   refreshAll: () => Promise<void>;
 }) {
+  const [queryValues, setQueryValues] = useState<Record<string, string>>({});
+  const queryFields = [
+    { key: "name", label: "模板名称", value: (r: WorkflowTemplate) => r.name },
+
+    {
+      key: "status",
+      label: "启用状态",
+      value: (r: WorkflowTemplate) => (r.isActive ? "启用" : "停用"),
+    },
+    {
+      key: "version",
+      label: "版本",
+      value: (r: WorkflowTemplate) => r.version,
+    },
+    {
+      key: "steps",
+      label: "步骤名称",
+      value: (r: WorkflowTemplate) =>
+        r.steps.map((step) => step.name).join(" "),
+    },
+  ];
   const [form] = Form.useForm();
   const [editForm] = Form.useForm();
   const [editing, setEditing] = useState<WorkflowTemplate | null>(null);
@@ -2775,7 +3099,7 @@ function WorkflowPanel({
   }
   return (
     <Space direction="vertical" size={16} className="admin-stack">
-      <Card title="创建流程模板">
+      <CreateEntry title="新增流程模板">
         <Form
           form={form}
           layout="vertical"
@@ -2825,44 +3149,49 @@ function WorkflowPanel({
             创建模板
           </Button>
         </Form>
-      </Card>
+      </CreateEntry>
+      <QueryBar fields={queryFields} onQuery={setQueryValues} />
       <Tabs
-        items={templates.map((template) => ({
-          key: template.id,
-          label: template.name,
-          children: (
-            <Space direction="vertical" className="admin-stack">
-              <Space>
-                <Tag color={template.isActive ? "green" : "default"}>
-                  {template.isActive ? "启用" : "停用"}
-                </Tag>
-                <Button onClick={() => loadReferences(template)}>
-                  查看引用（{template._count?.sessions ?? 0}）
-                </Button>
-                <Button
-                  onClick={() => {
-                    setEditing(template);
-                    editForm.setFieldsValue(workflowFormValues(template));
-                  }}
-                >
-                  编辑模板
-                </Button>
-                <Button danger onClick={() => deleteTemplate(template)}>
-                  删除模板
-                </Button>
+        items={templates
+          .filter((template) =>
+            matchesQuery(template, queryFields, queryValues),
+          )
+          .map((template) => ({
+            key: template.id,
+            label: template.name,
+            children: (
+              <Space direction="vertical" className="admin-stack">
+                <Space>
+                  <Tag color={template.isActive ? "green" : "default"}>
+                    {template.isActive ? "启用" : "停用"}
+                  </Tag>
+                  <Button onClick={() => loadReferences(template)}>
+                    查看引用（{template._count?.sessions ?? 0}）
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setEditing(template);
+                      editForm.setFieldsValue(workflowFormValues(template));
+                    }}
+                  >
+                    编辑模板
+                  </Button>
+                  <Button danger onClick={() => deleteTemplate(template)}>
+                    删除模板
+                  </Button>
+                </Space>
+                <Table
+                  rowKey="id"
+                  dataSource={template.steps}
+                  columns={[
+                    { title: "步骤", dataIndex: "name" },
+                    { title: "时间", dataIndex: "timeRange" },
+                    { title: "排序", dataIndex: "sortOrder" },
+                  ]}
+                />
               </Space>
-              <Table
-                rowKey="id"
-                dataSource={template.steps}
-                columns={[
-                  { title: "步骤", dataIndex: "name" },
-                  { title: "时间", dataIndex: "timeRange" },
-                  { title: "排序", dataIndex: "sortOrder" },
-                ]}
-              />
-            </Space>
-          ),
-        }))}
+            ),
+          }))}
       />
       <Modal
         title="编辑流程模板"
@@ -2933,9 +3262,24 @@ function WorkflowPanel({
 
 function AuditPanel({ logs }: { logs: any[] }) {
   return (
-    <Table
+    <QueryTable
       rowKey="id"
       dataSource={logs}
+      queryFields={[
+        {
+          key: "user",
+          label: "操作者",
+          value: (r: any) => r.user?.name ?? "系统",
+        },
+        { key: "action", label: "动作", value: (r: any) => r.action },
+        {
+          key: "targetType",
+          label: "对象类型",
+          value: (r: any) => r.targetType,
+        },
+        { key: "targetId", label: "对象编号", value: (r: any) => r.targetId },
+        { key: "createdAt", label: "时间", value: (r: any) => r.createdAt },
+      ]}
       columns={[
         { title: "时间", dataIndex: "createdAt" },
         { title: "动作", dataIndex: "action" },

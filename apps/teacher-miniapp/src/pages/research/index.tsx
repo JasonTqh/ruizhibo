@@ -1,6 +1,13 @@
 // @ts-nocheck
 import React, { useMemo, useState } from "react";
-import { Button, Input, Picker, Text, Textarea, View } from "@tarojs/components";
+import {
+  Button,
+  Input,
+  Picker,
+  Text,
+  Textarea,
+  View,
+} from "@tarojs/components";
 import Taro, { useDidShow } from "@tarojs/taro";
 import { teacherRequest } from "../../api";
 import "./index.scss";
@@ -9,7 +16,6 @@ const h = React.createElement;
 const typeOptions = [
   { value: "discussion", label: "教学研讨" },
   { value: "observation", label: "听课评课" },
-  { value: "training", label: "教师培训" },
 ];
 
 function emptyForm() {
@@ -70,7 +76,11 @@ export default function ResearchPage() {
         ),
       ]);
       setClasses(nextClasses);
-      setActivities(nextActivities);
+      setActivities(
+        nextActivities.filter((activity) =>
+          typeOptions.some((option) => option.value === activity.type),
+        ),
+      );
     } catch (loadError) {
       setError(errorMessage(loadError, "教研活动加载失败，请重试。"));
     } finally {
@@ -232,7 +242,7 @@ export default function ResearchPage() {
           h(
             Text,
             { className: "research-description" },
-            "汇集教学研讨、听课评课和培训活动。",
+            "汇集教学研讨与听课评课活动。",
           ),
         ),
         h(
@@ -317,7 +327,9 @@ export default function ResearchPage() {
           h(
             Text,
             { className: "research-empty__text" },
-            scope === "mine" ? "你还没有发起或报名活动。" : "可以发起一场新的教研活动。",
+            scope === "mine"
+              ? "你还没有发起或报名活动。"
+              : "可以发起一场新的教研活动。",
           ),
         )
       : null,
@@ -340,7 +352,15 @@ export default function ResearchPage() {
   );
 }
 
-function renderForm({ campuses, form, editingId, saving, updateForm, close, save }) {
+function renderForm({
+  campuses,
+  form,
+  editingId,
+  saving,
+  updateForm,
+  close,
+  save,
+}) {
   const campusIndex = Math.max(
     0,
     campuses.findIndex((item) => item.id === form.campusId),
@@ -358,8 +378,16 @@ function renderForm({ campuses, form, editingId, saving, updateForm, close, save
       h(
         View,
         null,
-        h(Text, { className: "research-form__title" }, editingId ? "编辑教研活动" : "发起教研活动"),
-        h(Text, { className: "research-form__hint" }, "草稿仅自己可见，发布后同校区教师可报名。"),
+        h(
+          Text,
+          { className: "research-form__title" },
+          editingId ? "编辑教研活动" : "发起教研活动",
+        ),
+        h(
+          Text,
+          { className: "research-form__hint" },
+          "草稿仅自己可见，发布后同校区教师可报名。",
+        ),
       ),
       h(Text, { className: "research-form__close", onClick: close }, "×"),
     ),
@@ -373,9 +401,16 @@ function renderForm({ campuses, form, editingId, saving, updateForm, close, save
           value: campusIndex,
           disabled: Boolean(editingId),
           onChange: (event) =>
-            updateForm("campusId", campuses[Number(event.detail.value)]?.id || ""),
+            updateForm(
+              "campusId",
+              campuses[Number(event.detail.value)]?.id || "",
+            ),
         },
-        h(View, { className: "research-picker" }, campuses[campusIndex]?.name || "请选择校区"),
+        h(
+          View,
+          { className: "research-picker" },
+          campuses[campusIndex]?.name || "请选择校区",
+        ),
       ),
     ),
     field(
@@ -389,7 +424,11 @@ function renderForm({ campuses, form, editingId, saving, updateForm, close, save
           onChange: (event) =>
             updateForm("type", typeOptions[Number(event.detail.value)]?.value),
         },
-        h(View, { className: "research-picker" }, typeOptions[typeIndex]?.label),
+        h(
+          View,
+          { className: "research-picker" },
+          typeOptions[typeIndex]?.label,
+        ),
       ),
     ),
     field(
@@ -465,8 +504,26 @@ function renderForm({ campuses, form, editingId, saving, updateForm, close, save
     h(
       View,
       { className: "research-form__actions" },
-      h(Button, { className: "research-button", disabled: saving, loading: saving, onClick: () => save("draft") }, "保存草稿"),
-      h(Button, { className: "research-button research-button--primary", disabled: saving, loading: saving, onClick: () => save("open") }, "保存并发布"),
+      h(
+        Button,
+        {
+          className: "research-button",
+          disabled: saving,
+          loading: saving,
+          onClick: () => save("draft"),
+        },
+        "保存草稿",
+      ),
+      h(
+        Button,
+        {
+          className: "research-button research-button--primary",
+          disabled: saving,
+          loading: saving,
+          onClick: () => save("open"),
+        },
+        "保存并发布",
+      ),
     ),
   );
 }
@@ -477,7 +534,10 @@ function activityCard(activity, actions) {
   );
   return h(
     View,
-    { className: `research-card research-card--${activity.status}`, key: activity.id },
+    {
+      className: `research-card research-card--${activity.status}`,
+      key: activity.id,
+    },
     h(
       View,
       { className: "research-card__top" },
@@ -486,70 +546,168 @@ function activityCard(activity, actions) {
         { className: `research-type research-type--${activity.type}` },
         typeLabel(activity.type),
       ),
-      h(Text, { className: `research-status research-status--${activity.status}` }, activityStatusLabel(activity.status)),
+      h(
+        Text,
+        { className: `research-status research-status--${activity.status}` },
+        activityStatusLabel(activity.status),
+      ),
     ),
     h(Text, { className: "research-card__title" }, activity.title),
-    h(Text, { className: "research-card__time" }, formatRange(activity.startAt, activity.endAt)),
+    h(
+      Text,
+      { className: "research-card__time" },
+      formatRange(activity.startAt, activity.endAt),
+    ),
     h(Text, { className: "research-card__location" }, `⌖ ${activity.location}`),
     h(
       View,
       { className: "research-card__meta" },
       h(Text, null, `${activity.organizer?.name || "教师"} 发起`),
       h(Text, null, `${activity.participantCount} 人参与`),
-      activity.isOrganizer ? h(Text, { className: "research-owner" }, "我发起的") : null,
+      activity.isOrganizer
+        ? h(Text, { className: "research-owner" }, "我发起的")
+        : null,
     ),
     actions.expanded
       ? h(
           View,
           { className: "research-detail" },
           h(Text, { className: "research-detail__label" }, "活动说明"),
-          h(Text, { className: "research-detail__content" }, activity.description),
+          h(
+            Text,
+            { className: "research-detail__content" },
+            activity.description,
+          ),
           h(Text, { className: "research-detail__label" }, "参与教师"),
           h(
             Text,
             { className: "research-detail__content" },
             participantNames(activity.participants),
           ),
-          h(Text, { className: "research-detail__campus" }, `范围：${activity.campus?.name || "当前校区"}`),
+          h(
+            Text,
+            { className: "research-detail__campus" },
+            `范围：${activity.campus?.name || "当前校区"}`,
+          ),
         )
       : h(Text, { className: "research-card__preview" }, activity.description),
     h(
       View,
       { className: "research-card__actions" },
-      h(Button, { className: "research-button", size: "mini", onClick: actions.toggle }, actions.expanded ? "收起详情" : "查看详情"),
-      activity.isOrganizer && !["completed", "cancelled"].includes(activity.status)
-        ? h(Button, { className: "research-button", size: "mini", disabled: actions.busy, onClick: actions.edit }, "编辑")
+      h(
+        Button,
+        { className: "research-button", size: "mini", onClick: actions.toggle },
+        actions.expanded ? "收起详情" : "查看详情",
+      ),
+      activity.isOrganizer &&
+        !["completed", "cancelled"].includes(activity.status)
+        ? h(
+            Button,
+            {
+              className: "research-button",
+              size: "mini",
+              disabled: actions.busy,
+              onClick: actions.edit,
+            },
+            "编辑",
+          )
         : null,
       activity.isOrganizer && activity.status === "draft"
-        ? h(Button, { className: "research-button research-button--primary", size: "mini", disabled: actions.busy, loading: actions.busy, onClick: () => actions.updateActivity("open") }, "发布")
+        ? h(
+            Button,
+            {
+              className: "research-button research-button--primary",
+              size: "mini",
+              disabled: actions.busy,
+              loading: actions.busy,
+              onClick: () => actions.updateActivity("open"),
+            },
+            "发布",
+          )
         : null,
       activity.isOrganizer && activity.status === "open"
-        ? h(Button, { className: "research-button research-button--primary", size: "mini", disabled: actions.busy, loading: actions.busy, onClick: () => actions.updateActivity("completed") }, "结束活动")
+        ? h(
+            Button,
+            {
+              className: "research-button research-button--primary",
+              size: "mini",
+              disabled: actions.busy,
+              loading: actions.busy,
+              onClick: () => actions.updateActivity("completed"),
+            },
+            "结束活动",
+          )
         : null,
       activity.isOrganizer && ["draft", "open"].includes(activity.status)
-        ? h(Button, { className: "research-button research-button--danger", size: "mini", disabled: actions.busy, onClick: () => actions.updateActivity("cancelled") }, "取消活动")
+        ? h(
+            Button,
+            {
+              className: "research-button research-button--danger",
+              size: "mini",
+              disabled: actions.busy,
+              onClick: () => actions.updateActivity("cancelled"),
+            },
+            "取消活动",
+          )
         : null,
       !activity.isOrganizer && activity.status === "open"
-        ? h(Button, { className: `research-button${registered ? "" : " research-button--primary"}`, size: "mini", disabled: actions.busy, loading: actions.busy, onClick: () => actions.updateParticipation(registered ? "cancelled" : "registered") }, registered ? "取消报名" : "报名参加")
+        ? h(
+            Button,
+            {
+              className: `research-button${registered ? "" : " research-button--primary"}`,
+              size: "mini",
+              disabled: actions.busy,
+              loading: actions.busy,
+              onClick: () =>
+                actions.updateParticipation(
+                  registered ? "cancelled" : "registered",
+                ),
+            },
+            registered ? "取消报名" : "报名参加",
+          )
         : null,
     ),
   );
 }
 
 function field(label, control) {
-  return h(View, { className: "research-field" }, h(Text, { className: "research-field__label" }, `${label} *`), control);
+  return h(
+    View,
+    { className: "research-field" },
+    h(Text, { className: "research-field__label" }, `${label} *`),
+    control,
+  );
 }
 
 function metric(value, label) {
-  return h(View, { className: "research-summary__item" }, h(Text, { className: "research-summary__value" }, String(value)), h(Text, { className: "research-summary__label" }, label));
+  return h(
+    View,
+    { className: "research-summary__item" },
+    h(Text, { className: "research-summary__value" }, String(value)),
+    h(Text, { className: "research-summary__label" }, label),
+  );
 }
 
 function tab(key, label, current, onClick) {
-  return h(View, { className: `research-scope-tab${current === key ? " research-scope-tab--active" : ""}`, onClick: () => onClick(key) }, label);
+  return h(
+    View,
+    {
+      className: `research-scope-tab${current === key ? " research-scope-tab--active" : ""}`,
+      onClick: () => onClick(key),
+    },
+    label,
+  );
 }
 
 function typeTab(key, label, current, onClick) {
-  return h(View, { className: `research-type-tab${current === key ? " research-type-tab--active" : ""}`, onClick: () => onClick(key) }, label);
+  return h(
+    View,
+    {
+      className: `research-type-tab${current === key ? " research-type-tab--active" : ""}`,
+      onClick: () => onClick(key),
+    },
+    label,
+  );
 }
 
 function typeLabel(type) {
@@ -557,21 +715,35 @@ function typeLabel(type) {
 }
 
 function activityStatusLabel(status) {
-  return { draft: "草稿", open: "报名中", completed: "已结束", cancelled: "已取消" }[status] || status;
+  return (
+    { draft: "草稿", open: "报名中", completed: "已结束", cancelled: "已取消" }[
+      status
+    ] || status
+  );
 }
 
 function activityStatusToast(status) {
-  return { open: "活动已发布", completed: "活动已结束", cancelled: "活动已取消" }[status] || "状态已更新";
+  return (
+    { open: "活动已发布", completed: "活动已结束", cancelled: "活动已取消" }[
+      status
+    ] || "状态已更新"
+  );
 }
 
 function scopeLabel(scope) {
-  return { upcoming: "近期教研", mine: "与我相关", all: "全部活动" }[scope] || "教研活动";
+  return (
+    { upcoming: "近期教研", mine: "与我相关", all: "全部活动" }[scope] ||
+    "教研活动"
+  );
 }
 
 function participantNames(participants = []) {
   const names = participants
     .filter((item) => item.status !== "cancelled")
-    .map((item) => `${item.teacher?.name || "教师"}${item.status === "attended" ? "（已参加）" : ""}`);
+    .map(
+      (item) =>
+        `${item.teacher?.name || "教师"}${item.status === "attended" ? "（已参加）" : ""}`,
+    );
   return names.length ? names.join("、") : "暂无教师报名";
 }
 

@@ -120,6 +120,7 @@ export function startStudySession(
   token: string,
   assignmentCourseId: string,
   input: {
+    snapshotId?: string;
     clientSessionId: string;
     chapterKey: string;
     kind: "content" | "video";
@@ -158,10 +159,11 @@ export function completeTrainingChapter(
   token: string,
   assignmentCourseId: string,
   chapterKey: string,
+  snapshotId?: string,
 ) {
   return request<{ completedAt: string }>(
     `/teacher/training/courses/${encodeURIComponent(assignmentCourseId)}/chapters/complete`,
-    { method: "POST", body: JSON.stringify({ chapterKey }) },
+    { method: "POST", body: JSON.stringify({ chapterKey, snapshotId }) },
     token,
   );
 }
@@ -170,10 +172,11 @@ export function submitTrainingQuiz(
   token: string,
   assignmentCourseId: string,
   answers: Array<{ questionId: string; answerIds: string[] }>,
+  snapshotId?: string,
 ) {
   return request<QuizSubmissionResult>(
     `/teacher/training/courses/${encodeURIComponent(assignmentCourseId)}/quiz`,
-    { method: "POST", body: JSON.stringify({ answers }) },
+    { method: "POST", body: JSON.stringify({ answers, snapshotId }) },
     token,
   );
 }

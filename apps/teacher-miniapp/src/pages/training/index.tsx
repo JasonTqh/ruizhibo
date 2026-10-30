@@ -135,6 +135,7 @@ export default function TrainingPage() {
       await teacherRequest(`/teacher/training/practical/${practicalTarget.id}`, {
         method: "POST",
         data: {
+          snapshotId: practicalTarget.snapshotId,
           conclusion: practicalDraft.conclusion,
           comment: practicalDraft.comment.trim(),
           checklist: items.map((item) => ({

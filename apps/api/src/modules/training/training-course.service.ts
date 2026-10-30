@@ -14,6 +14,7 @@ import { createHash } from "node:crypto";
 import { parseDocument } from "htmlparser2";
 import { PrismaService } from "../prisma/prisma.service";
 import { UpsertTrainingCourseDto } from "./dto/training-admin.dto";
+import { TrainingOverwriteService } from "./training-overwrite.service";
 import { TrainingAccessService } from "./training-access.service";
 import { TrainingAuditService } from "./training-audit.service";
 import type {
@@ -57,6 +58,7 @@ export class TrainingCourseService {
     private readonly prisma: PrismaService,
     private readonly access: TrainingAccessService,
     private readonly audit: TrainingAuditService,
+    private readonly overwrite: TrainingOverwriteService,
   ) {}
 
   async listAdmin(actorId: string) {
@@ -106,6 +108,33 @@ export class TrainingCourseService {
     return { data: course };
   }
 
+  async previewUpdate(
+    actorId: string,
+    courseId: string,
+    dto: UpsertTrainingCourseDto,
+  ) {
+    await this.access.assertPermission(
+      actorId,
+      TrainingPermission.training_manage,
+    );
+    await this.validateAggregate(dto);
+    const current = await this.requireCourse(courseId);
+    if (dto.code.trim() !== current.code)
+      throw new BadRequestException("课程代码创建后不能修改");
+    this.assertFixedCourseRule(current.code, dto);
+    if (
+      dto.expectedUpdatedAt &&
+      dto.expectedUpdatedAt !== current.updatedAt.toISOString()
+    )
+      throw new ConflictException("课程已被修改，请重新打开编辑");
+    return this.overwrite.preview(
+      actorId,
+      courseId,
+      current.updatedAt,
+      this.dtoSnapshot(dto),
+    );
+  }
+
   async update(
     actorId: string,
     courseId: string,
@@ -121,31 +150,63 @@ export class TrainingCourseService {
       throw new BadRequestException("课程代码是稳定业务标识，创建后不能修改");
     }
     this.assertFixedCourseRule(current.code, dto);
-    const updated = await this.prisma.$transaction(async (tx) => {
-      await tx.trainingQuiz.deleteMany({ where: { courseId } });
-      await tx.trainingPracticalTemplateItem.deleteMany({
-        where: { courseId },
-      });
-      await tx.trainingChapter.deleteMany({ where: { courseId } });
-      const course = await tx.trainingCourse.update({
-        where: { id: courseId },
-        data: this.courseUpdateData(actorId, dto),
-        include: courseInclude,
-      });
-      await this.audit.log(
-        {
-          actorId,
-          action: "course.update",
-          targetType: "TrainingCourse",
-          targetId: courseId,
-          before: this.auditCourse(current),
-          after: this.auditCourse(course),
-          reason: dto.reason.trim(),
-        },
-        tx,
-      );
-      return course;
-    });
+    const updated = await this.prisma.$transaction(
+      async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`training-course:${courseId}`}))`;
+        const fresh = await tx.trainingCourse.findUniqueOrThrow({
+          where: { id: courseId },
+        });
+        if (
+          fresh.updatedAt.getTime() !== current.updatedAt.getTime() ||
+          (dto.expectedUpdatedAt &&
+            dto.expectedUpdatedAt !== fresh.updatedAt.toISOString())
+        )
+          throw new ConflictException("课程已变化，请刷新并重新预览");
+        const targets = dto.overwriteExisting
+          ? await this.overwrite.confirm(
+              tx,
+              actorId,
+              courseId,
+              fresh.updatedAt,
+              this.dtoSnapshot(dto),
+              dto.previewToken,
+            )
+          : [];
+        await tx.trainingQuiz.deleteMany({ where: { courseId } });
+        await tx.trainingPracticalTemplateItem.deleteMany({
+          where: { courseId },
+        });
+        await tx.trainingChapter.deleteMany({ where: { courseId } });
+        const course = await tx.trainingCourse.update({
+          where: { id: courseId },
+          data: this.courseUpdateData(actorId, dto),
+          include: courseInclude,
+        });
+        await this.audit.log(
+          {
+            actorId,
+            action: "course.update",
+            targetType: "TrainingCourse",
+            targetId: courseId,
+            before: this.auditCourse(current),
+            after: this.auditCourse(course),
+            reason: dto.reason.trim(),
+          },
+          tx,
+        );
+        const overwriteResult = dto.overwriteExisting
+          ? await this.overwrite.apply(
+              tx,
+              actorId,
+              targets,
+              this.toSnapshotPayload(course),
+              dto.reason.trim(),
+            )
+          : { overwrittenCount: 0 };
+        return { ...course, ...overwriteResult };
+      },
+      { timeout: 120000 },
+    );
     return { data: updated };
   }
 
@@ -156,7 +217,9 @@ export class TrainingCourseService {
     );
     const current = await this.requireCourse(courseId);
     if (current.status !== TrainingContentStatus.draft) {
-      throw new ConflictException("只有从未使用的草稿课程可以删除；其他课程请停用");
+      throw new ConflictException(
+        "只有从未使用的草稿课程可以删除；其他课程请停用",
+      );
     }
     if (current._count.snapshots > 0 || current._count.assignmentCourses > 0) {
       throw new ConflictException("课程已有培训快照或任务引用，只能停用");
@@ -281,7 +344,11 @@ export class TrainingCourseService {
         }
       }
     }
-    if (dto.isRequired && dto.status === TrainingContentStatus.enabled && !dto.quiz) {
+    if (
+      dto.isRequired &&
+      dto.status === TrainingContentStatus.enabled &&
+      !dto.quiz
+    ) {
       throw new BadRequestException("启用的必修课程必须配置测验");
     }
     if (dto.requiresPractical && dto.practicalItems.length === 0) {
@@ -294,15 +361,17 @@ export class TrainingCourseService {
   }
 
   private assertFixedCourseRule(code: string, dto: UpsertTrainingCourseDto) {
-    const fixedRules = new Map<string, { practical: boolean; safety: boolean }>([
-      ["ONBOARDING-CULTURE", { practical: false, safety: false }],
-      ["ONBOARDING-COMPENSATION", { practical: false, safety: false }],
-      ["ONBOARDING-GROWTH", { practical: false, safety: false }],
-      ["ONBOARDING-CLASS-FLOW", { practical: true, safety: false }],
-      ["ONBOARDING-CLASSROOM", { practical: true, safety: false }],
-      ["ONBOARDING-FAMILY", { practical: true, safety: false }],
-      ["ONBOARDING-SAFETY", { practical: true, safety: true }],
-    ]);
+    const fixedRules = new Map<string, { practical: boolean; safety: boolean }>(
+      [
+        ["ONBOARDING-CULTURE", { practical: false, safety: false }],
+        ["ONBOARDING-COMPENSATION", { practical: false, safety: false }],
+        ["ONBOARDING-GROWTH", { practical: false, safety: false }],
+        ["ONBOARDING-CLASS-FLOW", { practical: true, safety: false }],
+        ["ONBOARDING-CLASSROOM", { practical: true, safety: false }],
+        ["ONBOARDING-FAMILY", { practical: true, safety: false }],
+        ["ONBOARDING-SAFETY", { practical: true, safety: true }],
+      ],
+    );
     const rule = fixedRules.get(code);
     if (!rule) return;
     if (
@@ -434,6 +503,74 @@ export class TrainingCourseService {
     };
   }
 
+  private dtoSnapshot(
+    dto: UpsertTrainingCourseDto,
+  ): TrainingCourseSnapshotPayload {
+    return {
+      schemaVersion: 1,
+      course: {
+        id: "preview",
+        code: dto.code.trim(),
+        name: dto.name.trim(),
+        category: dto.category,
+        summary: dto.summary.trim(),
+        audience: dto.audience?.trim() || null,
+        expectedMinutes: dto.expectedMinutes,
+        minimumMinutes: dto.minimumMinutes,
+        sortOrder: dto.sortOrder,
+        requiresPractical: dto.requiresPractical,
+        isSafety: dto.isSafety,
+        coverAssetId: dto.coverAssetId || null,
+      },
+      chapters: [...dto.chapters]
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .filter((c) => c.isEnabled !== false)
+        .map((c, i) => ({
+          key: String(i),
+          title: c.title.trim(),
+          contentHtml: sanitizeTrainingHtml(c.contentHtml),
+          sortOrder: c.sortOrder,
+          media: [...c.media]
+            .sort((a, b) => a.sortOrder - b.sortOrder)
+            .map((m, j) => ({
+              id: String(j),
+              type: m.type,
+              fileAssetId: m.fileAssetId,
+              caption: m.caption?.trim() || null,
+              sortOrder: m.sortOrder,
+              durationSeconds: m.durationSeconds ?? null,
+            })),
+        })),
+      quiz: dto.quiz
+        ? {
+            passScore: dto.quiz.passScore,
+            maxAttempts: dto.quiz.maxAttempts ?? null,
+            questions: [...dto.quiz.questions]
+              .sort((a, b) => a.sortOrder - b.sortOrder)
+              .map((q, i) => ({
+                id: String(i),
+                type: q.type,
+                prompt: q.prompt.trim(),
+                options: q.options,
+                correctAnswers: q.correctAnswers,
+                score: q.score,
+                explanation: q.explanation?.trim() || null,
+                sortOrder: q.sortOrder,
+              })),
+          }
+        : null,
+      practicalItems: [...dto.practicalItems]
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map((p, i) => ({
+          id: String(i),
+          title: p.title.trim(),
+          instructions: p.instructions?.trim() || null,
+          isRequired: p.isRequired ?? true,
+          sortOrder: p.sortOrder,
+        })),
+    };
+  }
+
   private toSnapshotPayload(
     course: Prisma.TrainingCourseGetPayload<{ include: typeof courseInclude }>,
   ): TrainingCourseSnapshotPayload {
@@ -477,7 +614,8 @@ export class TrainingCourseService {
               id: question.id,
               type: question.type,
               prompt: question.prompt,
-              options: question.options as unknown as TrainingSnapshotQuestionOption[],
+              options:
+                question.options as unknown as TrainingSnapshotQuestionOption[],
               correctAnswers: question.correctAnswers,
               score: question.score,
               explanation: question.explanation,
@@ -496,16 +634,21 @@ export class TrainingCourseService {
   }
 
   private requireCourse(courseId: string) {
-    return this.prisma.trainingCourse.findUnique({
-      where: { id: courseId },
-      include: courseInclude,
-    }).then((course) => {
-      if (!course) throw new NotFoundException("培训课程不存在");
-      return course;
-    });
+    return this.prisma.trainingCourse
+      .findUnique({
+        where: { id: courseId },
+        include: courseInclude,
+      })
+      .then((course) => {
+        if (!course) throw new NotFoundException("培训课程不存在");
+        return course;
+      });
   }
 
-  private assertUniqueOrder(items: Array<{ sortOrder: number }>, label: string) {
+  private assertUniqueOrder(
+    items: Array<{ sortOrder: number }>,
+    label: string,
+  ) {
     const orders = items.map((item) => item.sortOrder);
     if (new Set(orders).size !== orders.length) {
       throw new BadRequestException(`${label}排序不能重复`);

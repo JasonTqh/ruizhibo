@@ -1,6 +1,13 @@
 // @ts-nocheck
-import React, { useMemo, useState } from "react";
-import { Button, Input, Picker, Text, Textarea, View } from "@tarojs/components";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Button,
+  Input,
+  Picker,
+  Text,
+  Textarea,
+  View,
+} from "@tarojs/components";
 import Taro, { useDidShow } from "@tarojs/taro";
 import { teacherRequest } from "../../api";
 import "./index.scss";
@@ -17,7 +24,8 @@ const emptyForm = () => ({
   status: "draft",
 });
 
-export default function LessonPage() {
+export default function LessonPage({ embedded = false }) {
+  const loadingRef = useRef(false);
   const [classes, setClasses] = useState([]);
   const [lessonPlans, setLessonPlans] = useState([]);
   const [scope, setScope] = useState("week");
@@ -31,6 +39,8 @@ export default function LessonPage() {
   const [error, setError] = useState("");
 
   async function load(nextScope = scope, showLoading = true) {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
     if (showLoading) setLoading(true);
     setError("");
     try {
@@ -42,24 +52,30 @@ export default function LessonPage() {
       setLessonPlans(nextPlans);
       setForm((current) => ({
         ...current,
-        classId:
-          nextClasses.some((item) => item.id === current.classId)
-            ? current.classId
-            : nextClasses[0]?.id || "",
+        classId: nextClasses.some((item) => item.id === current.classId)
+          ? current.classId
+          : nextClasses[0]?.id || "",
       }));
     } catch (loadError) {
       setError(errorMessage(loadError, "备课数据加载失败，请重试。"));
     } finally {
+      loadingRef.current = false;
       if (showLoading) setLoading(false);
     }
   }
+
+  useEffect(() => {
+    load();
+  }, []);
 
   useDidShow(() => {
     load();
   });
 
   const summary = useMemo(() => {
-    const published = lessonPlans.filter((item) => item.status === "published").length;
+    const published = lessonPlans.filter(
+      (item) => item.status === "published",
+    ).length;
     const draft = lessonPlans.filter((item) => item.status === "draft").length;
     return { total: lessonPlans.length, published, draft };
   }, [lessonPlans]);
@@ -107,11 +123,21 @@ export default function LessonPage() {
     const objectives = form.objectives.trim();
     const content = form.content.trim();
     const durationMinutes = Number(form.durationMinutes);
-    if (!form.classId || !form.lessonDate || !theme || !objectives || !content) {
+    if (
+      !form.classId ||
+      !form.lessonDate ||
+      !theme ||
+      !objectives ||
+      !content
+    ) {
       Taro.showToast({ title: "请完整填写教案信息", icon: "none" });
       return;
     }
-    if (!Number.isInteger(durationMinutes) || durationMinutes < 10 || durationMinutes > 480) {
+    if (
+      !Number.isInteger(durationMinutes) ||
+      durationMinutes < 10 ||
+      durationMinutes > 480
+    ) {
       Taro.showToast({ title: "授课时长应为 10 至 480 分钟", icon: "none" });
       return;
     }
@@ -139,7 +165,7 @@ export default function LessonPage() {
       setFormVisible(false);
       setEditingId("");
       Taro.showToast({
-        title: targetStatus === "published" ? "教案已发布" : "草稿已保存",
+        title: targetStatus === "published" ? "已同步到教学记录" : "草稿已保存",
         icon: "success",
       });
       await load(scope, false);
@@ -170,7 +196,9 @@ export default function LessonPage() {
 
   return h(
     View,
-    { className: "lesson-page" },
+    {
+      className: embedded ? "lesson-page lesson-page--embedded" : "lesson-page",
+    },
     h(
       View,
       { className: "lesson-hero" },
@@ -182,7 +210,11 @@ export default function LessonPage() {
           null,
           h(Text, { className: "lesson-eyebrow" }, "教学准备"),
           h(Text, { className: "lesson-title" }, "备课中心"),
-          h(Text, { className: "lesson-description" }, "把教学目标和课堂安排提前沉淀为可复用教案。"),
+          h(
+            Text,
+            { className: "lesson-description" },
+            "发布后自动进入教学记录，线下授课结束后补齐课堂情况。",
+          ),
         ),
         h(
           Button,
@@ -215,7 +247,11 @@ export default function LessonPage() {
           View,
           { className: "lesson-feedback lesson-feedback--error" },
           h(Text, null, error),
-          h(Text, { className: "lesson-feedback__retry", onClick: () => load(scope) }, "重新加载"),
+          h(
+            Text,
+            { className: "lesson-feedback__retry", onClick: () => load(scope) },
+            "重新加载",
+          ),
         )
       : null,
     formVisible
@@ -248,7 +284,13 @@ export default function LessonPage() {
           { className: "lesson-empty" },
           h(Text, { className: "lesson-empty__icon" }, "备"),
           h(Text, { className: "lesson-empty__title" }, "当前没有教案"),
-          h(Text, { className: "lesson-empty__text" }, scope === "draft" ? "没有待完善的草稿。" : "点击“新建教案”开始准备课程。"),
+          h(
+            Text,
+            { className: "lesson-empty__text" },
+            scope === "draft"
+              ? "没有待完善的草稿。"
+              : "点击“新建教案”开始准备课程。",
+          ),
         )
       : null,
     h(
@@ -267,9 +309,23 @@ export default function LessonPage() {
   );
 }
 
-function renderForm({ classes, form, editingId, saving, updateForm, closeForm, save }) {
-  const classIndex = Math.max(0, classes.findIndex((item) => item.id === form.classId));
-  const durationIndex = Math.max(0, durationOptions.indexOf(Number(form.durationMinutes)));
+function renderForm({
+  classes,
+  form,
+  editingId,
+  saving,
+  updateForm,
+  closeForm,
+  save,
+}) {
+  const classIndex = Math.max(
+    0,
+    classes.findIndex((item) => item.id === form.classId),
+  );
+  const durationIndex = Math.max(
+    0,
+    durationOptions.indexOf(Number(form.durationMinutes)),
+  );
   return h(
     View,
     { className: "lesson-form-card" },
@@ -279,8 +335,16 @@ function renderForm({ classes, form, editingId, saving, updateForm, closeForm, s
       h(
         View,
         null,
-        h(Text, { className: "lesson-form-title" }, editingId ? "编辑教案" : "新建教案"),
-        h(Text, { className: "lesson-form-hint" }, "先保存草稿，确认后再发布。"),
+        h(
+          Text,
+          { className: "lesson-form-title" },
+          editingId ? "编辑教案" : "新建教案",
+        ),
+        h(
+          Text,
+          { className: "lesson-form-hint" },
+          "草稿可继续完善；发布后自动同步为待课后补齐记录。",
+        ),
       ),
       h(Text, { className: "lesson-form-close", onClick: closeForm }, "×"),
     ),
@@ -292,9 +356,17 @@ function renderForm({ classes, form, editingId, saving, updateForm, closeForm, s
           mode: "selector",
           range: classes.map((item) => item.name),
           value: classIndex,
-          onChange: (event) => updateForm("classId", classes[Number(event.detail.value)]?.id || ""),
+          onChange: (event) =>
+            updateForm(
+              "classId",
+              classes[Number(event.detail.value)]?.id || "",
+            ),
         },
-        h(View, { className: "lesson-picker" }, classes[classIndex]?.name || "请选择班级"),
+        h(
+          View,
+          { className: "lesson-picker" },
+          classes[classIndex]?.name || "请选择班级",
+        ),
       ),
     ),
     formField(
@@ -330,9 +402,17 @@ function renderForm({ classes, form, editingId, saving, updateForm, closeForm, s
             mode: "selector",
             range: durationOptions.map((value) => `${value} 分钟`),
             value: durationIndex,
-            onChange: (event) => updateForm("durationMinutes", durationOptions[Number(event.detail.value)]),
+            onChange: (event) =>
+              updateForm(
+                "durationMinutes",
+                durationOptions[Number(event.detail.value)],
+              ),
           },
-          h(View, { className: "lesson-picker" }, `${form.durationMinutes} 分钟`),
+          h(
+            View,
+            { className: "lesson-picker" },
+            `${form.durationMinutes} 分钟`,
+          ),
         ),
       ),
     ),
@@ -361,13 +441,23 @@ function renderForm({ classes, form, editingId, saving, updateForm, closeForm, s
       { className: "lesson-form-actions" },
       h(
         Button,
-        { className: "lesson-draft-button", loading: saving, disabled: saving, onClick: () => save("draft") },
+        {
+          className: "lesson-draft-button",
+          loading: saving,
+          disabled: saving,
+          onClick: () => save("draft"),
+        },
         "保存草稿",
       ),
       h(
         Button,
-        { className: "lesson-publish-button", loading: saving, disabled: saving, onClick: () => save("published") },
-        "保存并发布",
+        {
+          className: "lesson-publish-button",
+          loading: saving,
+          disabled: saving,
+          onClick: () => save("published"),
+        },
+        "发布并同步教学记录",
       ),
     ),
   );
@@ -383,16 +473,32 @@ function renderPlanCard(plan, actions) {
       h(
         View,
         { className: "lesson-date-box" },
-        h(Text, { className: "lesson-date-box__day" }, dayValue(plan.lessonDate)),
-        h(Text, { className: "lesson-date-box__month" }, monthValue(plan.lessonDate)),
+        h(
+          Text,
+          { className: "lesson-date-box__day" },
+          dayValue(plan.lessonDate),
+        ),
+        h(
+          Text,
+          { className: "lesson-date-box__month" },
+          monthValue(plan.lessonDate),
+        ),
       ),
       h(
         View,
         { className: "lesson-card__main" },
         h(Text, { className: "lesson-card__theme" }, plan.theme),
-        h(Text, { className: "lesson-card__meta" }, `${plan.class?.name || "班级"} · ${plan.durationMinutes} 分钟 · ${weekDay(plan.lessonDate)}`),
+        h(
+          Text,
+          { className: "lesson-card__meta" },
+          `${plan.class?.name || "班级"} · ${plan.durationMinutes} 分钟 · ${weekDay(plan.lessonDate)}`,
+        ),
       ),
-      h(Text, { className: `lesson-status lesson-status--${plan.status}` }, statusLabel(plan.status)),
+      h(
+        Text,
+        { className: `lesson-status lesson-status--${plan.status}` },
+        statusLabel(plan.status),
+      ),
     ),
     actions.expanded
       ? h(
@@ -400,51 +506,132 @@ function renderPlanCard(plan, actions) {
           { className: "lesson-detail" },
           detailBlock("教学目标", plan.objectives),
           detailBlock("教学内容与步骤", plan.content),
-          h(Text, { className: "lesson-updated" }, `最后更新：${formatDateTime(plan.updatedAt)}`),
+          h(
+            Text,
+            { className: "lesson-updated" },
+            `最后更新：${formatDateTime(plan.updatedAt)}`,
+          ),
         )
       : h(Text, { className: "lesson-objective-preview" }, plan.objectives),
     h(
       View,
       { className: "lesson-card__actions" },
-      h(Button, { className: "lesson-action-button", size: "mini", onClick: actions.onToggle }, actions.expanded ? "收起详情" : "查看详情"),
+      h(
+        Button,
+        {
+          className: "lesson-action-button",
+          size: "mini",
+          onClick: actions.onToggle,
+        },
+        actions.expanded ? "收起详情" : "查看详情",
+      ),
       plan.status !== "archived"
-        ? h(Button, { className: "lesson-action-button", size: "mini", disabled: actions.busy, onClick: actions.onEdit }, "编辑")
+        ? h(
+            Button,
+            {
+              className: "lesson-action-button",
+              size: "mini",
+              disabled: actions.busy,
+              onClick: actions.onEdit,
+            },
+            "编辑",
+          )
         : null,
       plan.status === "draft"
-        ? h(Button, { className: "lesson-action-button lesson-action-button--primary", size: "mini", loading: actions.busy, disabled: actions.busy, onClick: () => actions.onStatus("published") }, "发布")
+        ? h(
+            Button,
+            {
+              className: "lesson-action-button lesson-action-button--primary",
+              size: "mini",
+              loading: actions.busy,
+              disabled: actions.busy,
+              onClick: () => actions.onStatus("published"),
+            },
+            "发布",
+          )
         : plan.status === "published"
-          ? h(Button, { className: "lesson-action-button", size: "mini", loading: actions.busy, disabled: actions.busy, onClick: () => actions.onStatus("archived") }, "归档")
-          : h(Button, { className: "lesson-action-button", size: "mini", loading: actions.busy, disabled: actions.busy, onClick: () => actions.onStatus("draft") }, "转为草稿"),
+          ? h(
+              Button,
+              {
+                className: "lesson-action-button",
+                size: "mini",
+                loading: actions.busy,
+                disabled: actions.busy,
+                onClick: () => actions.onStatus("archived"),
+              },
+              "归档",
+            )
+          : h(
+              Button,
+              {
+                className: "lesson-action-button",
+                size: "mini",
+                loading: actions.busy,
+                disabled: actions.busy,
+                onClick: () => actions.onStatus("draft"),
+              },
+              "转为草稿",
+            ),
     ),
   );
 }
 
 function formField(label, control) {
-  return h(View, { className: "lesson-field" }, h(Text, { className: "lesson-field__label" }, `${label} *`), control);
+  return h(
+    View,
+    { className: "lesson-field" },
+    h(Text, { className: "lesson-field__label" }, `${label} *`),
+    control,
+  );
 }
 
 function detailBlock(title, content) {
-  return h(View, { className: "lesson-detail-block" }, h(Text, { className: "lesson-detail-block__title" }, title), h(Text, { className: "lesson-detail-block__content" }, content));
+  return h(
+    View,
+    { className: "lesson-detail-block" },
+    h(Text, { className: "lesson-detail-block__title" }, title),
+    h(Text, { className: "lesson-detail-block__content" }, content),
+  );
 }
 
 function filterButton(key, label, active, onClick) {
-  return h(View, { className: `lesson-tab${active === key ? " lesson-tab--active" : ""}`, onClick: () => onClick(key) }, h(Text, null, label));
+  return h(
+    View,
+    {
+      className: `lesson-tab${active === key ? " lesson-tab--active" : ""}`,
+      onClick: () => onClick(key),
+    },
+    h(Text, null, label),
+  );
 }
 
 function summaryMetric(value, label) {
-  return h(View, { className: "lesson-summary__item" }, h(Text, { className: "lesson-summary__value" }, String(value)), h(Text, { className: "lesson-summary__label" }, label));
+  return h(
+    View,
+    { className: "lesson-summary__item" },
+    h(Text, { className: "lesson-summary__value" }, String(value)),
+    h(Text, { className: "lesson-summary__label" }, label),
+  );
 }
 
 function scopeTitle(scope) {
-  return { week: "本周教案", all: "全部教案", draft: "草稿箱" }[scope] || "教案列表";
+  return (
+    { week: "本周教案", all: "全部教案", draft: "草稿箱" }[scope] || "教案列表"
+  );
 }
 
 function statusLabel(status) {
-  return { draft: "草稿", published: "已发布", archived: "已归档" }[status] || status;
+  return (
+    { draft: "草稿", published: "已发布", archived: "已归档" }[status] || status
+  );
 }
 
 function statusToast(status) {
-  return { draft: "已转为草稿", published: "教案已发布", archived: "教案已归档" }[status] || "状态已更新";
+  return (
+    { draft: "已转为草稿", published: "教案已发布", archived: "教案已归档" }[
+      status
+    ] || "状态已更新"
+  );
 }
 
 function todayValue() {
@@ -466,7 +653,9 @@ function monthValue(value) {
 }
 
 function weekDay(value) {
-  return ["周日", "周一", "周二", "周三", "周四", "周五", "周六"][new Date(value).getDay()];
+  return ["周日", "周一", "周二", "周三", "周四", "周五", "周六"][
+    new Date(value).getDay()
+  ];
 }
 
 function formatDateTime(value) {

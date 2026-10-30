@@ -1,4 +1,8 @@
 import {
+  assertSnapshotVersion,
+  lockCurrentTrainingCourse,
+} from "./training-version";
+import {
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -69,7 +73,10 @@ export class TrainingSafetyService {
   }
 
   async confirm(actorId: string, assignmentId: string, dto: ConfirmSafetyDto) {
-    if (!dto.declarationAccepted || dto.declaration.trim() !== SAFETY_DECLARATION) {
+    if (
+      !dto.declarationAccepted ||
+      dto.declaration.trim() !== SAFETY_DECLARATION
+    ) {
       throw new ForbiddenException("必须勾选并提交完整的安全责任声明");
     }
     const context = await this.requireSafetyContext(assignmentId);
@@ -78,19 +85,30 @@ export class TrainingSafetyService {
       TrainingPermission.safety_confirm,
       context.assignment.campusId,
     );
-    if (context.assignment.status !== TrainingAssignmentStatus.awaiting_safety) {
+    if (
+      context.assignment.status !== TrainingAssignmentStatus.awaiting_safety
+    ) {
       throw new ConflictException("培训任务当前不处于待安全确认状态");
     }
+    assertSnapshotVersion(context.course.snapshot, dto.snapshotId);
     const now = new Date();
     const validUntil = addCalendarMonthsClamped(now, SAFETY_VALID_MONTHS);
     const result = await this.prisma.$transaction(async (tx) => {
+      await lockCurrentTrainingCourse(tx, {
+        teacherId: context.assignment.teacherId,
+        courseId: context.course.id,
+        attemptNumber: context.attempt.attemptNumber,
+        snapshotId: context.course.snapshotId,
+        allowed: [TrainingCourseStatus.awaiting_safety],
+      });
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`training:${context.assignment.teacherId}`}))`;
       const currentAssignment = await tx.trainingAssignment.findUnique({
         where: { id: assignmentId },
         select: { status: true, activeSlot: true },
       });
       if (
-        currentAssignment?.status !== TrainingAssignmentStatus.awaiting_safety ||
+        currentAssignment?.status !==
+          TrainingAssignmentStatus.awaiting_safety ||
         currentAssignment.activeSlot !== context.assignment.teacherId
       ) {
         throw new ConflictException("培训任务当前不处于待安全确认状态");
@@ -222,7 +240,9 @@ export class TrainingSafetyService {
         },
       });
       if (otherActive) {
-        throw new ConflictException("教师已有其他有效培训任务，需先处理后再撤销确认");
+        throw new ConflictException(
+          "教师已有其他有效培训任务，需先处理后再撤销确认",
+        );
       }
       const record = await tx.trainingSafetyRecord.create({
         data: {
@@ -246,11 +266,17 @@ export class TrainingSafetyService {
       });
       await tx.trainingCourseAttempt.update({
         where: { id: context.attempt.id },
-        data: { status: TrainingAttemptStatus.awaiting_safety, completedAt: null },
+        data: {
+          status: TrainingAttemptStatus.awaiting_safety,
+          completedAt: null,
+        },
       });
       await tx.trainingAssignmentCourse.update({
         where: { id: context.course.id },
-        data: { status: TrainingCourseStatus.awaiting_safety, completedAt: null },
+        data: {
+          status: TrainingCourseStatus.awaiting_safety,
+          completedAt: null,
+        },
       });
       await tx.trainingAssignment.update({
         where: { id: assignmentId },

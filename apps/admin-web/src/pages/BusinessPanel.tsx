@@ -1,3 +1,4 @@
+import QueryFields from "../components/QueryFields";
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
@@ -491,7 +492,7 @@ export function BusinessPanel({
             <Select
               size="small"
               value={record.status}
-              style={{ width: 100 }}
+              style={{ width: 132 }}
               options={statusOptions[kind]?.map((value) => ({
                 value,
                 label: statusLabels[value] ?? value,
@@ -533,165 +534,167 @@ export function BusinessPanel({
             setPage(1);
           }}
         >
-          <Form.Item name="classId" label="班级">
-            <Select
-              allowClear
-              showSearch
-              optionFilterProp="label"
-              style={{ width: 150 }}
-              options={classes.map((item) => ({
-                value: item.id,
-                label: item.name,
-              }))}
-            />
-          </Form.Item>
-          {kind === "pickup" || kind === "dailyReport" ? (
-            <Form.Item name="campusId" label="校区">
-              <Select allowClear style={{ width: 160 }} options={campuses} />
-            </Form.Item>
-          ) : null}
-          <Form.Item name="teacherId" label="教师">
-            <Select
-              allowClear
-              showSearch
-              optionFilterProp="label"
-              style={{ width: 150 }}
-              options={teachers.map((item) => ({
-                value: item.id,
-                label: item.name,
-              }))}
-            />
-          </Form.Item>
-          {showStudent ? (
-            <Form.Item name="studentId" label="学生">
+          <QueryFields primary={["classId", "studentId", "teacherId"]}>
+            <Form.Item name="classId" label="班级">
               <Select
                 allowClear
                 showSearch
                 optionFilterProp="label"
                 style={{ width: 150 }}
-                options={visibleStudents.map((item) => ({
+                options={classes.map((item) => ({
                   value: item.id,
                   label: item.name,
                 }))}
               />
             </Form.Item>
-          ) : null}
-          {statusOptions[kind] ? (
-            <Form.Item name="status" label="状态">
+            {kind === "pickup" || kind === "dailyReport" ? (
+              <Form.Item name="campusId" label="校区">
+                <Select allowClear style={{ width: 160 }} options={campuses} />
+              </Form.Item>
+            ) : null}
+            <Form.Item name="teacherId" label="教师">
               <Select
                 allowClear
-                style={{ width: 130 }}
-                options={statusOptions[kind]?.map((value) => ({
-                  value,
-                  label:
-                    kind === "studentWorkflow"
-                      ? studentWorkflowStatusLabel(value)
-                      : (statusLabels[value] ?? value),
+                showSearch
+                optionFilterProp="label"
+                style={{ width: 150 }}
+                options={teachers.map((item) => ({
+                  value: item.id,
+                  label: item.name,
                 }))}
               />
             </Form.Item>
-          ) : null}
-          {typeOptions[kind] ? (
-            <Form.Item name="type" label="类型">
-              <Select
-                allowClear
-                style={{ width: 130 }}
-                options={typeOptions[kind]?.map((value) => ({
-                  value,
-                  label: typeLabels[value] ?? value,
-                }))}
-              />
-            </Form.Item>
-          ) : null}
-          {kind === "pickup" ? (
-            <Form.Item name="quickFilter" label="快捷筛选">
-              <Select
-                allowClear
-                style={{ width: 170 }}
-                options={[
-                  { value: "missing_arrival_today", label: "今日未到店" },
-                  { value: "missing_leave_today", label: "今日未离店" },
-                  { value: "exception", label: "异常接送" },
-                ]}
-              />
-            </Form.Item>
-          ) : null}
-          {kind === "care" ? (
-            <Form.Item name="quickFilter" label="快捷筛选">
-              <Select
-                allowClear
-                style={{ width: 170 }}
-                options={[
-                  { value: "today_exception", label: "今日异常" },
-                  { value: "needs_attention", label: "需要家长关注" },
-                ]}
-              />
-            </Form.Item>
-          ) : null}
-          {kind === "care" || kind === "dailyReport" ? (
-            <Form.Item name="needsAttention" label="需关注">
-              <Select
-                allowClear
-                style={{ width: 120 }}
-                options={[
-                  { value: "true", label: "是" },
-                  { value: "false", label: "否" },
-                ]}
-              />
-            </Form.Item>
-          ) : null}
-          {kind === "dailyReport" ? (
-            <>
-              <Form.Item name="hasException" label="有异常">
+            {showStudent ? (
+              <Form.Item name="studentId" label="学生">
                 <Select
                   allowClear
-                  style={{ width: 110 }}
+                  showSearch
+                  optionFilterProp="label"
+                  style={{ width: 150 }}
+                  options={visibleStudents.map((item) => ({
+                    value: item.id,
+                    label: item.name,
+                  }))}
+                />
+              </Form.Item>
+            ) : null}
+            {statusOptions[kind] ? (
+              <Form.Item name="status" label="状态">
+                <Select
+                  allowClear
+                  style={{ width: 130 }}
+                  options={statusOptions[kind]?.map((value) => ({
+                    value,
+                    label:
+                      kind === "studentWorkflow"
+                        ? studentWorkflowStatusLabel(value)
+                        : (statusLabels[value] ?? value),
+                  }))}
+                />
+              </Form.Item>
+            ) : null}
+            {typeOptions[kind] ? (
+              <Form.Item name="type" label="类型">
+                <Select
+                  allowClear
+                  style={{ width: 130 }}
+                  options={typeOptions[kind]?.map((value) => ({
+                    value,
+                    label: typeLabels[value] ?? value,
+                  }))}
+                />
+              </Form.Item>
+            ) : null}
+            {kind === "pickup" ? (
+              <Form.Item name="quickFilter" label="快捷筛选">
+                <Select
+                  allowClear
+                  style={{ width: 170 }}
+                  options={[
+                    { value: "missing_arrival_today", label: "今日未到店" },
+                    { value: "missing_leave_today", label: "今日未离店" },
+                    { value: "exception", label: "异常接送" },
+                  ]}
+                />
+              </Form.Item>
+            ) : null}
+            {kind === "care" ? (
+              <Form.Item name="quickFilter" label="快捷筛选">
+                <Select
+                  allowClear
+                  style={{ width: 170 }}
+                  options={[
+                    { value: "today_exception", label: "今日异常" },
+                    { value: "needs_attention", label: "需要家长关注" },
+                  ]}
+                />
+              </Form.Item>
+            ) : null}
+            {kind === "care" || kind === "dailyReport" ? (
+              <Form.Item name="needsAttention" label="需关注">
+                <Select
+                  allowClear
+                  style={{ width: 120 }}
                   options={[
                     { value: "true", label: "是" },
                     { value: "false", label: "否" },
                   ]}
                 />
               </Form.Item>
-              <Form.Item name="published" label="寄语">
-                <Select
-                  allowClear
-                  style={{ width: 120 }}
-                  options={[
-                    { value: "true", label: "已发布" },
-                    { value: "false", label: "未发布" },
-                  ]}
-                />
-              </Form.Item>
-              <Form.Item name="date" label="业务日期">
-                <Input type="date" style={{ width: 145 }} />
-              </Form.Item>
-            </>
-          ) : (
-            <>
-              <Form.Item name="from" label="开始">
-                <Input type="date" style={{ width: 145 }} />
-              </Form.Item>
-              <Form.Item name="to" label="结束">
-                <Input type="date" style={{ width: 145 }} />
-              </Form.Item>
-            </>
-          )}
-          <Form.Item>
-            <Space>
-              <Button type="primary" htmlType="submit">
-                查询
-              </Button>
-              <Button
-                onClick={() => {
-                  form.resetFields();
-                  setFilters({});
-                  setPage(1);
-                }}
-              >
-                重置
-              </Button>
-            </Space>
-          </Form.Item>
+            ) : null}
+            {kind === "dailyReport" ? (
+              <>
+                <Form.Item name="hasException" label="有异常">
+                  <Select
+                    allowClear
+                    style={{ width: 110 }}
+                    options={[
+                      { value: "true", label: "是" },
+                      { value: "false", label: "否" },
+                    ]}
+                  />
+                </Form.Item>
+                <Form.Item name="published" label="寄语">
+                  <Select
+                    allowClear
+                    style={{ width: 120 }}
+                    options={[
+                      { value: "true", label: "已发布" },
+                      { value: "false", label: "未发布" },
+                    ]}
+                  />
+                </Form.Item>
+                <Form.Item name="date" label="业务日期">
+                  <Input type="date" style={{ width: 145 }} />
+                </Form.Item>
+              </>
+            ) : (
+              <>
+                <Form.Item name="from" label="开始">
+                  <Input type="date" style={{ width: 145 }} />
+                </Form.Item>
+                <Form.Item name="to" label="结束">
+                  <Input type="date" style={{ width: 145 }} />
+                </Form.Item>
+              </>
+            )}
+            <Form.Item>
+              <Space>
+                <Button type="primary" htmlType="submit">
+                  查询
+                </Button>
+                <Button
+                  onClick={() => {
+                    form.resetFields();
+                    setFilters({});
+                    setPage(1);
+                  }}
+                >
+                  重置
+                </Button>
+              </Space>
+            </Form.Item>
+          </QueryFields>
         </Form>
       </Card>
       {error ? (

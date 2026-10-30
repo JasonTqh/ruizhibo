@@ -1,3 +1,4 @@
+import { normalizeTeacherPositions } from "./teacher-positions";
 import {
   BadRequestException,
   ConflictException,
@@ -43,6 +44,10 @@ const userSummarySelect = {
   phone: true,
   status: true,
   employmentStatus: true,
+  teacherPosition: true,
+  teacherPositions: true,
+  managedCampuses: { select: { id: true, name: true } },
+  phoneIssue: true,
   createdAt: true,
   updatedAt: true,
 } satisfies Prisma.UserSelect;
@@ -220,6 +225,13 @@ export class AdminService {
     }
   }
 
+  private async validateManagedCampuses(positions: string[], campusIds?: string[]) {
+    if (!campusIds?.length) return;
+    if (!positions.includes("supervisor")) throw new BadRequestException("仅校区主管可配置管理校区");
+    const count = await this.prisma.campus.count({ where: { id: { in: campusIds } } });
+    if (count !== campusIds.length) throw new BadRequestException("管理校区不存在，请刷新后重新选择");
+  }
+
   async listTeachers() {
     const teachers = await this.prisma.user.findMany({
       where: { role: UserRole.teacher },
@@ -232,6 +244,8 @@ export class AdminService {
 
   async createTeacher(actorId: string, dto: CreateTeacherDto) {
     await this.assertPhoneAvailable(dto.phone);
+    const positions = normalizeTeacherPositions(dto.teacherPositions, dto.teacherPosition);
+    await this.validateManagedCampuses(positions, dto.managedCampusIds);
     const assignTraining = dto.assignTraining !== false;
     if (assignTraining && dto.status !== UserStatus.active) {
       throw new BadRequestException("停用状态的教师不能同时布置培训");
@@ -252,6 +266,12 @@ export class AdminService {
           phone: dto.phone,
           status: dto.status ?? UserStatus.active,
           employmentStatus: TeacherEmploymentStatus.employed,
+          managedCampuses: { connect: (dto.managedCampusIds ?? []).map((id) => ({ id })) },
+          teacherPosition: dto.teacherPosition ?? null,
+          teacherPositions: normalizeTeacherPositions(
+            dto.teacherPositions,
+            dto.teacherPosition,
+          ),
         },
         select: userSummarySelect,
       });
@@ -290,16 +310,42 @@ export class AdminService {
 
     const before = await this.prisma.user.findUniqueOrThrow({
       where: { id },
-      select: { status: true, employmentStatus: true },
+      select: { status: true, employmentStatus: true, phone: true, teacherPositions: true, teacherPosition: true },
     });
 
     if (dto.phone) {
       await this.assertPhoneAvailable(dto.phone, id);
     }
 
+    if (
+      dto.status === UserStatus.active &&
+      !/^1\d{10}$/.test(dto.phone || before.phone || "")
+    ) {
+      throw new BadRequestException("请先补齐正确手机号，再启用教师账号");
+    }
+    const positionsChanged = dto.teacherPositions !== undefined || dto.teacherPosition !== undefined;
+    const positions = normalizeTeacherPositions(
+      positionsChanged ? dto.teacherPositions : before.teacherPositions,
+      positionsChanged ? dto.teacherPosition : before.teacherPosition,
+    );
+    await this.validateManagedCampuses(positions, dto.managedCampusIds);
     const data: Prisma.UserUpdateInput = {};
+    if (!positions.includes("supervisor")) data.managedCampuses = { set: [] };
+    else if (dto.managedCampusIds !== undefined)
+      data.managedCampuses = { set: dto.managedCampusIds.map((id) => ({ id })) };
     if (dto.name !== undefined) data.name = dto.name;
-    if (dto.phone !== undefined) data.phone = dto.phone;
+    if (dto.phone) {
+      data.phone = dto.phone;
+      data.phoneIssue = null;
+    }
+    if (dto.teacherPositions !== undefined || dto.teacherPosition !== undefined)
+      data.teacherPositions = normalizeTeacherPositions(
+        dto.teacherPositions,
+        dto.teacherPosition,
+      );
+    if (dto.teacherPositions !== undefined) data.teacherPosition = null;
+    else if (dto.teacherPosition !== undefined)
+      data.teacherPosition = dto.teacherPosition;
     if (dto.status !== undefined) data.status = dto.status;
     if (dto.employmentStatus !== undefined) {
       data.employmentStatus = dto.employmentStatus;
@@ -1520,12 +1566,12 @@ export class AdminService {
   ) {
     const current = await this.prisma.lessonPlan.findUnique({
       where: { id },
-      select: { id: true, status: true },
+      select: { id: true, status: true, publishedAt: true },
     });
     if (!current) throw new NotFoundException("Lesson plan not found");
     const lessonPlan = await this.prisma.lessonPlan.update({
       where: { id },
-      data: { status },
+      data: { status, ...(status === LessonPlanStatus.published && !current.publishedAt ? { publishedAt: new Date() } : {}) },
       include: {
         class: { select: { id: true, name: true } },
         teacher: { select: { id: true, name: true } },

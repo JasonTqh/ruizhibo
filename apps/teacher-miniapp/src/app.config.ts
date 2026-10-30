@@ -1,6 +1,7 @@
 export default defineAppConfig({
   pages: [
     "pages/home/index",
+    "pages/roster/index",
     "pages/training/index",
     "pages/training-course/index",
     "pages/training-library/index",
@@ -28,7 +29,6 @@ export default defineAppConfig({
     backgroundColor: "#ffffff",
     list: [
       { pagePath: "pages/home/index", text: "工作台" },
-      { pagePath: "pages/lesson/index", text: "备课" },
       { pagePath: "pages/research/index", text: "教研" },
       { pagePath: "pages/teaching/index", text: "教学" },
       { pagePath: "pages/workflow/index", text: "流程" },

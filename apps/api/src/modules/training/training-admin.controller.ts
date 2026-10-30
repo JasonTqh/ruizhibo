@@ -75,6 +75,11 @@ export class TrainingAdminController {
     return this.courses.getAdmin(user.id, id);
   }
 
+  @Post("courses/:id/update-preview")
+  previewCourse(@CurrentUser() user: AuthUser, @Param("id") id: string, @Body() dto: UpsertTrainingCourseDto) {
+    return this.courses.previewUpdate(user.id,id,dto);
+  }
+
   @Patch("courses/:id")
   updateCourse(
     @CurrentUser() user: AuthUser,

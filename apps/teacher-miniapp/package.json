@@ -8,6 +8,7 @@
     "build": "taro build --type weapp",
     "build:h5": "taro build --type h5",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test:training-course": "node scripts/test-training-course.cjs",
     "lint": "echo \"teacher miniapp lint pending\"",
     "format": "prettier --write \"src/**/*.{ts,tsx,scss}\""
   },

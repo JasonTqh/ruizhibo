@@ -141,7 +141,9 @@
 .care-choice-group { display: flex; flex-wrap: wrap; gap: 9px; }
 .care-choice { padding: 10px 14px; color: #68746f; background: #f4f2ef; border: 1px solid #e5e0d9; border-radius: 10px; font-size: 18px; }
 .care-choice--active { color: #246a51; background: #e5f3ec; border-color: #85bea7; font-weight: 750; }
-.care-editor__input, .care-editor__textarea { box-sizing: border-box; width: 100%; padding: 14px 16px; background: #f7f6f3; border: 1px solid #e4e0da; border-radius: 12px; font-size: 19px; }
+.care-editor__input, .care-editor__textarea { box-sizing: border-box; width: 100%; padding: 14px 16px; background: #f7f6f3; border: 1px solid #e4e0da; border-radius: 12px; font-size: 28px;
+  line-height: 1.5;
+}
 .care-editor__textarea { min-height: 150px; }
 .care-editor__textarea--short { min-height: 100px; }
 .care-editor__notice { padding: 18px; color: #386b58; background: #eaf5f0; border-radius: 12px; font-size: 19px; }

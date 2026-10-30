@@ -204,7 +204,8 @@
   background: #fafbf9;
   border: 1px solid #dce5e0;
   border-radius: 12px;
-  font-size: 22px;
+  font-size: 28px;
+  line-height: 1.5;
 }
 
 .form-textarea {
@@ -218,7 +219,7 @@
 
 .deadline-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 12px;
 }
 
@@ -465,10 +466,22 @@
 }
 
 .homework-count,
-.homework-status-submitted { color: #885712; background: #fff2d7; }
-.homework-status-pending { color: #6b746f; background: #e9edeb; }
-.homework-status-reviewed { color: #24644f; background: #e5f3ed; }
-.homework-status-overdue { color: #9b3a32; background: #fff1ef; }
+.homework-status-submitted {
+  color: #885712;
+  background: #fff2d7;
+}
+.homework-status-pending {
+  color: #6b746f;
+  background: #e9edeb;
+}
+.homework-status-reviewed {
+  color: #24644f;
+  background: #e5f3ed;
+}
+.homework-status-overdue {
+  color: #9b3a32;
+  background: #fff1ef;
+}
 
 .homework-content,
 .submission-content {
@@ -545,4 +558,36 @@
   .deadline-row {
     grid-template-columns: 1fr;
   }
+}
+
+.lesson-source {
+  padding: 20px;
+  margin-bottom: 24px;
+  background: #edf5f0;
+  border-radius: 14px;
+  color: #4f665a;
+  font-size: 22px;
+}
+.lesson-source text {
+  display: block;
+  margin-bottom: 12px;
+  white-space: pre-wrap;
+}
+.lesson-source__title {
+  font-weight: 700;
+  color: #246a52;
+}
+.lesson-source__content {
+  max-height: 300px;
+  overflow-y: auto;
+}
+.pending-lesson {
+  padding: 22px 0;
+  border-top: 1px solid #eeeae4;
+}
+.pending-lesson__status {
+  display: block;
+  margin: 12px 0;
+  color: #966a23;
+  font-size: 20px;
 }

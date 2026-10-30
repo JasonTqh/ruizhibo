@@ -195,6 +195,7 @@ export function CourseDetail({
     lastInteractionRef.current = Date.now();
 
     void startStudySession(token, assignmentCourseId, {
+      snapshotId: detail?.course.snapshotId,
       clientSessionId,
       chapterKey: chapter.key,
       kind,
@@ -224,6 +225,7 @@ export function CourseDetail({
   }, [
     assignmentCourseId,
     chapter?.key,
+    detail?.course.snapshotId,
     learnable,
     progress?.videoDurationSeconds,
     progress?.videoPositionSeconds,
@@ -308,7 +310,12 @@ export function CourseDetail({
     try {
       const current = sessionRef.current;
       if (current) await transmitHeartbeat(current);
-      await completeTrainingChapter(token, assignmentCourseId, chapter.key);
+      await completeTrainingChapter(
+        token,
+        assignmentCourseId,
+        chapter.key,
+        course.snapshotId,
+      );
       setMessage({ tone: "success", text: "本节已完成，学习进度已同步。" });
       await loadCourse(false);
       onProgressChanged();
@@ -342,6 +349,7 @@ export function CourseDetail({
           questionId: question.id,
           answerIds: answers[question.id],
         })),
+        course.snapshotId,
       );
       setQuizResult(result);
       setMessage({

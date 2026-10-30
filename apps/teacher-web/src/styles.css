@@ -242,7 +242,7 @@ svg {
   box-shadow: 0 0 0 4px #3d8c7216;
 }
 .login-card input::placeholder {
-  color: #b2b9b5;
+  color: #73837d;
 }
 .form-error,
 .inline-alert {
@@ -930,8 +930,9 @@ svg {
 .search-box {
   display: flex;
   align-items: center;
-  width: 280px;
-  height: 42px;
+  width: 340px;
+  max-width: 100%;
+  min-height: 46px;
   padding: 0 13px;
   border: 1px solid #dce0dc;
   border-radius: 10px;
@@ -948,10 +949,12 @@ svg {
   outline: 0;
   color: var(--ink);
   background: transparent;
-  font-size: 11px;
+  padding: 10px 8px;
+  font-size: 15px;
+  line-height: 24px;
 }
 .search-box input::placeholder {
-  color: #aab1ae;
+  color: #73837d;
 }
 .library-grid {
   display: grid;

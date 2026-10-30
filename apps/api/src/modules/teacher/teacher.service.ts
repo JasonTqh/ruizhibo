@@ -332,6 +332,7 @@ export class TeacherService {
         objectives: dto.objectives.trim(),
         content: dto.content.trim(),
         status: dto.status ?? LessonPlanStatus.draft,
+        publishedAt: dto.status === LessonPlanStatus.published ? new Date() : null,
       },
       include: {
         class: { select: { id: true, name: true } },
@@ -379,6 +380,7 @@ export class TeacherService {
           : {}),
         ...(dto.content !== undefined ? { content: dto.content.trim() } : {}),
         ...(dto.status !== undefined ? { status: dto.status } : {}),
+        ...(dto.status === LessonPlanStatus.published && !existing.publishedAt ? { publishedAt: new Date() } : {}),
       },
       include: {
         class: { select: { id: true, name: true } },
@@ -404,10 +406,10 @@ export class TeacherService {
     lessonPlanId: string,
     dto: UpdateLessonPlanStatusDto,
   ) {
-    await this.assertOwnedLessonPlan(teacherId, lessonPlanId);
+    const existing = await this.assertOwnedLessonPlan(teacherId, lessonPlanId);
     const lessonPlan = await this.prisma.lessonPlan.update({
       where: { id: lessonPlanId },
-      data: { status: dto.status },
+      data: { status: dto.status, ...(dto.status === LessonPlanStatus.published && !existing.publishedAt ? { publishedAt: new Date() } : {}) },
       include: {
         class: { select: { id: true, name: true } },
       },
@@ -1159,7 +1161,7 @@ export class TeacherService {
   ) {
     const lessonPlan = await this.prisma.lessonPlan.findFirst({
       where: { id: lessonPlanId, teacherId },
-      select: { id: true, classId: true },
+      select: { id: true, classId: true, publishedAt: true },
     });
 
     if (!lessonPlan) {

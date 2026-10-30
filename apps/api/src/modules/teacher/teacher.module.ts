@@ -6,9 +6,12 @@ import { WorkflowModule } from "../workflow/workflow.module";
 import { TeacherController } from "./teacher.controller";
 import { TeacherService } from "./teacher.service";
 
+import { SupervisionService } from "./supervision.service";
+import { SupervisionController } from "./supervision.controller";
+
 @Module({
   imports: [AuditModule, AuthModule, PrismaModule, WorkflowModule],
-  controllers: [TeacherController],
-  providers: [TeacherService],
+  controllers: [TeacherController, SupervisionController],
+  providers: [TeacherService, SupervisionService],
 })
 export class TeacherModule {}

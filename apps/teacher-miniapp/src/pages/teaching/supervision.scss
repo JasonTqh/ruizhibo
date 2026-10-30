@@ -1,0 +1,117 @@
+.supervision-panel {
+  margin-top: 20px;
+}
+.supervision-note,
+.supervision-count,
+.supervision-meta,
+.supervision-title,
+.supervision-label,
+.supervision-content {
+  display: block;
+}
+.supervision-note {
+  padding: 20px;
+  color: #426454;
+  background: #edf5f0;
+  border-radius: 14px;
+  font-size: 26px;
+  line-height: 1.6;
+}
+.supervision-filters,
+.supervision-card {
+  margin-top: 20px;
+  padding: 24px;
+  background: #fff;
+  border-radius: 18px;
+}
+.supervision-field + .supervision-field {
+  margin-top: 18px;
+}
+.supervision-label {
+  margin-bottom: 10px;
+  font-size: 26px;
+  font-weight: 600;
+}
+.supervision-picker {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  min-height: 88px;
+  padding: 16px 18px;
+  color: #20372b;
+  background: #f7f9f7;
+  border: 1px solid #dce5e0;
+  border-radius: 12px;
+  font-size: 28px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.supervision-date-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+.supervision-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 22px;
+}
+.supervision-actions button {
+  flex: 1;
+  margin: 0;
+  font-size: 28px;
+}
+.supervision-count {
+  margin-top: 24px;
+  color: #69776e;
+  font-size: 26px;
+}
+.supervision-title {
+  font-size: 30px;
+  font-weight: 700;
+}
+.supervision-meta {
+  margin-top: 12px;
+  color: #69776e;
+  font-size: 26px;
+  line-height: 1.5;
+}
+.supervision-detail-button {
+  margin-top: 20px;
+  font-size: 28px;
+  color: #2f8064;
+  background: #edf5f0;
+}
+.supervision-detail {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #e7ebe7;
+}
+.supervision-content {
+  margin-bottom: 22px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 28px;
+  line-height: 1.7;
+}
+.supervision-empty {
+  padding: 60px 20px;
+  color: #69776e;
+  font-size: 28px;
+  text-align: center;
+}
+.supervision-scope {
+  display: flex;
+  gap: 16px;
+  margin: 20px 0;
+}
+.supervision-scope button {
+  flex: 1;
+  margin: 0;
+  font-size: 28px;
+}
+.supervision-scope .supervision-scope-active {
+  color: #fff;
+  background: #2f8064;
+}
