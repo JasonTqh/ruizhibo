@@ -1,3 +1,4 @@
+import { CourseBodyEditor, CourseOptionsEditor } from "../components/CourseInputs";
 import { academySections, canAccessAcademySection } from "./academy-sections";
 import CreateEntry from "../components/CreateEntry";
 import QueryTable from "../components/QueryTable";
@@ -734,7 +735,7 @@ export function TrainingPanel({
                       pagination={false}
                       columns={[
                         { title: "顺序", dataIndex: "sortOrder", width: 70 },
-                        { title: "课程", dataIndex: "name" },
+                        { title: "课程", dataIndex: "name", render: (name: string, row: any) => <div><Typography.Text strong>{name}</Typography.Text><div><Typography.Text type="secondary" ellipsis>{row.summary}</Typography.Text></div></div> },
                         { title: "代码", dataIndex: "code" },
                         {
                           title: "分类",
@@ -1337,42 +1338,45 @@ function CourseModal({
   onSubmit,
   saving,
 }: any) {
+  const [chapterIndex, setChapterIndex] = useState(0);
+  const [questionIndex, setQuestionIndex] = useState(0);
+  const [editorSection, setEditorSection] = useState("basic");
+  const values: any = Form.useWatch([], form) || {};
+  const sections = [
+    { key: "basic", label: "1 · 基本信息", tip: "说明课程教什么、谁来学，以及需要投入的学习时间。" },
+    { key: "chapters", label: "2 · 章节内容", tip: "按学习顺序组织章节，填写正文并上传图片或视频。" },
+    { key: "quiz", label: "3 · 课程测验", tip: "设置及格标准、题目选项和正确答案。" },
+    { key: "practical", label: "4 · 实操要求", tip: "明确现场要检查什么，以及达到什么标准才算通过。" },
+    { key: "publish", label: "5 · 保存与发布", tip: "选择课程状态，说明修改原因，并确认是否同步在用任务。" },
+  ];
+  function moveEntry(path: string[], index: number, offset: number) {
+    const list = [...(form.getFieldValue(path) || [])];
+    const next = index + offset;
+    if (next < 0 || next >= list.length) return;
+    [list[index], list[next]] = [list[next], list[index]];
+    form.setFieldValue(path, list.map((item: any, i: number) => ({ ...item, sortOrder: i + 1 })));
+    if (path[0] === "chapters") setChapterIndex(next); else setQuestionIndex(next);
+  }
+  useEffect(() => { if (open) { setEditorSection("basic"); setChapterIndex(0); setQuestionIndex(0); } }, [open, editing?.id]);
   return (
-    <Modal
-      title={editing ? `编辑课程：${editing.name}` : "新增课程"}
-      open={open}
-      onCancel={onCancel}
-      onOk={() => form.submit()}
-      okText="保存课程"
-      confirmLoading={saving}
-      keyboard={!saving}
-      closable={!saving}
-      maskClosable={!saving}
-      cancelText="取消"
-      width={1050}
-      destroyOnHidden
-      forceRender
-    >
-      <Form form={form} layout="vertical" onFinish={onSubmit} disabled={saving}>
-        {editing ? (
-          <Form.Item
-            name="overwriteExisting"
-            valuePropName="checked"
-            extra="默认不覆盖。选择覆盖后将先预览受影响教师及变化，再由你确认。已完成、免修、冻结和终止的记录不覆盖。"
-          >
-            <Checkbox>同步整门课程到符合条件的在用培训任务</Checkbox>
-          </Form.Item>
-        ) : null}
+    <section className="course-workspace" style={{ display: open ? "flex" : "none" }}>
+      <header className="course-workspace-header"><div><Typography.Text type="secondary">课程资料库 / 编辑课程</Typography.Text><Typography.Title level={3}>{editing ? editing.name : "新增课程"}</Typography.Title></div><Button disabled={saving} onClick={() => { if (form.isFieldsTouched()) Modal.confirm({ title: "离开课程编辑？", content: "未保存的修改将丢失。", okText: "放弃修改", cancelText: "继续编辑", onOk: onCancel }); else onCancel(); }}>返回资料库</Button></header>
+      <div className="course-workspace-body">
+      <div className="course-editor-nav">
+        <Tabs tabPosition="left" activeKey={editorSection} onChange={setEditorSection} items={sections.map(section => ({ key: section.key, label: section.label }))} />
+        <Typography.Paragraph type="secondary">{sections.find(s => s.key === editorSection)?.tip}</Typography.Paragraph>
+        <Space wrap><Tag>{values.chapters?.length || 0} 个章节</Tag><Tag>{values.quiz?.questions?.length || 0} 道题目</Tag><Tag>{values.practicalItems?.length || 0} 项实操</Tag><Typography.Text type="secondary">切换分区保留填写内容；点击“保存课程”后才生效。</Typography.Text></Space>
+      </div>
+      <Form className="course-workspace-form" form={form} layout="vertical" onFinish={onSubmit} disabled={saving} scrollToFirstError
+        onFinishFailed={({ errorFields }: any) => {
+          const field = errorFields[0]?.name?.[0];
+          if (field === "chapters") setChapterIndex(Number(errorFields[0]?.name?.[1]) || 0);
+          if (field === "quiz") setQuestionIndex(Number(errorFields[0]?.name?.[2]) || 0);
+          setEditorSection(field === "chapters" ? "chapters" : field === "quiz" ? "quiz" : field === "practicalItems" ? "practical" : ["status", "reason"].includes(field) ? "publish" : "basic");
+          setTimeout(() => form.scrollToField(errorFields[0]?.name, { block: "center" }), 100);
+        }}>
+        <div hidden={editorSection !== "basic"}>
         <Row gutter={12}>
-          <Col span={8}>
-            <Form.Item
-              name="code"
-              label="课程代码"
-              rules={[{ required: true }]}
-            >
-              <Input disabled={Boolean(editing)} />
-            </Form.Item>
-          </Col>
           <Col span={8}>
             <Form.Item
               name="name"
@@ -1399,6 +1403,16 @@ function CourseModal({
             </Form.Item>
           </Col>
         </Row>
+        <details open={!editing} style={{ marginBottom: 20 }}><summary>高级设置 · 课程代码</summary>          <Col span={8}>
+            <Form.Item
+              name="code"
+              label="课程代码"
+              rules={[{ required: true }]}
+            >
+              <Input disabled={Boolean(editing)} />
+            </Form.Item>
+          </Col>
+</details>
         <Form.Item name="summary" label="课程简介" rules={[{ required: true }]}>
           <Input.TextArea rows={2} />
         </Form.Item>
@@ -1409,7 +1423,7 @@ function CourseModal({
           <Col span={4}>
             <Form.Item
               name="expectedMinutes"
-              label="预计分钟"
+              label="预计学习时长（分钟）"
               rules={[{ required: true }]}
             >
               <InputNumber min={0} />
@@ -1418,7 +1432,7 @@ function CourseModal({
           <Col span={4}>
             <Form.Item
               name="minimumMinutes"
-              label="最低分钟"
+              label="最低学习时长（分钟）"
               rules={[{ required: true }]}
             >
               <InputNumber min={0} />
@@ -1453,35 +1467,17 @@ function CourseModal({
             </Form.Item>
           </Col>
         </Row>
-        <Form.Item name="status" label="内容状态" rules={[{ required: true }]}>
-          <Select
-            options={[
-              { value: "draft", label: "草稿" },
-              { value: "enabled", label: "已启用" },
-              { value: "disabled", label: "已停用" },
-            ]}
-          />
-        </Form.Item>
-        <Form.Item
-          name="reason"
-          label="维护原因（永久审计）"
-          rules={[{ required: true, min: 2, max: 1000 }]}
-        >
-          <Input.TextArea
-            rows={3}
-            placeholder="说明新增、修改或启停课程的原因"
-          />
-        </Form.Item>
-
+        </div><div hidden={editorSection !== "chapters"}>
         <Typography.Title level={5}>章节与媒体</Typography.Title>
         <Form.List name="chapters">
           {(fields, { add, remove }) => (
             <Space direction="vertical" style={{ width: "100%" }}>
+              <Space wrap>{fields.map((field, index) => <Button key={field.key} type={chapterIndex === index ? "primary" : "default"} onClick={() => setChapterIndex(index)}>{index + 1}. {values.chapters?.[index]?.title || "未命名章节"}</Button>)}</Space>
               {fields.map((field, index) => (
-                <Card
+                <Card style={{ display: chapterIndex === index ? undefined : "none" }}
                   key={field.key}
                   size="small"
-                  title={`章节 ${index + 1}`}
+                  title={<Space>章节 {index + 1}<Button disabled={!index || saving} onClick={() => moveEntry(["chapters"], index, -1)}>上移</Button><Button disabled={index === fields.length - 1 || saving} onClick={() => moveEntry(["chapters"], index, 1)}>下移</Button></Space>}
                   extra={
                     <Button
                       danger
@@ -1522,10 +1518,11 @@ function CourseModal({
                   </Row>
                   <Form.Item
                     name={[field.name, "contentHtml"]}
-                    label="图文内容（支持安全 HTML）"
+                    label="章节正文"
+                    extra="直接填写和排版正文；图片、视频在下方添加。"
                     rules={[{ required: true }]}
                   >
-                    <Input.TextArea rows={5} />
+                    <CourseBodyEditor disabled={saving} />
                   </Form.Item>
                   <Form.List name={[field.name, "media"]}>
                     {(mediaFields, { add: addMedia, remove: removeMedia }) => (
@@ -1535,7 +1532,8 @@ function CourseModal({
                             <Col span={8}>
                               <Form.Item
                                 name={[mediaField.name, "fileAssetId"]}
-                                label="素材ID"
+                                label="已上传素材"
+                                hidden
                                 rules={[{ required: true }]}
                               >
                                 <Input readOnly />
@@ -1565,7 +1563,7 @@ function CourseModal({
                             <Col span={3}>
                               <Form.Item
                                 name={[mediaField.name, "durationSeconds"]}
-                                label="视频秒数（MP4必填）"
+                                label="视频时长（秒）"
                               >
                                 <InputNumber min={1} />
                               </Form.Item>
@@ -1597,8 +1595,8 @@ function CourseModal({
                                 asset.mimeType === "video/mp4"
                                   ? "video"
                                   : "image",
-                              caption: "",
-                              durationSeconds: undefined,
+                              caption: asset.originalFileName || "",
+                              durationSeconds: asset.durationSeconds,
                               sortOrder: mediaFields.length + 1,
                             })
                           }
@@ -1611,15 +1609,7 @@ function CourseModal({
               <Button
                 type="dashed"
                 icon={<PlusOutlined />}
-                onClick={() =>
-                  add({
-                    title: "",
-                    contentHtml: "<p></p>",
-                    sortOrder: fields.length + 1,
-                    isEnabled: true,
-                    media: [],
-                  })
-                }
+                onClick={() => { add({ title: "", contentHtml: "<p></p>", sortOrder: fields.length + 1, isEnabled: true, media: [] }); setChapterIndex(fields.length); }}
               >
                 添加章节
               </Button>
@@ -1627,6 +1617,8 @@ function CourseModal({
           )}
         </Form.List>
 
+        </div><div hidden={editorSection !== "quiz"}>
+        <Alert type="info" showIcon message="逐行添加选项，再从下方选择正确答案。单选和判断题只选择一个答案，多选题可以选择多个。" style={{ marginBottom: 16 }} />
         <Typography.Title level={5} style={{ marginTop: 20 }}>
           测验
         </Typography.Title>
@@ -1648,11 +1640,12 @@ function CourseModal({
         <Form.List name={["quiz", "questions"]}>
           {(fields, { add, remove }) => (
             <Space direction="vertical" style={{ width: "100%" }}>
+              <Space wrap>{fields.map((field, index) => <Button key={field.key} type={questionIndex === index ? "primary" : "default"} onClick={() => setQuestionIndex(index)}>第 {index + 1} 题</Button>)}</Space>
               {fields.map((field, index) => (
-                <Card
+                <Card style={{ display: questionIndex === index ? undefined : "none" }}
                   size="small"
                   key={field.key}
-                  title={`题目 ${index + 1}`}
+                  title={<Space>题目 {index + 1}<Button disabled={!index || saving} onClick={() => moveEntry(["quiz", "questions"], index, -1)}>上移</Button><Button disabled={index === fields.length - 1 || saving} onClick={() => moveEntry(["quiz", "questions"], index, 1)}>下移</Button></Space>}
                   extra={
                     <Button
                       danger
@@ -1692,20 +1685,19 @@ function CourseModal({
                   </Row>
                   <Form.Item
                     name={[field.name, "optionsText"]}
-                    label="选项（每行“标识|内容”）"
+                    label="答案选项"
                     rules={[{ required: true }]}
                   >
-                    <Input.TextArea
-                      rows={3}
-                      placeholder={"A|选项一\nB|选项二"}
-                    />
+                    <CourseOptionsEditor disabled={saving} />
                   </Form.Item>
                   <Form.Item
                     name={[field.name, "correctAnswersText"]}
-                    label="正确答案标识（多个用逗号分隔）"
+                    getValueProps={(v: string) => ({ value: v ? v.split(",").map(x => x.trim()).filter(Boolean) : [] })}
+                    getValueFromEvent={(v: string[]) => v.join(",")}
+                    label="正确答案"
                     rules={[{ required: true }]}
                   >
-                    <Input />
+                    <Select mode="multiple" placeholder="选择正确选项" options={(values.quiz?.questions?.[index]?.optionsText || "").split("\n").filter(Boolean).map((line: string) => ({ value: line.split("|")[0], label: line.replace("|", " · ") }))} />
                   </Form.Item>
                   <Form.Item name={[field.name, "explanation"]} label="解析">
                     <Input.TextArea rows={2} />
@@ -1717,7 +1709,7 @@ function CourseModal({
               ))}
               <Button
                 type="dashed"
-                onClick={() => add(defaultQuestion(fields.length + 1))}
+                onClick={() => { add(defaultQuestion(fields.length + 1)); setQuestionIndex(fields.length); }}
               >
                 添加题目
               </Button>
@@ -1725,10 +1717,12 @@ function CourseModal({
           )}
         </Form.List>
 
+        </div><div hidden={editorSection !== "practical"}>
+        <Alert type="info" showIcon message={values.requiresPractical ? "已开启实操考核：请为每个项目写明操作要求和通过标准。" : "当前未开启实操考核。如需现场确认，请先在基本信息中开启“需要实操”。"} style={{ marginBottom: 16 }} />
         <Typography.Title level={5} style={{ marginTop: 20 }}>
           实操检查清单
         </Typography.Title>
-        <Form.List name="practicalItems">
+        <div hidden={!values.requiresPractical}><Form.List name="practicalItems">
           {(fields, { add, remove }) => (
             <Space direction="vertical" style={{ width: "100%" }}>
               {fields.map((field, index) => (
@@ -1788,9 +1782,43 @@ function CourseModal({
               </Button>
             </Space>
           )}
-        </Form.List>
+        </Form.List></div>
+        </div><div hidden={editorSection !== "publish"}>
+        <Alert type="info" showIcon message="保存范围" description="默认仅影响后续布置的任务。勾选同步后，系统会先展示影响范围，确认后才保存和覆盖。" style={{ marginBottom: 20 }} />
+        <Form.Item name="status" label="内容状态" rules={[{ required: true }]}>
+          <Select
+            options={[
+              { value: "draft", label: "草稿" },
+              { value: "enabled", label: "已启用" },
+              { value: "disabled", label: "已停用" },
+            ]}
+          />
+        </Form.Item>
+        <Form.Item
+          name="reason"
+          label="维护原因（永久审计）"
+          rules={[{ required: true, min: 2, max: 1000 }]}
+        >
+          <Input.TextArea
+            rows={3}
+            placeholder="说明新增、修改或启停课程的原因"
+          />
+        </Form.Item>
+
+        {editing ? (
+          <Form.Item
+            name="overwriteExisting"
+            valuePropName="checked"
+            extra="默认不覆盖。选择覆盖后将先预览受影响教师及变化，再由你确认。已完成、免修、冻结和终止的记录不覆盖。"
+          >
+            <Checkbox>同步整门课程到符合条件的在用培训任务</Checkbox>
+          </Form.Item>
+        ) : null}
+        </div>
       </Form>
-    </Modal>
+      </div><footer className="course-workspace-footer"><Typography.Text type="secondary">修改仅在保存后生效</Typography.Text><Space><Button disabled={saving} onClick={onCancel}>取消</Button><Button type="primary" loading={saving} onClick={() => form.submit()}>保存修改</Button></Space></footer>
+      <div className="course-editor-pagination" hidden><Button disabled={editorSection === "basic" || saving} onClick={() => setEditorSection(sections[sections.findIndex(s => s.key === editorSection) - 1].key)}>上一步</Button><Button disabled={editorSection === "publish" || saving} onClick={() => setEditorSection(sections[sections.findIndex(s => s.key === editorSection) + 1].key)}>下一步</Button></div>
+    </section>
   );
 }
 
@@ -1813,7 +1841,21 @@ function TrainingUpload({ token, onUploaded }: any) {
             throw new Error(
               result.error?.message || result.message || "上传失败",
             );
-          onUploaded(result.data);
+          let durationSeconds: number | undefined;
+          if (file.type === "video/mp4") {
+            durationSeconds = await new Promise<number | undefined>(resolve => {
+              const video = document.createElement("video");
+              const url = URL.createObjectURL(file);
+              let finished = false;
+              const finish = (duration?: number) => { if (finished) return; finished = true; URL.revokeObjectURL(url); resolve(duration); };
+              video.preload = "metadata";
+              video.onloadedmetadata = () => finish(Number.isFinite(video.duration) && video.duration > 0 ? Math.ceil(video.duration) : undefined);
+              video.onerror = () => finish();
+              video.src = url;
+              setTimeout(() => finish(), 5000);
+            });
+          }
+          onUploaded({ ...result.data, originalFileName: file.name, durationSeconds });
           onSuccess?.(result.data);
         } catch (cause) {
           Modal.error({ title: "素材上传失败", content: errorText(cause) });
@@ -2722,7 +2764,7 @@ function courseFormValues(course: any) {
 function defaultCourseValues() {
   return {
     reason: "",
-    code: "LIBRARY-",
+    code: `LIBRARY-${Date.now()}`,
     name: "",
     category: "library",
     summary: "",
