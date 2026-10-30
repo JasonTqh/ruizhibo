@@ -482,15 +482,15 @@ export function TrainingPanel({
   const selectedSection =
     academySections.find((item) => item.key === section) || academySections[0];
   return (
-    <Space direction="vertical" size={16} style={{ width: "100%" }}>
-      <Card>
+    <Space direction="vertical" size={16} style={{ width: "100%", minWidth: 0 }}>
+      {!courseOpen && <Card>
         <Typography.Title level={3} style={{ marginTop: 0 }}>
           教师学院 · {selectedSection.label}
         </Typography.Title>
         <Typography.Text type="secondary">
           {selectedSection.description}
         </Typography.Text>
-      </Card>
+      </Card>}
       {error ? (
         <Alert
           type="error"
@@ -541,7 +541,7 @@ export function TrainingPanel({
           ))}
         </Row>
       ) : null}
-      {(() => {
+      {!courseOpen && (() => {
         const pages: any[] = [
           capabilities.trainingManage
             ? {
@@ -697,6 +697,9 @@ export function TrainingPanel({
                     <QueryTable
                       rowKey="id"
                       dataSource={courses}
+                      tableLayout="fixed"
+                      scroll={{ x: 880 }}
+                      className="course-library-table"
                       queryFields={[
                         {
                           key: "name",
@@ -735,25 +738,25 @@ export function TrainingPanel({
                       pagination={false}
                       columns={[
                         { title: "顺序", dataIndex: "sortOrder", width: 70 },
-                        { title: "课程", dataIndex: "name", render: (name: string, row: any) => <div><Typography.Text strong>{name}</Typography.Text><div><Typography.Text type="secondary" ellipsis>{row.summary}</Typography.Text></div></div> },
-                        { title: "代码", dataIndex: "code" },
+                        { title: "课程", dataIndex: "name", width: 420, render: (name: string, row: any) => <div><Typography.Text strong>{name}</Typography.Text><div><Typography.Text className="course-list-summary" type="secondary">{row.summary}</Typography.Text></div></div> },
+                        
                         {
-                          title: "分类",
+                          title: "分类", width: 100,
                           dataIndex: "category",
                           render: (v: string) => courseCategoryLabels[v] ?? v,
                         },
                         {
-                          title: "最低时长",
+                          title: "最低时长", width: 100,
                           dataIndex: "minimumMinutes",
                           render: (v: number) => `${v} 分钟`,
                         },
                         {
-                          title: "实操",
+                          title: "实操", width: 90,
                           dataIndex: "requiresPractical",
                           render: (v: boolean) => (v ? "需要" : "不需要"),
                         },
                         {
-                          title: "状态",
+                          title: "状态", width: 100,
                           dataIndex: "status",
                           render: (v: string) => (
                             <Tag>
@@ -766,7 +769,7 @@ export function TrainingPanel({
                           ),
                         },
                         {
-                          title: "操作",
+                          title: "操作", width: 120,
                           render: (_: unknown, item: any) => (
                             <Space>
                               <Button
@@ -1403,16 +1406,7 @@ function CourseModal({
             </Form.Item>
           </Col>
         </Row>
-        <details open={!editing} style={{ marginBottom: 20 }}><summary>高级设置 · 课程代码</summary>          <Col span={8}>
-            <Form.Item
-              name="code"
-              label="课程代码"
-              rules={[{ required: true }]}
-            >
-              <Input disabled={Boolean(editing)} />
-            </Form.Item>
-          </Col>
-</details>
+        <Form.Item name="code" hidden><Input /></Form.Item>
         <Form.Item name="summary" label="课程简介" rules={[{ required: true }]}>
           <Input.TextArea rows={2} />
         </Form.Item>
