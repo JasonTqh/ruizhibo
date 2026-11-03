@@ -25,9 +25,6 @@
 .greeting-card__date,
 .greeting-stat__value,
 .greeting-stat__label,
-.quick-card__icon,
-.quick-card__title,
-.quick-card__description,
 .home-section-heading__title,
 .home-section-heading__hint,
 .task-row__title,
@@ -127,14 +124,34 @@
   font-weight: 900;
 }
 
-.academy-card__main { flex: 1; min-width: 0; }
+.academy-card__main {
+  flex: 1;
+  min-width: 0;
+}
 .academy-card__eyebrow,
 .academy-card__title,
-.academy-card__meta { display: block; }
-.academy-card__eyebrow { color: #2f8064; font-size: 18px; font-weight: 700; }
-.academy-card__title { margin-top: 4px; font-size: 23px; font-weight: 800; }
-.academy-card__meta { margin-top: 5px; color: #7d8782; font-size: 18px; }
-.academy-card__arrow { color: #2f8064; font-size: 35px; }
+.academy-card__meta {
+  display: block;
+}
+.academy-card__eyebrow {
+  color: #2f8064;
+  font-size: 18px;
+  font-weight: 700;
+}
+.academy-card__title {
+  margin-top: 4px;
+  font-size: 23px;
+  font-weight: 800;
+}
+.academy-card__meta {
+  margin-top: 5px;
+  color: #7d8782;
+  font-size: 18px;
+}
+.academy-card__arrow {
+  color: #2f8064;
+  font-size: 35px;
+}
 .academy-card__badge {
   display: flex;
   align-items: center;
@@ -197,7 +214,7 @@
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   margin-top: 28px;
   padding-top: 22px;
   border-top: 1px solid rgba(255, 255, 255, 0.2);
@@ -238,57 +255,6 @@
   font-size: 19px;
 }
 
-.quick-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-
-.quick-card {
-  box-sizing: border-box;
-  min-height: 176px;
-  padding: 22px;
-  border: 1px solid rgba(255, 255, 255, 0.65);
-  border-radius: 18px;
-  box-shadow: 0 5px 16px rgba(26, 46, 40, 0.06);
-}
-
-.quick-card--green { background: #e4f3ec; }
-.quick-card--yellow { background: #fff2d7; }
-.quick-card--blue { background: #e6f1f8; }
-.quick-card--coral { background: #fbe8e3; }
-.quick-card--purple { background: #eee8f7; }
-
-.quick-card__icon {
-  width: 54px;
-  height: 54px;
-  margin-bottom: 14px;
-  color: #ffffff;
-  background: #2f8064;
-  border-radius: 16px;
-  font-size: 31px;
-  font-weight: 800;
-  line-height: 54px;
-  text-align: center;
-}
-
-.quick-card--blue .quick-card__icon { background: #5f9fc3; }
-.quick-card--yellow .quick-card__icon { background: #d8a53b; }
-.quick-card--coral .quick-card__icon { background: #df7564; }
-.quick-card--purple .quick-card__icon { background: #8368ad; }
-
-.quick-card__title {
-  font-size: 24px;
-  font-weight: 800;
-}
-
-.quick-card__description {
-  margin-top: 7px;
-  color: #65736e;
-  font-size: 18px;
-  line-height: 1.45;
-}
-
 .task-card,
 .class-list {
   overflow: hidden;
@@ -318,10 +284,18 @@
   border-radius: 50%;
 }
 
-.task-row__dot--warning { background: #e4a93b; }
-.task-row__dot--danger { background: #dd7263; }
-.task-row__dot--info { background: #62a2c5; }
-.task-row__dot--success { background: #55a47f; }
+.task-row__dot--warning {
+  background: #e4a93b;
+}
+.task-row__dot--danger {
+  background: #dd7263;
+}
+.task-row__dot--info {
+  background: #62a2c5;
+}
+.task-row__dot--success {
+  background: #55a47f;
+}
 
 .task-row__main {
   flex: 1;
@@ -350,10 +324,22 @@
   font-size: 18px;
 }
 
-.task-row__status--warning { color: #915d09; background: #fff2d6; }
-.task-row__status--danger { color: #984238; background: #fde9e5; }
-.task-row__status--info { color: #326d8e; background: #e6f2f8; }
-.task-row__status--success { color: #266a52; background: #e5f3ec; }
+.task-row__status--warning {
+  color: #915d09;
+  background: #fff2d6;
+}
+.task-row__status--danger {
+  color: #984238;
+  background: #fde9e5;
+}
+.task-row__status--info {
+  color: #326d8e;
+  background: #e6f2f8;
+}
+.task-row__status--success {
+  color: #266a52;
+  background: #e5f3ec;
+}
 
 .class-card {
   padding: 20px;
@@ -375,8 +361,12 @@
   font-weight: 800;
 }
 
-.class-card__avatar--1 { background: #6a9fc0; }
-.class-card__avatar--2 { background: #dc7a69; }
+.class-card__avatar--1 {
+  background: #6a9fc0;
+}
+.class-card__avatar--2 {
+  background: #dc7a69;
+}
 
 .class-card__main {
   flex: 1;

@@ -237,7 +237,8 @@
   background: #f8faf9;
   border: 1px solid #dce5e1;
   border-radius: 12px;
-  font-size: 22px;
+  font-size: 28px;
+  line-height: 1.5;
 }
 
 .research-textarea {
@@ -467,4 +468,11 @@
   margin-top: 8px;
   color: #7b8581;
   font-size: 20px;
+}
+
+.research-picker {
+  display: flex;
+  align-items: center;
+  min-height: 88px;
+  line-height: 1.5;
 }

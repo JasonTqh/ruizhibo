@@ -6,6 +6,7 @@ import { TrainingAdminController } from "./training-admin.controller";
 import { TrainingAdminService } from "./training-admin.service";
 import { TrainingAssignmentService } from "./training-assignment.service";
 import { TrainingAuditService } from "./training-audit.service";
+import { TrainingOverwriteService } from "./training-overwrite.service";
 import { TrainingCourseService } from "./training-course.service";
 import { TrainingExportService } from "./training-export.service";
 import { TrainingJobsService } from "./training-jobs.service";
@@ -24,6 +25,7 @@ import { TrainingTeacherService } from "./training-teacher.service";
     TrainingAssignmentService,
     TrainingAuditService,
     TrainingCourseService,
+    TrainingOverwriteService,
     TrainingExportService,
     TrainingJobsService,
     TrainingLifecycleService,

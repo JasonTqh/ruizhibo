@@ -5,7 +5,7 @@ import {
   Injectable,
   UnauthorizedException,
 } from "@nestjs/common";
-import { UserRole, UserStatus } from "@prisma/client";
+import { TeacherEmploymentStatus, UserRole, UserStatus } from "@prisma/client";
 import { AuditService } from "../audit/audit.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { AdminLoginThrottleService } from "./admin-login-throttle.service";
@@ -14,6 +14,7 @@ import { AdminLoginDto } from "./dto/admin-login.dto";
 import { BindPhoneDto } from "./dto/bind-phone.dto";
 import { DevLoginDto } from "./dto/dev-login.dto";
 import { WechatLoginDto } from "./dto/wechat-login.dto";
+import { TeacherWebLoginDto } from "./dto/teacher-web-login.dto";
 import { JwtService } from "./jwt.service";
 import { hashPassword, verifyPassword } from "./password";
 
@@ -23,7 +24,7 @@ export class AuthService {
     string,
     { value: string; expiresAt: number }
   >();
-  private readonly dummyAdminPasswordHash = hashPassword(
+  private readonly dummyPasswordHash = hashPassword(
     "Invalid-Admin-Password-Only-For-Timing!1",
   );
 
@@ -51,8 +52,7 @@ export class AuthService {
       },
     });
 
-    const passwordHash =
-      user?.passwordHash ?? (await this.dummyAdminPasswordHash);
+    const passwordHash = user?.passwordHash ?? (await this.dummyPasswordHash);
     const passwordMatches = await verifyPassword(dto.password, passwordHash);
     if (
       !user ||
@@ -81,6 +81,63 @@ export class AuthService {
 
     return {
       data: this.issueTokenData(profile),
+    };
+  }
+
+  async teacherWebLogin(dto: TeacherWebLoginDto, ipAddress: string) {
+    this.adminLoginThrottle.assertAllowed(dto.phone, ipAddress);
+    const user = await this.prisma.user.findFirst({
+      where: {
+        phone: dto.phone,
+        role: UserRole.teacher,
+      },
+      select: {
+        id: true,
+        role: true,
+        name: true,
+        phone: true,
+        passwordHash: true,
+        status: true,
+        employmentStatus: true,
+      },
+    });
+
+    const passwordHash = user?.passwordHash ?? (await this.dummyPasswordHash);
+    const passwordMatches = await verifyPassword(dto.password, passwordHash);
+    if (
+      !user ||
+      !user.passwordHash ||
+      !passwordMatches ||
+      user.status !== UserStatus.active ||
+      user.employmentStatus !== TeacherEmploymentStatus.employed
+    ) {
+      this.adminLoginThrottle.recordFailure(dto.phone, ipAddress);
+      throw new UnauthorizedException("手机号或密码错误");
+    }
+
+    this.adminLoginThrottle.recordSuccess(dto.phone);
+    const profile: AuthUser = {
+      id: user.id,
+      role: user.role,
+      name: user.name,
+      phone: user.phone,
+    };
+    await this.audit.log({
+      userId: user.id,
+      action: "auth.teacher_web.login",
+      targetType: "User",
+      targetId: user.id,
+      detail: { role: user.role },
+    });
+
+    return {
+      data: {
+        token: this.jwtService.signTeacherWeb({
+          sub: profile.id,
+          role: profile.role,
+        }),
+        user: profile,
+      },
     };
   }
 

@@ -22,10 +22,19 @@ button[disabled] {
   display: none;
 }
 
+// Native inputs otherwise retain WeChat's short default content box.
 input,
 textarea {
   box-sizing: border-box;
+  min-width: 0;
   max-width: 100%;
+  font-size: 28px;
+  line-height: 1.5;
+}
+
+input {
+  height: 88px;
+  min-height: 88px;
 }
 
 .title,
@@ -85,7 +94,7 @@ textarea {
 
 .grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 16px;
 }
 
@@ -167,7 +176,8 @@ textarea {
   background: #fafbf9;
   border: 1px solid #dce5e0;
   border-radius: 8px;
-  font-size: 24px;
+  font-size: 28px;
+  line-height: 1.5;
 }
 
 .form-textarea {
@@ -180,7 +190,7 @@ textarea {
 
 .deadline-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 12px;
 }
 
@@ -615,7 +625,8 @@ textarea {
   background: #f7f8f7;
   border: 1px solid #dce5e0;
   border-radius: 8px;
-  font-size: 23px;
+  font-size: 28px;
+  line-height: 1.5;
 }
 
 .message-send-button {
@@ -625,4 +636,11 @@ textarea {
   color: #ffffff;
   background: #2f8064;
   border-color: #2f8064;
+}
+
+.picker-field {
+  display: flex;
+  align-items: center;
+  min-height: 88px;
+  line-height: 1.5;
 }

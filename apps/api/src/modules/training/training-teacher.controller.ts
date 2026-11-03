@@ -80,6 +80,7 @@ export class TrainingTeacherController {
       user.id,
       assignmentCourseId,
       dto.chapterKey,
+      dto.snapshotId,
     );
   }
 

@@ -9,12 +9,15 @@
 | 来源 | 版本 | 说明 |
 | --- | --- | --- |
 | 本地主工作区原始基线 | `6a8adbb38fae5851b26b6fef1ea75daad24d77bb` | `feat: add admin campus management`；本次本地快照的父版本。 |
+| 本地内容归档快照 | `a82a4ea475ebcb4ba29359e873173a54253aaa0d` | `chore: archive local project files with source provenance`；在合并远程更新前完整保留本地待提交文件。 |
 | 本次同步前重新获取的远程 `origin/main` | `c34443e9d0a1c10118475fc80a2636b6a6084ddf` | `feat: update teacher supervision and training course workflows`；包含教师网页端、部署配置及后续督导、培训更新。 |
 | 前次项目状态文档同步的代码基线 | `9c8cd72` | 历史文档基线，不作为本次上传的完整来源版本。 |
 
 远程仓库：<https://github.com/JasonTqh/ruizhibo>。目标分支：`main`。
 
 本地内容先形成独立快照提交，再与上述远程版本合并，提交关系可在 Git 历史中追溯。若 GitHub 在推送期间继续更新，以最终合并提交的父版本和提交说明为准。
+
+合并时保留本地企业端名称、中文课程分类和远程课程流程；删除自动合并产生的重复 `apps/teacher-web` 锁文件条目，不调整该条目的依赖版本。
 
 ## 归档内容
 
@@ -27,4 +30,15 @@
 
 ## 验证边界
 
-本次上传不操作生产服务、不执行数据库迁移或 seed。来源可追溯不等于功能已全部验收；自动检查及构建的实际结果以本次同步的最终提交说明和交付记录为准。
+本次合并后已执行并通过：
+
+- `pnpm install --frozen-lockfile`，确认锁文件可以安装且与工作区配置一致。
+- `pnpm --filter @ruizhibo/api prisma:generate`，仅生成本地客户端。
+- `pnpm typecheck` 与 `pnpm build`，覆盖后端、管理后台、教师网页端、教师小程序、家长小程序及共享包。
+- 教师小程序课程页面测试 3 项、教师网页登录测试 4 项、培训覆盖与进度继承规则测试 6 项。
+- 管理后台查询、教师学院模块权限、新增弹窗和教师岗位多选的现有检查脚本。
+- 归档的 46 个 PDF、Word、Excel 和 PNG 文件逐一与 Git 暂存内容核对，原始字节一致。
+
+管理后台构建仍有现有的单个代码包超过 500 kB 提示，构建成功；本次没有调整业务代码的拆包策略。
+
+本次上传不操作生产服务、不执行数据库迁移或 seed。上述检查不代替数据库接口联调、生产部署、微信真机测试和业务人工验收。

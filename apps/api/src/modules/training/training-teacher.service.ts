@@ -1,4 +1,8 @@
 import {
+  assertSnapshotVersion,
+  lockCurrentTrainingCourse,
+} from "./training-version";
+import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
@@ -84,29 +88,30 @@ export class TrainingTeacherService {
     if (!enabled) {
       return { data: { enabled: false, assignment: null } };
     }
-    const [safety, unread, libraryCount, feedbackInvitation] = await Promise.all([
-      this.prisma.trainingSafetyCredential.findUnique({
-        where: { teacherId },
-      }),
-      this.prisma.trainingNotification.count({
-        where: { userId: teacherId, readAt: null },
-      }),
-      this.prisma.trainingCourse.count({ where: { status: "enabled" } }),
-      this.prisma.trainingAssignment.findFirst({
-        where: {
-          teacherId,
-          status: TrainingAssignmentStatus.completed,
-          feedback: null,
-        },
-        orderBy: { completedAt: "desc" },
-        select: {
-          id: true,
-          roundNumber: true,
-          completedAt: true,
-          campus: { select: { id: true, name: true } },
-        },
-      }),
-    ]);
+    const [safety, unread, libraryCount, feedbackInvitation] =
+      await Promise.all([
+        this.prisma.trainingSafetyCredential.findUnique({
+          where: { teacherId },
+        }),
+        this.prisma.trainingNotification.count({
+          where: { userId: teacherId, readAt: null },
+        }),
+        this.prisma.trainingCourse.count({ where: { status: "enabled" } }),
+        this.prisma.trainingAssignment.findFirst({
+          where: {
+            teacherId,
+            status: TrainingAssignmentStatus.completed,
+            feedback: null,
+          },
+          orderBy: { completedAt: "desc" },
+          select: {
+            id: true,
+            roundNumber: true,
+            completedAt: true,
+            campus: { select: { id: true, name: true } },
+          },
+        }),
+      ]);
     return {
       data: {
         enabled: true,
@@ -145,7 +150,8 @@ export class TrainingTeacherService {
           attempt: course.attempts[0]
             ? this.attemptSummary(
                 course.attempts[0],
-                course.snapshot.payload as unknown as TrainingCourseSnapshotPayload,
+                course.snapshot
+                  .payload as unknown as TrainingCourseSnapshotPayload,
               )
             : null,
         })),
@@ -154,7 +160,10 @@ export class TrainingTeacherService {
   }
 
   async course(teacherId: string, assignmentCourseId: string) {
-    const context = await this.requireTeacherCourse(teacherId, assignmentCourseId);
+    const context = await this.requireTeacherCourse(
+      teacherId,
+      assignmentCourseId,
+    );
     await this.access.assertCampusEnabled(context.assignment.campusId);
     if (context.course.status === TrainingCourseStatus.locked) {
       throw new ForbiddenException("请先完成上一门课程，当前课程尚未解锁");
@@ -168,6 +177,7 @@ export class TrainingTeacherService {
         deadlineStatus: deadlineStatus(new Date(), context.assignment.dueAt),
         course: {
           id: context.course.id,
+          snapshotId: context.course.snapshotId,
           status: context.course.status,
           snapshot: publicSnapshot(payload),
           attempt: this.attemptSummary(context.attempt, payload),
@@ -201,7 +211,8 @@ export class TrainingTeacherService {
     });
     const assignment = await this.currentAssignment(teacherId);
     const formalByCourseId = new Map(
-      assignment?.courses.map((course) => [course.originalCourseId, course]) ?? [],
+      assignment?.courses.map((course) => [course.originalCourseId, course]) ??
+        [],
     );
     return {
       data: courses.map((course) => {
@@ -219,12 +230,11 @@ export class TrainingTeacherService {
           formalCourseId: formal?.id ?? null,
           formalStatus: formal?.status ?? null,
           formalLocked,
-          lockedReason:
-            !formal
-              ? "课程未包含在当前培训计划中"
-              : formal.status === TrainingCourseStatus.locked
-                ? "请先完成上一门必修课程"
-                : null,
+          lockedReason: !formal
+            ? "课程未包含在当前培训计划中"
+            : formal.status === TrainingCourseStatus.locked
+              ? "请先完成上一门必修课程"
+              : null,
           progressNotice: "资料库查阅不计入正式培训进度",
         };
       }),
@@ -236,8 +246,12 @@ export class TrainingTeacherService {
     assignmentCourseId: string,
     dto: StartStudySessionDto,
   ) {
-    const context = await this.requireTeacherCourse(teacherId, assignmentCourseId);
+    const context = await this.requireTeacherCourse(
+      teacherId,
+      assignmentCourseId,
+    );
     await this.assertLearnable(context);
+    assertSnapshotVersion(context.course.snapshot, dto.snapshotId);
     const payload = context.course.snapshot
       .payload as unknown as TrainingCourseSnapshotPayload;
     const chapter = payload.chapters.find(
@@ -254,6 +268,16 @@ export class TrainingTeacherService {
       throw new BadRequestException("学习会话类型与章节内容不一致");
     }
     const session = await this.prisma.$transaction(async (tx) => {
+      await lockCurrentTrainingCourse(tx, {
+        teacherId,
+        courseId: context.course.id,
+        attemptNumber: context.attempt.attemptNumber,
+        snapshotId: context.course.snapshotId,
+        allowed: [
+          TrainingCourseStatus.available,
+          TrainingCourseStatus.in_progress,
+        ],
+      });
       const existing = await tx.trainingStudySession.findUnique({
         where: { clientSessionId: dto.clientSessionId },
       });
@@ -296,7 +320,10 @@ export class TrainingTeacherService {
       if (context.attempt.status === TrainingAttemptStatus.available) {
         await tx.trainingCourseAttempt.update({
           where: { id: context.attempt.id },
-          data: { status: TrainingAttemptStatus.in_progress, startedAt: new Date() },
+          data: {
+            status: TrainingAttemptStatus.in_progress,
+            startedAt: new Date(),
+          },
         });
       }
       return created;
@@ -356,13 +383,34 @@ export class TrainingTeacherService {
     }
     const now = new Date();
     const effective = dto.visible && dto.active;
-    const creditedSeconds = calculateHeartbeatSeconds(
+    let creditedSeconds = calculateHeartbeatSeconds(
       session.lastHeartbeatAt,
       now,
       effective,
       idleSeconds(),
     );
     const result = await this.prisma.$transaction(async (tx) => {
+      await lockCurrentTrainingCourse(tx, {
+        teacherId,
+        courseId: course.id,
+        attemptNumber: session.courseAttempt.attemptNumber,
+        snapshotId: course.snapshotId,
+        allowed: [
+          TrainingCourseStatus.available,
+          TrainingCourseStatus.in_progress,
+        ],
+      });
+      const currentSession = await tx.trainingStudySession.findUniqueOrThrow({
+        where: { id: session.id },
+      });
+      if (!currentSession.isActive)
+        throw new ConflictException("学习会话已结束，请重新进入课程");
+      creditedSeconds = calculateHeartbeatSeconds(
+        currentSession.lastHeartbeatAt,
+        now,
+        effective,
+        idleSeconds(),
+      );
       const updatedSession = await tx.trainingStudySession.update({
         where: { id: session.id },
         data: {
@@ -445,9 +493,14 @@ export class TrainingTeacherService {
     teacherId: string,
     assignmentCourseId: string,
     chapterKey: string,
+    snapshotId?: string,
   ) {
-    const context = await this.requireTeacherCourse(teacherId, assignmentCourseId);
+    const context = await this.requireTeacherCourse(
+      teacherId,
+      assignmentCourseId,
+    );
     await this.assertLearnable(context);
+    assertSnapshotVersion(context.course.snapshot, snapshotId);
     const payload = context.course.snapshot
       .payload as unknown as TrainingCourseSnapshotPayload;
     const chapter = payload.chapters.find((item) => item.key === chapterKey);
@@ -469,6 +522,16 @@ export class TrainingTeacherService {
       );
     }
     const updated = await this.prisma.$transaction(async (tx) => {
+      await lockCurrentTrainingCourse(tx, {
+        teacherId,
+        courseId: context.course.id,
+        attemptNumber: context.attempt.attemptNumber,
+        snapshotId: context.course.snapshotId,
+        allowed: [
+          TrainingCourseStatus.available,
+          TrainingCourseStatus.in_progress,
+        ],
+      });
       const item = await tx.trainingChapterProgress.upsert({
         where: {
           courseAttemptId_chapterKey: {
@@ -483,7 +546,10 @@ export class TrainingTeacherService {
           completedAt: new Date(),
         },
       });
-      await this.lifecycle.recomputeAttemptInTransaction(tx, context.attempt.id);
+      await this.lifecycle.recomputeAttemptInTransaction(
+        tx,
+        context.attempt.id,
+      );
       return item;
     });
     return { data: updated };
@@ -494,8 +560,12 @@ export class TrainingTeacherService {
     assignmentCourseId: string,
     dto: SubmitQuizDto,
   ) {
-    const context = await this.requireTeacherCourse(teacherId, assignmentCourseId);
+    const context = await this.requireTeacherCourse(
+      teacherId,
+      assignmentCourseId,
+    );
     await this.assertLearnable(context);
+    assertSnapshotVersion(context.course.snapshot, dto.snapshotId);
     const payload = context.course.snapshot
       .payload as unknown as TrainingCourseSnapshotPayload;
     if (!payload.quiz) throw new NotFoundException("该课程没有配置测验");
@@ -505,13 +575,11 @@ export class TrainingTeacherService {
         .map((item) => item.chapterKey),
     );
     if (
-      payload.chapters.some(
-        (chapter) => !completedChapterKeys.has(chapter.key),
-      )
+      payload.chapters.some((chapter) => !completedChapterKeys.has(chapter.key))
     ) {
       throw new ConflictException("完成全部课程章节后才能进入课后测验");
     }
-    const previousCount = await this.prisma.trainingQuizAttempt.count({
+    let previousCount = await this.prisma.trainingQuizAttempt.count({
       where: { courseAttemptId: context.attempt.id },
     });
     if (
@@ -542,6 +610,24 @@ export class TrainingTeacherService {
       payload.quiz.passScore,
     );
     const attempt = await this.prisma.$transaction(async (tx) => {
+      await lockCurrentTrainingCourse(tx, {
+        teacherId,
+        courseId: context.course.id,
+        attemptNumber: context.attempt.attemptNumber,
+        snapshotId: context.course.snapshotId,
+        allowed: [
+          TrainingCourseStatus.available,
+          TrainingCourseStatus.in_progress,
+        ],
+      });
+      previousCount = await tx.trainingQuizAttempt.count({
+        where: { courseAttemptId: context.attempt.id },
+      });
+      if (
+        payload.quiz!.maxAttempts !== null &&
+        previousCount >= payload.quiz!.maxAttempts
+      )
+        throw new ConflictException("本次课程的测验作答次数已用完");
       const record = await tx.trainingQuizAttempt.create({
         data: {
           courseAttemptId: context.attempt.id,
@@ -551,7 +637,10 @@ export class TrainingTeacherService {
           passed: grade.passed,
         },
       });
-      await this.lifecycle.recomputeAttemptInTransaction(tx, context.attempt.id);
+      await this.lifecycle.recomputeAttemptInTransaction(
+        tx,
+        context.attempt.id,
+      );
       return record;
     });
     return {
@@ -689,7 +778,9 @@ export class TrainingTeacherService {
   }
 
   private assignmentSummary(
-    assignment: Awaited<ReturnType<TrainingTeacherService["currentAssignment"]>> & {},
+    assignment: Awaited<
+      ReturnType<TrainingTeacherService["currentAssignment"]>
+    > & {},
   ) {
     const courses = assignment.courses;
     const completedStatuses: TrainingCourseStatus[] = [
@@ -745,7 +836,11 @@ export class TrainingTeacherService {
         videoPositionSeconds: number;
         watchedPercent: number;
       }>;
-      quizAttempts: Array<{ score: number; passed: boolean; submittedAt: Date }>;
+      quizAttempts: Array<{
+        score: number;
+        passed: boolean;
+        submittedAt: Date;
+      }>;
       practicalChecks: Array<{
         conclusion: string;
         checklistResults: Prisma.JsonValue;
@@ -841,15 +936,20 @@ function publicSnapshot(payload: TrainingCourseSnapshotPayload) {
           passScore: payload.quiz.passScore,
           maxAttempts: payload.quiz.maxAttempts,
           questions: payload.quiz.questions.map(
-            ({ correctAnswers: _correctAnswers, explanation: _explanation, ...question }) =>
-              question,
+            ({
+              correctAnswers: _correctAnswers,
+              explanation: _explanation,
+              ...question
+            }) => question,
           ),
         }
       : null,
   };
 }
 
-function jsonRanges(value: Prisma.JsonValue | null | undefined): WatchedRange[] {
+function jsonRanges(
+  value: Prisma.JsonValue | null | undefined,
+): WatchedRange[] {
   if (!Array.isArray(value)) return [];
   return value
     .filter(

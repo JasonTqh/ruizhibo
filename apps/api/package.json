@@ -15,6 +15,8 @@
     "prisma:studio": "prisma studio",
     "seed": "tsx prisma/seed.ts",
     "admin:set-password": "tsx scripts/set-admin-password.ts",
+    "teacher-web:set-password": "tsx scripts/set-teacher-web-password.ts",
+    "test:teacher-web-auth": "tsx --test src/modules/auth/auth.teacher-web.spec.ts",
     "verify:admin": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-admin-api.ps1",
     "verify:admin-auth": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-admin-auth.ps1",
     "verify:teacher": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-teacher-api.ps1",

@@ -7,65 +7,6 @@ import "./index.scss";
 
 const h = React.createElement;
 
-const quickActions = [
-  {
-    key: "daily-report",
-    icon: "报",
-    title: "今日报告",
-    description: "预览学生日报并发布寄语",
-    tone: "purple",
-    action: () => Taro.navigateTo({ url: "/pages/daily-report/index" }),
-  },
-  {
-    key: "care",
-    icon: "护",
-    title: "今日照护",
-    description: "批量记录生活状态与异常",
-    tone: "green",
-    action: () => Taro.navigateTo({ url: "/pages/care/index" }),
-  },
-  {
-    key: "pickup",
-    icon: "安",
-    title: "今日接送",
-    description: "接到、到店与离店交接",
-    tone: "yellow",
-    action: () => Taro.navigateTo({ url: "/pages/pickup/index" }),
-  },
-  {
-    key: "workflow",
-    icon: "✓",
-    title: "流程打卡",
-    description: "完成今日照护流程",
-    tone: "green",
-    action: () => Taro.switchTab({ url: "/pages/workflow/index" }),
-  },
-  {
-    key: "teaching",
-    icon: "✎",
-    title: "教学与作业",
-    description: "发布作业并完成批改",
-    tone: "blue",
-    action: () => Taro.switchTab({ url: "/pages/teaching/index" }),
-  },
-  {
-    key: "notice",
-    icon: "⌁",
-    title: "通知任务",
-    description: "发布内容并查看回执",
-    tone: "coral",
-    action: () => Taro.navigateTo({ url: "/pages/notices/index" }),
-  },
-  {
-    key: "message",
-    icon: "◌",
-    title: "家校沟通",
-    description: "查看并回复家长消息",
-    tone: "purple",
-    action: () => Taro.navigateTo({ url: "/pages/messages/index" }),
-  },
-];
-
 export default function HomePage() {
   const [dashboard, setDashboard] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -82,14 +23,19 @@ export default function HomePage() {
     setLoading(true);
     setError("");
     try {
-      const [nextDashboard, nextProfile, nextConversations, nextPickup, nextTraining] =
-        await Promise.all([
-          teacherRequest("/teacher/dashboard"),
-          teacherRequest("/me"),
-          teacherRequest("/teacher/conversations"),
-          teacherRequest("/teacher/pickup/today"),
-          teacherRequest("/teacher/training/home"),
-        ]);
+      const [
+        nextDashboard,
+        nextProfile,
+        nextConversations,
+        nextPickup,
+        nextTraining,
+      ] = await Promise.all([
+        teacherRequest("/teacher/dashboard"),
+        teacherRequest("/me"),
+        teacherRequest("/teacher/conversations"),
+        teacherRequest("/teacher/pickup/today"),
+        teacherRequest("/teacher/training/home"),
+      ]);
       setDashboard(nextDashboard);
       setProfile(nextProfile);
       setConversations(nextConversations);
@@ -169,9 +115,10 @@ export default function HomePage() {
       h(
         View,
         { className: "greeting-stats" },
-        metric("班级", dashboard?.classCount || 0),
-        metric("学生", dashboard?.studentCount || 0),
-        metric("待批作业", dashboard?.homeworkPending || 0),
+        metric("班级", dashboard?.classCount || 0, () => openRoster()),
+        metric("学生", dashboard?.studentCount || 0, () =>
+          openRoster("", "students"),
+        ),
       ),
     ),
     training?.enabled
@@ -181,11 +128,7 @@ export default function HomePage() {
             className: "academy-card",
             onClick: () => Taro.navigateTo({ url: "/pages/training/index" }),
           },
-          h(
-            View,
-            { className: "academy-card__icon" },
-            h(Text, null, "学"),
-          ),
+          h(View, { className: "academy-card__icon" }, h(Text, null, "学")),
           h(
             View,
             { className: "academy-card__main" },
@@ -214,23 +157,44 @@ export default function HomePage() {
             : h(Text, { className: "academy-card__arrow" }, "›"),
         )
       : null,
-    sectionHeading("快捷工作", "高频事项一步直达"),
+    sectionHeading("我的班级", `${dashboard?.classCount || 0} 个负责班级`),
     h(
       View,
-      { className: "quick-grid" },
-      ...quickActions.map((item) =>
-        h(
-          View,
-          {
-            className: `quick-card quick-card--${item.tone}`,
-            key: item.key,
-            onClick: item.action,
-          },
-          h(Text, { className: "quick-card__icon" }, item.icon),
-          h(Text, { className: "quick-card__title" }, item.title),
-          h(Text, { className: "quick-card__description" }, item.description),
-        ),
-      ),
+      { className: "class-list" },
+      dashboard?.classes?.length
+        ? dashboard.classes.map((item, index) =>
+            h(
+              View,
+              {
+                className: "class-card",
+                key: item.id,
+                onClick: () => openRoster(item.id),
+              },
+              h(
+                View,
+                {
+                  className: `class-card__avatar class-card__avatar--${index % 3}`,
+                },
+                h(Text, null, item.name.slice(0, 1)),
+              ),
+              h(
+                View,
+                { className: "class-card__main" },
+                h(Text, { className: "class-card__name" }, item.name),
+                h(
+                  Text,
+                  { className: "class-card__meta" },
+                  `${item._count?.students || 0} 名学生`,
+                ),
+              ),
+              h(Text, { className: "class-card__status" }, "查看学生 ›"),
+            ),
+          )
+        : h(
+            Text,
+            { className: "home-empty" },
+            loading ? "正在加载班级…" : "暂无负责班级",
+          ),
     ),
     sectionHeading("今日待办", "根据实时数据自动更新"),
     h(
@@ -262,15 +226,6 @@ export default function HomePage() {
         () => Taro.switchTab({ url: "/pages/workflow/index" }),
       ),
       taskRow(
-        "作业批改",
-        dashboard?.homeworkPending
-          ? `${dashboard.homeworkPending} 份作业等待批改`
-          : "当前没有待批作业",
-        dashboard?.homeworkPending ? "去批改" : "已清空",
-        dashboard?.homeworkPending ? "danger" : "success",
-        () => Taro.switchTab({ url: "/pages/teaching/index" }),
-      ),
-      taskRow(
         "家长消息",
         unreadCount ? `${unreadCount} 条未读消息需要回复` : "家长消息均已查看",
         unreadCount ? "去回复" : "无未读",
@@ -278,50 +233,21 @@ export default function HomePage() {
         () => Taro.navigateTo({ url: "/pages/messages/index" }),
       ),
     ),
-    sectionHeading("我的班级", `${dashboard?.classCount || 0} 个负责班级`),
-    h(
-      View,
-      { className: "class-list" },
-      dashboard?.classes?.length
-        ? dashboard.classes.map((item, index) =>
-            h(
-              View,
-              { className: "class-card", key: item.id },
-              h(
-                View,
-                {
-                  className: `class-card__avatar class-card__avatar--${index % 3}`,
-                },
-                h(Text, null, item.name.slice(0, 1)),
-              ),
-              h(
-                View,
-                { className: "class-card__main" },
-                h(Text, { className: "class-card__name" }, item.name),
-                h(
-                  Text,
-                  { className: "class-card__meta" },
-                  `${item._count?.students || 0} 名学生`,
-                ),
-              ),
-              h(Text, { className: "class-card__status" }, "负责班级"),
-            ),
-          )
-        : h(
-            Text,
-            { className: "home-empty" },
-            loading ? "正在加载班级…" : "暂无负责班级",
-          ),
-    ),
   );
 }
 
-function metric(label, value) {
+function openRoster(classId = "", mode = "classes") {
+  Taro.navigateTo({
+    url: `/pages/roster/index?classId=${encodeURIComponent(classId)}&mode=${mode}`,
+  });
+}
+
+function metric(label, value, onClick) {
   return h(
     View,
-    { className: "greeting-stat" },
+    { className: "greeting-stat", onClick },
     h(Text, { className: "greeting-stat__value" }, value),
-    h(Text, { className: "greeting-stat__label" }, label),
+    h(Text, { className: "greeting-stat__label" }, `${label} ›`),
   );
 }
 

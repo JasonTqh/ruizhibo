@@ -21,6 +21,13 @@ export class JwtService {
     return this.signPayload(payload, 8 * 60 * 60);
   }
 
+  signTeacherWeb(payload: Omit<JwtPayload, "iat" | "exp">): string {
+    if (payload.role !== UserRole.teacher) {
+      throw new UnauthorizedException("Invalid teacher web token role");
+    }
+    return this.signPayload(payload, 12 * 60 * 60);
+  }
+
   signWechatBinding(
     payload: Omit<WechatBindingPayload, "iat" | "exp" | "type">,
   ): string {

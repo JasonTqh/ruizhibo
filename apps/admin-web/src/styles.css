@@ -94,3 +94,26 @@ body {
 .admin-stack {
   width: 100%;
 }
+
+/* Keep labels above fields so long labels cannot squeeze the control. */
+.module-query { margin-bottom: 16px; row-gap: 12px; align-items: flex-end; }
+.module-query .ant-form-item { margin-bottom: 8px; }
+.module-query .ant-form-item:has(.ant-form-item-label > label) { flex: 0 1 240px; min-width: 220px; }
+.module-query .ant-form-item:has(.ant-form-item-label > label) .ant-form-item-row { flex-direction: column; }
+.module-query .ant-form-item-label { padding-bottom: 6px; text-align: start; }
+.module-query .ant-form-item-control { min-width: 0; }
+.module-query .ant-form-item-control-input-content > .ant-input,
+.module-query .ant-form-item-control-input-content > .ant-input-affix-wrapper,
+.module-query .ant-form-item-control-input-content > .ant-select,
+.module-query .ant-form-item-control-input-content > .ant-picker,
+.module-query .ant-form-item-control-input-content > .ant-input-number {
+  width: 100% !important; /* Replace legacy per-page inline widths (110–170px). */
+  min-width: 0;
+}
+@media (max-width: 640px) {
+  .admin-content { padding: 16px; }
+  .module-query .ant-form-item,
+  .module-query .ant-form-item:has(.ant-form-item-label > label) {
+    flex-basis: 100%; min-width: 0; width: 100%; margin-inline-end: 0;
+  }
+}

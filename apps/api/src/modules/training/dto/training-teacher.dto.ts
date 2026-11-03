@@ -20,6 +20,8 @@ import {
 } from "class-validator";
 
 export class StartStudySessionDto {
+  @IsOptional() @IsString() snapshotId?: string;
+
   @IsString()
   @MinLength(8)
   @MaxLength(100)
@@ -81,6 +83,8 @@ export class StudyHeartbeatDto {
 }
 
 export class CompleteChapterDto {
+  @IsOptional() @IsString() snapshotId?: string;
+
   @IsString()
   @MinLength(1)
   chapterKey!: string;
@@ -99,6 +103,8 @@ export class QuizAnswerDto {
 }
 
 export class SubmitQuizDto {
+  @IsOptional() @IsString() snapshotId?: string;
+
   @IsArray()
   @ArrayMinSize(1)
   @ArrayMaxSize(100)

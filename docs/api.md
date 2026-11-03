@@ -1269,3 +1269,24 @@ Authorization: Bearer <admin-token>
 - 教学记录、成长反馈、作业创建、家长提交和教师批改
 - 教师发布通知/任务
 - 家长确认通知/任务
+
+### 校区主管只读教学查询
+
+- 管理端创建/编辑教师新增 `managedCampusIds: string[]`（最多100个、不重复）；仅具有 `supervisor` 岗位的教师可配置管理校区。教师列表返回 `managedCampuses: [{id,name}]`。撤销主管岗位时自动清空管理校区。未配置不自动按任教班级或培训权限扩大范围。
+- `GET /api/teacher/supervision/context`：返回 `isSupervisor`、管理校区、校区班级、可查询教师（含有历史公开记录的离职教师）。普通教师返回 `isSupervisor=false`；在职、启用主管才有管理视图。
+- `GET /api/teacher/supervision/lesson-plans`、`teaching-records`：只读分页查询。可按 `teacherId`、`classId`、`from`、`to` 搜索；可选 `campusId` 只能来自管理校区。`page>=1`、`pageSize=1..100`，默认20。日期仅含年月日时按北京时间完整自然日处理。
+- `GET /api/teacher/supervision/lesson-plans/:id`、`teaching-records/:id`：详情重新核验岗位、管理校区和记录公开状态；跨校区或私密记录返回404，非主管返回403。
+- 备课仅展示当前已发布，或有 `publishedAt` 证据的归档记录；当前草稿始终不进入主管列表或详情。首次发布由教师创建、编辑、状态变更和后台状态变更四条写入路径维护。迁移仅回填当前已发布及有明确发布审计的历史教案；无法确认曾发布的归档仍仅本人可见。
+- 教学记录保存即生效；已发布备课若有同教师同班级且带 `lesson-plan:<id>` 标签的教学记录，返回 `teachingCompleted=true`，否则显示待补齐。个人接口及写权限保持本人所有权约束；主管接口不提供修改、删除或代补齐。
+
+### 培训课程可选覆盖在用版本
+
+`PATCH /api/admin/training/courses/:id` 新增可选 `overwriteExisting`（默认false）、`expectedUpdatedAt`、`previewToken`。课程模板维护及覆盖均要求 GLOBAL `training_manage` 权限。
+
+- 默认只更新课程模板，现用任务和历史课程快照完全不变。
+- `POST /api/admin/training/courses/:id/update-preview` 接受同一份课程修改数据，返回影响预览与确认令牌。预览不保存课程。选择覆盖时，PATCH必须携带同一修改内容的预览令牌；课程版本、目标范围或任务状态变化需重新预览。
+- 覆盖范围为 pending/in_progress/awaiting_safety 且未冻结任务中的未完成、未免修课程；completed/terminated/frozen任务及completed/exempted课程不覆盖。
+- 保留累计有效学习秒数，通过完整内容比较映射未变章节、测验和实操结果；不能可靠确认相同的部分要求重做。课程更新创建新快照和新学习尝试，旧尝试保留原快照，旧会话关闭，审计保留操作人、时间、原因、前后版本及继承规则。截止日期、带教负责人、校区保持不变。
+- `TrainingCourseAttempt.snapshotId` 记录该次学习尝试对应版本，后台历史展示按尝试自己的快照解释章节和考核。
+- 课程详情新增 `course.snapshotId`。学习开始、章节完成、测验提交、实操提交和安全确认请求支持 `snapshotId`；更新后的版本强制核对该字段，旧页面需重新进入。写入在教师级事务锁内重新核验当前尝试、快照和任务状态，防止覆盖与学习/确认并发串写。
+- 课程更新通知提示重新进入课程。安全课程更新若从待确认回退学习，原待确认资格失效并保留历史，再按新版本重新核验。

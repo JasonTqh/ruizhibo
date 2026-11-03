@@ -1,0 +1,94 @@
+.roster {
+  min-height: 100vh;
+  padding: 24px;
+  box-sizing: border-box;
+  background: #f5f0eb;
+}
+.roster-title {
+  display: block;
+  font-size: 34px;
+  font-weight: 800;
+}
+.roster-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 24px 0;
+}
+.filter {
+  padding: 12px 18px;
+  border-radius: 24px;
+  background: #fff;
+  font-size: 22px;
+}
+.filter.active {
+  color: #fff;
+  background: #2f8064;
+}
+.roster-search {
+  padding: 18px;
+  border-radius: 12px;
+  background: #fff;
+  font-size: 28px;
+  line-height: 1.5;
+}
+.roster-summary {
+  display: block;
+  margin: 20px 0;
+  color: #78847f;
+  font-size: 22px;
+}
+.roster-class {
+  margin-bottom: 20px;
+  padding: 24px;
+  border-radius: 18px;
+  background: #fff;
+}
+.roster-class-title {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 28px;
+  font-weight: 700;
+}
+.roster-meta {
+  color: #78847f;
+  font-size: 21px;
+}
+.roster-student {
+  margin-top: 20px;
+  border-top: 1px solid #eeeae4;
+}
+.roster-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 0 4px;
+}
+.roster-name {
+  font-size: 25px;
+  font-weight: 600;
+}
+.roster-details {
+  margin-top: 18px;
+  padding: 20px;
+  border-radius: 12px;
+  background: #f0f6f3;
+}
+.roster-details text {
+  display: block;
+  margin: 8px 0;
+  font-size: 22px;
+}
+.roster-empty {
+  display: block;
+  padding: 30px 0;
+  color: #78847f;
+  text-align: center;
+  font-size: 23px;
+}
+.roster-retry {
+  display: block;
+  margin-top: 18px;
+  color: #2f8064;
+}

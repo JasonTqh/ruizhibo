@@ -1,0 +1,21 @@
+FROM node:22-alpine AS build
+
+WORKDIR /workspace
+RUN corepack enable \
+  && corepack prepare pnpm@9.15.0 --activate
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
+COPY apps/teacher-web/package.json apps/teacher-web/package.json
+RUN pnpm install --frozen-lockfile --filter @ruizhibo/teacher-web...
+
+COPY apps/teacher-web apps/teacher-web
+
+ARG VITE_API_BASE_URL=/api
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+RUN pnpm --filter @ruizhibo/teacher-web build
+
+FROM caddy:2.10-alpine
+COPY deploy/Caddyfile.teacher-web /etc/caddy/Caddyfile
+COPY --from=build /workspace/apps/teacher-web/dist /srv
+
+EXPOSE 80

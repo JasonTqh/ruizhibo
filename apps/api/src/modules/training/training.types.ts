@@ -53,6 +53,7 @@ export interface TrainingSnapshotPracticalItem {
 
 export interface TrainingCourseSnapshotPayload {
   schemaVersion: 1;
+  revision?: string;
   course: {
     id: string;
     code: string;

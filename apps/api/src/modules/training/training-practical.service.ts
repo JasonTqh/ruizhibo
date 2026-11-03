@@ -1,4 +1,8 @@
 import {
+  assertSnapshotVersion,
+  lockCurrentTrainingCourse,
+} from "./training-version";
+import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
@@ -34,20 +38,14 @@ export class TrainingPracticalService {
       TrainingPermission.practical_confirm,
     );
     const hasGlobal = practicalScope === null;
-    const campusIds = hasGlobal
-      ? null
-      : [...new Set(practicalScope ?? [])];
+    const campusIds = hasGlobal ? null : [...new Set(practicalScope ?? [])];
     const items = await this.prisma.trainingAssignmentCourse.findMany({
       where: {
         status: TrainingCourseStatus.awaiting_practical,
-        assignment: {
+        assignment: campusIds === null ? {} : {
           OR: [
             { mentorId: actorId },
-            ...(campusIds === null
-              ? [{}]
-              : campusIds.length
-                ? [{ campusId: { in: campusIds } }]
-                : []),
+            ...(campusIds.length ? [{ campusId: { in: campusIds } }] : []),
           ],
         },
       },
@@ -79,7 +77,11 @@ export class TrainingPracticalService {
     return { data: items };
   }
 
-  async submit(actorId: string, assignmentCourseId: string, dto: SubmitPracticalDto) {
+  async submit(
+    actorId: string,
+    assignmentCourseId: string,
+    dto: SubmitPracticalDto,
+  ) {
     const course = await this.prisma.trainingAssignmentCourse.findUnique({
       where: { id: assignmentCourseId },
       include: {
@@ -99,10 +101,19 @@ export class TrainingPracticalService {
     }
     const attempt = course.attempts[0];
     if (!attempt) throw new ConflictException("课程学习尝试不存在");
-    const payload = course.snapshot.payload as unknown as TrainingCourseSnapshotPayload;
+    const payload = course.snapshot
+      .payload as unknown as TrainingCourseSnapshotPayload;
+    assertSnapshotVersion(course.snapshot, dto.snapshotId);
     this.validateChecklist(payload, dto);
 
     const result = await this.prisma.$transaction(async (tx) => {
+      await lockCurrentTrainingCourse(tx, {
+        teacherId: course.assignment.teacherId,
+        courseId: course.id,
+        attemptNumber: attempt.attemptNumber,
+        snapshotId: course.snapshotId,
+        allowed: [TrainingCourseStatus.awaiting_practical],
+      });
       const check = await tx.trainingPracticalCheck.create({
         data: {
           courseAttemptId: attempt.id,
@@ -120,13 +131,13 @@ export class TrainingPracticalService {
           action: "practical.submit",
           targetType: "TrainingPracticalCheck",
           targetId: check.id,
-           after: {
-             assignmentCourseId,
-             attemptNumber: attempt.attemptNumber,
-             conclusion: dto.conclusion,
-             checklist: dto.checklist as unknown as Prisma.InputJsonValue,
-             comment: dto.comment.trim(),
-           } as Prisma.InputJsonValue,
+          after: {
+            assignmentCourseId,
+            attemptNumber: attempt.attemptNumber,
+            conclusion: dto.conclusion,
+            checklist: dto.checklist as unknown as Prisma.InputJsonValue,
+            comment: dto.comment.trim(),
+          } as Prisma.InputJsonValue,
           reason: dto.comment.trim(),
         },
         tx,
