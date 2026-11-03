@@ -217,7 +217,7 @@ export default function TrainingCoursePage() {
   return (
     <View className="course-page" onTouchStart={() => { lastInteractionRef.current = Date.now(); }}>
       <View className="course-header">
-        <Text className="course-header__category">{snapshot.course.category} · {courseLabels(course.status)}</Text>
+        <Text className="course-header__category">{courseCategoryLabels[snapshot.course.category] || snapshot.course.category} · {courseLabels[course.status] || course.status}</Text>
         <Text className="course-header__title">{snapshot.course.name}</Text>
         <Text className="course-header__summary">{snapshot.course.summary}</Text>
         <View className="course-time"><View><Text className="course-time__value">{formatDuration(course.attempt.accumulatedSeconds)}</Text><Text className="course-time__label">累计学习 / 最低 {snapshot.course.minimumMinutes} 分钟</Text></View><Text className="course-time__percent">{timePercent}%</Text></View>
@@ -279,5 +279,6 @@ function formatDate(value) { return value ? new Date(value).toLocaleString("zh-C
 function practicalItemName(items, itemId) { return items?.find((item)=>item.id === itemId)?.title || itemId; }
 function errorMessage(cause, fallback) { return cause instanceof Error ? cause.message : fallback; }
 const courseLabels = {available:"可学习",in_progress:"学习中",awaiting_practical:"待实操",awaiting_safety:"待安全确认",completed:"已完成",exempted:"已免修",locked:"未解锁"};
+const courseCategoryLabels = {foundation:"基础制度",business:"业务能力",safety:"安全",library:"资料库"};
 function isLearnableStatus(status) { return status === "available" || status === "in_progress"; }
 function isLearnableAssignment(status) { return status === "pending" || status === "in_progress" || status === "awaiting_safety"; }

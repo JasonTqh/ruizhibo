@@ -17,7 +17,7 @@ export default defineAppConfig({
     "pages/chat/index",
   ],
   window: {
-    navigationBarTitleText: "锐之博教师端",
+    navigationBarTitleText: "锐之博托管企业端",
     navigationBarBackgroundColor: "#ffffff",
     navigationBarTextStyle: "black",
     backgroundColor: "#f5f0eb",
