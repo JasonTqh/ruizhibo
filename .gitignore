@@ -36,3 +36,9 @@ outputs/data-import-20261022/prepared.json
 outputs/data-import-20261022/run.cjs
 outputs/data-import-20261022/correction-source.json
 outputs/data-import-20261022/correction-run.cjs
+
+# Confirmed 2026-11-04: business records stay in local backup
+outputs/
+docs/锐之博_少艺校区及学生信息登记表.xlsx
+docs/锐之博_明皇校区及学生信息登记表.xlsx
+docs/锐之博_琥珀校区及学生信息登记表.xlsx
