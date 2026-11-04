@@ -72,7 +72,7 @@ export default function HomePage() {
       h(
         View,
         null,
-        h(Text, { className: "home-brand" }, "锐之博 · 教师端"),
+        h(Text, { className: "home-brand" }, "锐之博托管企业端"),
         h(Text, { className: "home-page-title" }, "工作台"),
       ),
       h(

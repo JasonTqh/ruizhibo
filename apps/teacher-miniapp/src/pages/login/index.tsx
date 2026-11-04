@@ -37,7 +37,7 @@ export default function TeacherLoginPage() {
   async function bindPhone(event) {
     const phoneCode = event.detail?.code;
     if (!phoneCode) {
-      setError("需要授权微信绑定手机号后才能进入教师端");
+      setError("需要授权微信绑定手机号后才能进入锐之博托管企业端");
       return;
     }
     setLoading(true);
@@ -69,7 +69,7 @@ export default function TeacherLoginPage() {
       View,
       { className: "auth-card" },
       h(Text, { className: "auth-mark" }, "RZB"),
-      h(Text, { className: "auth-title" }, "锐之博教师端"),
+      h(Text, { className: "auth-title" }, "锐之博托管企业端"),
       h(
         Text,
         { className: "auth-description" },

@@ -258,6 +258,7 @@ pnpm verify:release -- `
 ## 给后续 Agent 的注意事项
 
 - 用户主要以中文沟通，最终说明优先使用中文。
+- 下次开始本项目开发时，先主动提醒用户尚未修复的 `ADMIN-TEACHER-CREATE-001`（后台新增教师失败无提示），详情见 `docs/development-roadmap.md` 的“已知问题与下次开发提醒”。用户本次只要求记录；提醒不等于授权修复、部署或修改生产数据。
 - 如果用户说“继续”，先检查最新 `git status`、现有计划和最近验证结果，再决定下一步。
 - 如果涉及微信小程序联调，优先确认 API 是否启动、数据库是否已 seed、微信开发者工具是否允许本地请求。
 - 如果涉及体验版或生产联调，优先确认 `ENABLE_DEV_LOGIN=false`、`TARO_APP_AUTH_MODE=wechat`、微信合法域名和 AppSecret。

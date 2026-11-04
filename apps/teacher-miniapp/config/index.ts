@@ -4,10 +4,17 @@ const taroSharedPath = resolve(
   __dirname,
   "../../../node_modules/.pnpm/@tarojs+shared@4.2.0/node_modules/@tarojs/shared",
 );
-const defaultApiBaseUrl = "http://localhost:3000/api";
-const apiBaseUrl =
-  process.env.TARO_APP_API_BASE_URL?.trim() || defaultApiBaseUrl;
-const authMode = process.env.TARO_APP_AUTH_MODE?.trim() || "dev";
+const productionApiBaseUrl = "https://api.ruizhibo.com/api";
+const developmentApiBaseUrl = "http://localhost:3000/api";
+const isDevelopmentBuild =
+  process.env.NODE_ENV === "development" || process.argv.includes("--watch");
+const isProductionBuild = !isDevelopmentBuild;
+const apiBaseUrl = isProductionBuild
+  ? productionApiBaseUrl
+  : process.env.TARO_APP_API_BASE_URL?.trim() || developmentApiBaseUrl;
+const authMode = isProductionBuild
+  ? "wechat"
+  : process.env.TARO_APP_AUTH_MODE?.trim() || "dev";
 
 export default {
   projectName: "teacher-miniapp",
@@ -31,8 +38,8 @@ export default {
     "@tarojs/shared": taroSharedPath,
   },
   env: {
-    TARO_APP_API_BASE_URL: JSON.stringify(apiBaseUrl),
-    TARO_APP_AUTH_MODE: JSON.stringify(authMode),
+    RUIZHIBO_API_BASE_URL: JSON.stringify(apiBaseUrl),
+    RUIZHIBO_AUTH_MODE: JSON.stringify(authMode),
   },
   mini: {},
   h5: {},

@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Button, Input, Switch, Text, Textarea, View } from "@tarojs/components";
 import Taro, { useDidShow, usePullDownRefresh } from "@tarojs/taro";
 import { teacherRequest } from "../../api";
@@ -88,6 +88,9 @@ export default function TrainingPage() {
     }
   }
 
+  useEffect(() => {
+    void load();
+  }, []);
   useDidShow(() => void load());
   usePullDownRefresh(() => void load());
 

@@ -345,7 +345,7 @@ export default function TrainingCoursePage() {
       ) : null}
       <View className="course-header">
         <Text className="course-header__category">
-          {snapshot.course.category} ·{" "}
+          {courseCategoryLabels[snapshot.course.category] || snapshot.course.category} ·{" "}
           {courseLabels[course.status] || course.status}
         </Text>
         <Text className="course-header__title">{snapshot.course.name}</Text>
@@ -635,6 +635,12 @@ const courseLabels = {
   completed: "已完成",
   exempted: "已免修",
   locked: "未解锁",
+};
+const courseCategoryLabels = {
+  foundation: "基础制度",
+  business: "业务能力",
+  safety: "安全",
+  library: "资料库",
 };
 function isLearnableStatus(status) {
   return status === "available" || status === "in_progress";

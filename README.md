@@ -51,6 +51,7 @@
 - `docs/environment.md`：管理后台、小程序 API 地址和认证模式的环境配置。
 - `docs/deployment-checklist.md`：测试环境/生产环境部署检查清单。
 - `docs/test-environment-deployment.md`：Docker 测试环境、HTTPS 入口、微信合法域名和发布验收步骤。
+- `docs/server-access.md`：已验证的远程服务器 SSH 地址、身份文件约定和安全操作边界。
 - `docs/file-storage.md`：local/S3 文件存储配置、校验和小程序域名要求。
 - `docs/backup-and-restore.md`：Docker 数据库与 local 上传文件的备份、校验和恢复流程。
 - `docs/observability.md`：API 结构化日志、请求 ID、Docker 日志轮转和故障定位。
