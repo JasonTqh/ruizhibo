@@ -145,3 +145,17 @@ body {
 .course-workspace-form { padding: 24px; }
 .course-workspace-form .ant-input-number { max-width: 100%; }
 @media(max-width: 760px) { .course-workspace { height: auto; min-height: 70vh; } .course-workspace-header { flex-wrap: wrap; gap: 12px; } }
+
+/* Give the editor most of the available console space. */
+.course-workspace { height: calc(100dvh - 170px); min-height: 620px; }
+.course-workspace-header { padding: 12px 20px; flex: 0 0 auto; }
+.course-workspace-header h3 { margin: 2px 0 0 !important; font-size: 20px; }
+.course-workspace-body > .course-editor-nav { flex: 0 0 160px; padding: 12px 8px; }
+.course-workspace-body .course-editor-nav .ant-tabs-tab { padding: 10px 8px; margin-top: 4px; }
+.course-workspace-body .course-editor-nav > .ant-typography { display: none; }
+.course-workspace-body .course-editor-nav > .ant-space { display: none; }
+.course-workspace-form { padding: 18px 20px; }
+.course-workspace-form > div { max-width: none; }
+.course-workspace-footer { padding: 10px 20px; flex: 0 0 auto; }
+.course-workspace-body { min-height: 0; }
+@media(max-width: 760px) { .course-workspace { height: auto; min-height: 75dvh; } .course-workspace-body > .course-editor-nav { flex-basis: auto; } }

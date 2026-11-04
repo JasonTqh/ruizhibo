@@ -28,3 +28,11 @@ temp/
 
 # Session memory
 .workbuddy/
+
+# Local dependency store and historical database extracts
+.pnpm-store/
+outputs/test-fixture-20261022/
+outputs/data-import-20261022/prepared.json
+outputs/data-import-20261022/run.cjs
+outputs/data-import-20261022/correction-source.json
+outputs/data-import-20261022/correction-run.cjs

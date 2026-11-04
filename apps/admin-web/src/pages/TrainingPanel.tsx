@@ -1811,7 +1811,6 @@ function CourseModal({
         </div>
       </Form>
       </div><footer className="course-workspace-footer"><Typography.Text type="secondary">修改仅在保存后生效</Typography.Text><Space><Button disabled={saving} onClick={onCancel}>取消</Button><Button type="primary" loading={saving} onClick={() => form.submit()}>保存修改</Button></Space></footer>
-      <div className="course-editor-pagination" hidden><Button disabled={editorSection === "basic" || saving} onClick={() => setEditorSection(sections[sections.findIndex(s => s.key === editorSection) - 1].key)}>上一步</Button><Button disabled={editorSection === "publish" || saving} onClick={() => setEditorSection(sections[sections.findIndex(s => s.key === editorSection) + 1].key)}>下一步</Button></div>
     </section>
   );
 }
