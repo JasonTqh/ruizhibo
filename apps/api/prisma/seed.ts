@@ -31,7 +31,7 @@ async function main() {
   });
 
   const teacher = await prisma.user.upsert({
-    where: { phone: "13800000001" },
+    where: { role_phone: { role: UserRole.teacher, phone: "13800000001" } },
     update: {
       role: UserRole.teacher,
       name: "李老师",
@@ -44,7 +44,7 @@ async function main() {
   });
 
   const parent = await prisma.user.upsert({
-    where: { phone: "13800000002" },
+    where: { role_phone: { role: UserRole.parent, phone: "13800000002" } },
     update: {
       role: UserRole.parent,
       name: "张小明家长",
@@ -57,7 +57,7 @@ async function main() {
   });
 
   const admin = await prisma.user.upsert({
-    where: { phone: "13800000000" },
+    where: { role_phone: { role: UserRole.admin, phone: "13800000000" } },
     update: {
       role: UserRole.admin,
       name: "系统管理员",

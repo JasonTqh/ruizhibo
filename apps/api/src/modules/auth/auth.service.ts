@@ -5,7 +5,12 @@ import {
   Injectable,
   UnauthorizedException,
 } from "@nestjs/common";
-import { TeacherEmploymentStatus, UserRole, UserStatus } from "@prisma/client";
+import {
+  Prisma,
+  TeacherEmploymentStatus,
+  UserRole,
+  UserStatus,
+} from "@prisma/client";
 import { AuditService } from "../audit/audit.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { AdminLoginThrottleService } from "./admin-login-throttle.service";
@@ -85,7 +90,7 @@ export class AuthService {
   }
 
   async teacherWebLogin(dto: TeacherWebLoginDto, ipAddress: string) {
-    this.adminLoginThrottle.assertAllowed(dto.phone, ipAddress);
+    this.adminLoginThrottle.assertAllowed(dto.phone, ipAddress, "teacher");
     const user = await this.prisma.user.findFirst({
       where: {
         phone: dto.phone,
@@ -111,11 +116,11 @@ export class AuthService {
       user.status !== UserStatus.active ||
       user.employmentStatus !== TeacherEmploymentStatus.employed
     ) {
-      this.adminLoginThrottle.recordFailure(dto.phone, ipAddress);
+      this.adminLoginThrottle.recordFailure(dto.phone, ipAddress, "teacher");
       throw new UnauthorizedException("手机号或密码错误");
     }
 
-    this.adminLoginThrottle.recordSuccess(dto.phone);
+    this.adminLoginThrottle.recordSuccess(dto.phone, "teacher");
     const profile: AuthUser = {
       id: user.id,
       role: user.role,
@@ -178,7 +183,7 @@ export class AuthService {
     this.assertMiniappRole(dto.role);
     const openid = await this.fetchWechatOpenid(dto.code, dto.role);
     const user = await this.prisma.user.findUnique({
-      where: { wechatOpenid: openid },
+      where: { role_wechatOpenid: { role: dto.role, wechatOpenid: openid } },
       select: {
         id: true,
         role: true,
@@ -259,26 +264,41 @@ export class AuthService {
     }
 
     const openidOwner = await this.prisma.user.findUnique({
-      where: { wechatOpenid: binding.openid },
+      where: {
+        role_wechatOpenid: { role: dto.role, wechatOpenid: binding.openid },
+      },
       select: { id: true },
     });
     if (openidOwner && openidOwner.id !== user.id) {
       throw new ConflictException("当前微信账号已绑定其他用户");
     }
 
-    const updated = await this.prisma.user.update({
-      where: { id: user.id },
-      data: {
-        wechatOpenid: binding.openid,
-      },
-      select: {
-        id: true,
-        role: true,
-        name: true,
-        phone: true,
-        status: true,
-      },
-    });
+    // Compare-and-set prevents concurrent binding attempts from replacing
+    // another WeChat identity or reviving an account disabled during login.
+    try {
+      const result = await this.prisma.user.updateMany({
+        where: {
+          id: user.id,
+          role: dto.role,
+          phone,
+          status: UserStatus.active,
+          OR: [{ wechatOpenid: null }, { wechatOpenid: binding.openid }],
+        },
+        data: { wechatOpenid: binding.openid },
+      });
+      if (result.count !== 1) {
+        throw new ConflictException("账号状态或微信绑定已变化，请重新登录");
+      }
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        throw new ConflictException("当前微信账号已绑定本端其他用户");
+      }
+      throw error;
+    }
+    const updated = user;
 
     await this.audit.log({
       userId: updated.id,

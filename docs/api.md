@@ -33,6 +33,10 @@ Docker 测试/正式环境应把 `APP_VERSION` 设置为当前 Git 提交 SHA，
 
 ## 1. 认证
 
+同一手机号允许分别注册 admin、teacher、parent 三种独立身份。管理员登录固定查询 admin，教师网页登录固定查询 teacher，小程序登录/手机号绑定按经校验的 teacher 或 parent 角色查找账号。令牌仍绑定单个 User ID 与角色，不合并多端权限。
+
+管理端创建或修改老师/家长，以及按手机号绑定学生家长时，仅检查目标角色内的手机号唯一性；同角色重复返回 HTTP 409，跨角色同号不再冲突。并发重复请求由数据库联合唯一索引兜底。手机号、微信 OpenID 不能作为跨角色账号的唯一查找键。更多规则与迁移流程见 `docs/role-scoped-accounts.md`。
+
 小程序通过 `TARO_APP_AUTH_MODE` 切换认证模式：开发联调使用 `dev`，微信真机联调和生产构建使用 `wechat`。生产环境需要配置教师端、家长端各自的 AppID/AppSecret，并关闭 `dev-login`。
 
 ```http

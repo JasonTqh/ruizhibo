@@ -42,10 +42,14 @@ export class TrainingPracticalService {
     const items = await this.prisma.trainingAssignmentCourse.findMany({
       where: {
         status: TrainingCourseStatus.awaiting_practical,
-        assignment: campusIds === null ? {} : {
+        assignment: {
           OR: [
             { mentorId: actorId },
-            ...(campusIds.length ? [{ campusId: { in: campusIds } }] : []),
+            ...(campusIds === null
+              ? [{}]
+              : campusIds.length
+                ? [{ campusId: { in: campusIds } }]
+                : []),
           ],
         },
       },
